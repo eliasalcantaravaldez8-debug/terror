@@ -104,7 +104,7 @@ export class Phone {
           + '<input id="code-in" type="text" autocomplete="off" spellcheck="false" placeholder="ex.: TODOSCARROS" style="width:100%;box-sizing:border-box;padding:8px;font-size:15px;text-transform:uppercase;border-radius:8px;border:1px solid #555;background:#111;color:#fff">'
           + '<button class="btn" data-act="code">Ativar</button>'
           + (r ? (r.msg ? `<div class="item"><b>${esc(r.msg)}</b></div>` : '') + (r.list ? r.list.map(([id, name]) => `<button class="btn" style="display:block;width:100%;margin:4px 0;text-align:left" data-act="spawn" data-arg="${id}">${esc(name)}</button>`).join('') : '') : '')
-          + '<div class="item"><small>Códigos: TODOSCARROS · TODASMOTOS · SEMFOME · VIDACHEIA · SEMPOLICIA</small></div>';
+          + '<div class="item"><small>Códigos: TODOSCARROS · TODASMOTOS · SEMFOME · MOEDAINFINITA · VIDACHEIA · SEMPOLICIA</small></div>';
         break;
       }
       case 'anotacoes': body = back + '<h4>Anotações</h4>' + list(C.notes.filter((n) => n.type === 'nota'), (n) => `<div class="item">${esc(n.text)}</div>`, 'Sem anotações.'); break;

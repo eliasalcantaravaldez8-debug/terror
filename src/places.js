@@ -14,6 +14,7 @@ export const PLACES = {
   hill: { x: 70, z: -330, r: 46, h: 11, name: 'Colina' },
   fernando: { x: -170, z: -312, w: 40, d: 34, name: 'Casa de Fernando' },
   blackwoodGate: { x: 432, z: 0 },
+  airport: { x: -340, z: -250, name: 'Aeroporto de Los Valles' }, // pista norte-sul em x = -410
   investigatorRoom: { x: 0, y: -60, z: 0 },
   studio: { x: 60, y: -80, z: 0 },
 };
@@ -27,6 +28,7 @@ export const KEEP_OUT = [
   [PLACES.hill.x - 55, PLACES.hill.z - 55, PLACES.hill.x + 55, PLACES.hill.z + 55],
   [PLACES.fernando.x - 30, -340, PLACES.fernando.x + 30, -230],
   [-8, 230, 8, 310],
+  [-448, -450, -240, -40], // aeroporto
 ];
 export function inKeepOut(x, z, pad = 0) {
   return KEEP_OUT.some(([a, b, c, d]) => x > a - pad && x < c + pad && z > b - pad && z < d + pad);

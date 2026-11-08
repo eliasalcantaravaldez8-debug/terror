@@ -149,6 +149,7 @@ export class Weapons {
     n.hp -= dmg;
     // ragdoll: o corpo é empurrado na direção do tiro, a partir do ponto atingido
     const imp = dir ? { x: dir.x * force, y: 0.3 + Math.max(0, dir.y) * force, z: dir.z * force } : null;
+    if (n.gang) { if (n.hp <= 0) n.knockDown(0, imp, at); G.provokeGang && G.provokeGang(n); G.crime(1, 'tiroteio', n); return; }
     if (n.team === 'enemy') { if (n.hp <= 0) n.knockDown(0, imp, at); else if (n.behavior === 'guard') { n.behavior = 'hostile'; G.story.addAlert(40); } return; }
     // civis e polícia caem (sem sangue); conta como crime
     n.knockDown(0, imp, at); n.collidable = false;
@@ -167,7 +168,11 @@ export class Weapons {
     const hit = Math.random() < Math.max(0.08, chance);
     const end = hit ? to : to.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, (Math.random() - 0.5), (Math.random() - 0.5) * 2));
     this.flash(from); this.tracer(from, end);
-    if (hit) { if (tgt === P) G.damagePlayer(n.gunDmg || 6, n); else if (tgt.team === 'ally') tgt.hp = Math.max(30, tgt.hp - 4); }
+    if (hit) {
+      if (tgt === P) G.damagePlayer(n.gunDmg || 6, n);
+      else if (tgt.team === 'ally') tgt.hp = Math.max(30, tgt.hp - 4);
+      else if (tgt.alive) { tgt.hp -= (n.gunDmg || 6) * 3; if (tgt.hp <= 0) tgt.knockDown(0, { x: d.x * 3, y: 0.5, z: d.z * 3 }, to); } // NPC contra NPC (gangues)
+    }
     return true;
   }
   tracer(a, b) {

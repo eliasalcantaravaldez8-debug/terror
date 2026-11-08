@@ -582,3 +582,17 @@ export function graffitiAtlas() {
     const t = toTex(c, false); return { texture: t, regions };
   });
 }
+
+// painel de partidas do aeroporto
+export function departuresTex() {
+  return cached('departures', () => {
+    const [c, g] = canvas(1024, 512);
+    g.fillStyle = '#0a0e18'; g.fillRect(0, 0, 1024, 512);
+    g.fillStyle = '#f2c21a'; g.font = 'bold 44px Arial'; g.fillText('PARTIDAS  ·  DEPARTURES', 30, 60);
+    g.fillStyle = '#5a6a8a'; g.font = 'bold 24px Arial'; ['HORA', 'VOO', 'DESTINO', 'PORTÃO', 'SITUAÇÃO'].forEach((h, i) => g.fillText(h, [30, 160, 300, 640, 780][i], 110));
+    const rows = [['08:15', 'VA 2101', 'Blackwood', '3', 'EMBARQUE'], ['09:40', 'SL 330', 'Capital', '1', 'NO HORÁRIO'], ['10:05', 'VA 2117', 'Porto Azul', '2', 'ATRASADO'], ['11:30', 'SL 412', 'Serra Alta', '4', 'NO HORÁRIO'], ['12:55', 'VA 2230', 'Litoral Sul', '3', 'CANCELADO'], ['14:20', 'SL 509', 'Capital', '1', 'NO HORÁRIO'], ['16:45', 'VA 2302', 'Vale Verde', '2', 'NO HORÁRIO']];
+    rows.forEach((r, i) => { const y = 160 + i * 48; g.fillStyle = i % 2 ? '#111828' : '#0d1220'; g.fillRect(20, y - 32, 984, 44);
+      r.forEach((t, k) => { g.fillStyle = k === 4 ? (t === 'CANCELADO' ? '#ff4a4a' : t === 'ATRASADO' ? '#ffb02a' : t === 'EMBARQUE' ? '#4aff8a' : '#e8e8e8') : '#e8e8e8'; g.font = (k === 2 ? 'bold ' : '') + '28px Arial'; g.fillText(t, [30, 160, 300, 660, 780][k], y); }); });
+    return toTex(c, false);
+  });
+}

@@ -43,6 +43,7 @@ const ENGINE_PROFILES = {
   boxer: { w1: 'square', w2: 'square', base: 26, range: 45, ratio: 0.75, gears: 3, gearSpan: 9, cut: 280, cutT: 500, vol: 1 },
   v8: { w1: 'sawtooth', w2: 'sawtooth', base: 32, range: 75, ratio: 0.5, gears: 5, gearSpan: 11, cut: 380, cutT: 1100, vol: 1.15 },
   moto: { w1: 'square', w2: 'sawtooth', base: 60, range: 160, ratio: 1.5, gears: 6, gearSpan: 13, cut: 1100, cutT: 2600, vol: 0.9 },
+  jet: { w1: 'sawtooth', w2: 'triangle', base: 70, range: 260, ratio: 3, gears: 1, gearSpan: 100, cut: 2400, cutT: 5200, vol: 0.9 },
   turbo: { w1: 'sawtooth', w2: 'sawtooth', base: 40, range: 95, ratio: 0.5, gears: 5, gearSpan: 12, cut: 600, cutT: 1500, vol: 1.15 },
   v12: { w1: 'sawtooth', w2: 'triangle', base: 55, range: 140, ratio: 2, gears: 6, gearSpan: 15, cut: 900, cutT: 2200, vol: 1.1 },
 };

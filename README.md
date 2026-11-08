@@ -35,6 +35,7 @@ Missões com marcador azul começam quando você chega nele e aperta **E**. Miss
 | Agachar (furtividade) | C |
 | Celular (mapa, mensagens, banco, VIBE...) | T |
 | Pulso Eletrônico (Ryan) | Q |
+| Avião: motor / curva / nariz para cima / para baixo | W-S / A-D / Espaço / Shift |
 | **Menu de armas** (roda) | **Tab** (mouse ou 1–5 escolhe; clique ou Tab confirma) |
 | Trocar de arma direto | 1 mãos · 2 pistola · 3 metralhadora · 4 escopeta · 5 AK-47 |
 | Mirar / atirar / recarregar | botão direito (ou V) / botão esquerdo (segure nas automáticas) / R |
@@ -161,6 +162,27 @@ Popular 1.0, Hatch Pulse, Sedan Aurora, SUV Montana, Picape Bravo, Imperial Luxo
 - **Comer e beber de verdade**: depois da compra, o personagem segura o item (hambúrguer, lata, copo de café, garrafa de água, pão ou caixa de remédio) e leva à boca por alguns segundos.
 - Tudo fica em **uma única textura** (atlas 2048×2048), por isso o desempenho continua igual: medi as mesmas chamadas de desenho e triângulos de antes.
 
+## Novidades: aeroporto, avião, prisão, eventos e Moeda Infinita
+
+- **Aeroporto de Los Valles** (oeste da cidade, siga a estrada do terminal):
+  - pista com marcações e luzes, pista de taxiamento, pátio, torre de controle, hangar, biruta e estacionamento;
+  - **terminal com interior**: balcões de check-in das companhias, painel de partidas iluminado, raio-x, cadeiras de embarque com vista para o avião, café e esteira de bagagem.
+- **Avião pilotável** (bimotor a jato com fuselagem, asas, motores, cauda, janelas, trem de pouso e luzes):
+  - chegue na escada ao lado do avião e aperte **E**: o personagem sobe a escada degrau por degrau e entra pela porta;
+  - controles: **W/S** motor, **A/D** curva (inclina as asas), **Espaço** sobe o nariz, **Shift** desce o nariz, **E** sai (parado no chão);
+  - decolagem: acelere até cerca de 150 km/h e puxe o nariz. Dá para pousar na pista ou em qualquer lugar plano. Bater ou cair rápido demais destrói o avião, e um novo aparece no aeroporto;
+  - lá de cima dá para ver toda a cidade e o mar em volta. Perto da borda do mapa o avião volta sozinho.
+- **Penitenciária com interior**: entre pela porta do Bloco A. Corredor com 16 celas gradeadas (beliche, vaso e pia), presos de uniforme laranja, guardas fazendo ronda no corredor e no pátio, mesa dos guardas com monitores, detector de metais e uma **garagem com viatura**.
+- **Eventos aleatórios** (a cada 2 a 4 minutos, fora das missões):
+  - **tiroteio entre gangues** (Vermelhos contra Azuis, com armas e socos; se você atacar, eles vêm atrás de você);
+  - **perseguição policial** (um carro fugindo com viaturas atrás);
+  - **assalto a pedestre** (derrube o assaltante e a vítima te dá R$ 100).
+- **Código MOEDAINFINITA** (app Códigos): +R$ 20.000 na hora e +R$ 50 a cada missão concluída daí em diante.
+- **Otimização**:
+  - carros do trânsito longe do jogador usam física simplificada (sem colisão detalhada);
+  - a IA do trânsito ignora os carros estacionados no meio-fio;
+  - resultado medido: o processamento por quadro caiu de cerca de 5,0 ms para 2,8–3,1 ms, mesmo com aeroporto, prisão, avião e eventos.
+
 ## Novidades: carros, motos, roubo, oficina, códigos, banco e becos
 
 - **Carros com formato de carro de verdade:** a carroceria afina na frente e na traseira, as laterais são abauladas, o capô tem curvatura e a cabine estreita para cima. Reflexos suaves, grade com moldura, faróis de neblina, para-choques arredondados, molduras nas caixas de roda, limpadores, escapamento e interior (bancos, painel com mostradores, console, volante).
@@ -240,6 +262,7 @@ npm run dev       # recompila automaticamente ao salvar
 | `src/missions_side.js` | Missões secundárias (corrida, entregas) |
 | `src/custom.js` | Oficina Los Valles Custom |
 | `src/weapons.js` | Armas e menu de armas (ícones) |
+| `src/plane.js` | Avião pilotável (modelo e física de voo) |
 | `src/ragdoll.js` | Física de corpo mole (ragdoll) |
 | `src/grass.js` | Grama 3D com vento |
 | `src/grade.js` | Correção de cor no tone mapping |

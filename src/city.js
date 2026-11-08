@@ -648,7 +648,7 @@ export class City {
       // toldo
       sf.add(box(seg - 0.6, 0.08, 1.6), pick(M.awning), x, y0 + 3.3, depth / 2 + 1.0, 0, 0.3);
       // letreiro
-      const name = names && names.length ? names.shift() : pick(['Café Noir', 'Barbearia Sombra', 'Livraria Lua', 'Ótica Visão', 'Pizzaria Napoli', 'Lavanderia', 'Joalheria Ouro', 'Banco Los Valles', 'Hotel Esperanza', 'Cinema Ritz', 'Tabacaria', 'Floricultura', 'Sapataria', 'Bar do Mário', 'Restaurante El Sol']);
+      const name = names && names.length ? names.shift() : pick(['Café Noir', 'Barbearia Sombra', 'Livraria Lua', 'Ótica Visão', 'Pizzaria Napoli', 'Lavanderia', 'Joalheria Ouro', 'Banco Popular', 'Hotel Esperanza', 'Cinema Ritz', 'Tabacaria', 'Floricultura', 'Sapataria', 'Bar do Mário', 'Restaurante El Sol']);
       const sm = signMat(name, { bg: pick(['#1a1a1a', '#3b1414', '#14283b', '#2b2b10', '#102b1a']), fg: pick(['#ffd27a', '#ffffff', '#ffb0b0', '#b0e0ff']), glow: true, border: false, w: 512, h: 96 });
       sf.add(box(seg - 1.0, 0.75, 0.08, seg - 1.0, 0.75), sm, x, y0 + 4.2, depth / 2 + 0.36);
     }

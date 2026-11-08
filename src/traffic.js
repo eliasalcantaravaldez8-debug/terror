@@ -92,7 +92,7 @@ export class TrafficDriver {
     const approaching = distStop > -0.5 && distStop < 14;
     const inside = Math.abs(car.x - ix) < 7 && Math.abs(car.z - iz) < 7;
     if (approaching || (leftTurn && inside)) {
-      for (const o of ctx.cars) {
+      for (const o of (ctx.trafficCars || ctx.cars)) {
         if (o === car || o.removed) continue;
         const ox = o.x - ix, oz = o.z - iz;
         if (Math.abs(ox) > 40 || Math.abs(oz) > 40) continue;
@@ -130,13 +130,13 @@ export class TrafficDriver {
         }
       }
     };
-    for (const o of ctx.cars) if (o !== car && !o.removed && Math.abs(o.x - car.x) < 35 && Math.abs(o.z - car.z) < 35) checkObs(o, o.x, o.z, o.velX, o.velZ, o.T.L / 2, 2.0);
+    for (const o of (ctx.trafficCars || ctx.cars)) if (o !== car && !o.removed && Math.abs(o.x - car.x) < 35 && Math.abs(o.z - car.z) < 35) checkObs(o, o.x, o.z, o.velX, o.velZ, o.T.L / 2, 2.0);
     if (ctx.player.mode === 'foot') checkObs(ctx.player, ctx.player.x, ctx.player.z, 0, 0, 0.4, 1.7);
     for (const n of ctx.npcs) if (n.dodge > 0 || n.behavior === 'panic' || (n.alive && !n.inCar && Math.abs(n.x - car.x) < 12 && Math.abs(n.z - car.z) < 12 && Math.abs(car.x - n.x) + Math.abs(car.z - n.z) < 12 && ctxRoad(n))) checkObs(n, n.x, n.z, 0, 0, 0.3, 1.5);
     // preso atrás de algo parado (sem semáforo) => ultrapassa quando a contramão está livre
     if (blockedBy && Math.abs(blockedBy.speed || 0) < 0.3 && blockedBy.driver !== 'ai' && light === 'G' && car.speed < 0.5) this.blockT = (this.blockT || 0) + dt; else this.blockT = 0;
     if (this.blockT > 5 && !this.overtakeT) {
-      const free = !ctx.cars.some((o) => o !== car && Math.abs(o.speed) > 1 && (Math.sin(o.heading) * s + Math.cos(o.heading) * c) < -0.7 && Math.hypot(o.x - car.x, o.z - car.z) < 45);
+      const free = !(ctx.trafficCars || ctx.cars).some((o) => o !== car && Math.abs(o.speed) > 1 && (Math.sin(o.heading) * s + Math.cos(o.heading) * c) < -0.7 && Math.hypot(o.x - car.x, o.z - car.z) < 45);
       if (free) { this.overtakeT = 4.5; this.blockT = 0; }
     }
     if (this.overtakeT > 0) target = Math.max(target, 4);

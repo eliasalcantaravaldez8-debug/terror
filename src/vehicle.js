@@ -586,7 +586,7 @@ export class Vehicle {
     this.lat = damp(this.lat, 0, hb ? st.grip * 0.55 : st.grip * 1.1, dt);
     this.pushVx = damp(this.pushVx, 0, 3, dt); this.pushVz = damp(this.pushVz, 0, 3, dt);
     this.x += this.velX * dt; this.z += this.velZ * dt;
-    this.resolveCollisions(others);
+    if (!this.cheap) this.resolveCollisions(others); // longe do jogador: sem colisão detalhada (economiza CPU)
     this.syncTransform(dt);
   }
 
@@ -643,7 +643,8 @@ export class Vehicle {
     const wb = T.wheelBase / 2, hw = T.W / 2 - 0.14;
     const [fx, fz] = this.local(0, wb), [bx, bz] = this.local(0, -wb);
     const [lx, lz] = this.local(hw, 0), [rx, rz] = this.local(-hw, 0);
-    const hf = g(fx, fz), hb = g(bx, bz), hlft = g(lx, lz), hr = g(rx, rz);
+    const hc = this.cheap ? g(this.x, this.z) : 0;
+    const hf = this.cheap ? hc : g(fx, fz), hb = this.cheap ? hc : g(bx, bz), hlft = this.cheap ? hc : g(lx, lz), hr = this.cheap ? hc : g(rx, rz);
     const ty = (hf + hb + hlft + hr) / 4;
     const k = dt > 0 ? 1 - Math.exp(-12 * dt) : 1;
     this.y += (ty - this.y) * k;

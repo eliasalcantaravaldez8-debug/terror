@@ -3,10 +3,11 @@
 import * as THREE from 'three';
 import { Batcher, box, plane, cyl, gableRoof, mat } from './geo.js';
 import { Frame, CURB } from './city.js';
-import { mats, signMat } from './materials.js';
+import { mats, signMat, paint, prodMat } from './materials.js';
 import { PLACES, hillHeight } from './places.js';
 import { rand, rr, pick, setSeed } from './textures.js';
 import * as TX from './textures.js';
+const TX_ = TX;
 
 export class Zones {
   constructor(scene, world, city) {
@@ -20,7 +21,7 @@ export class Zones {
     setSeed(4242);
     const B = new Batcher();
     this.roads(B); this.favela(B); this.prison(B); this.industrial(B); this.abandoned(B);
-    this.mansion(B); this.hill(); this.fernando(B); this.investigator(); this.studio(); this.blackwood(B);
+    this.mansion(B); this.hill(); this.fernando(B); this.airport(B); this.investigator(); this.studio(); this.blackwood(B);
     B.flush(this.root);
   }
   // ---------- estradas de acesso ----------
@@ -106,12 +107,178 @@ export class Zones {
       f.box(M.metalDark, sx * w / 2, CURB + 11, sz * d / 2, 3.6, 0.4, 3.6, false);
       const [lx, lz] = f.pt(sx * w / 2, sz * d / 2); this.lamp(lx, CURB + 11.5, lz);
     }
-    f.box(M.facade.concrete, -8, CURB, 0, 34, 9.6, 26, true, 24, 25.6); f.ao(-8, 0, 34, 26, 1.6);
+    this.prisonBlock(f, -8, 0, 34, 26, 9.6);
+    // garagem com viatura no pátio
+    { const gx = w / 2 - 9, gz = d / 2 - 8, gw = 9, gd = 7, gh = 3.6;
+      f.box(M.metal, gx, CURB, gz + gd / 2, gw, gh, 0.25, true, 2);
+      for (const s2 of [-1, 1]) f.box(M.metal, gx + s2 * gw / 2, CURB, gz, 0.25, gh, gd, true, 2);
+      f.box(M.metalDark, gx, CURB + gh, gz, gw + 0.6, 0.25, gd + 0.6, true, 2);
+      f.add(plane(gw - 0.4, gd - 0.4, 2), M.tile, gx, CURB + 0.02, gz);
+      f.add(box(gw * 0.6, 0.06, 0.4), M.ceilingLight, gx, CURB + gh - 0.08, gz);
+      f.box(signMat('GARAGEM', { bg: '#1b2a4a', w: 256, h: 64 }), gx, CURB + gh - 0.5, gz - gd / 2 - 0.05, 2.2, 0.5, 0.05, false, 2.2, 0.5);
+      this.spots.prisonGarageCar = f.pt(gx, gz); }
     f.box(signMat('PENITENCIÁRIA ESTADUAL', { bg: '#2a2a2a', fg: '#e0e0e0', glow: true, w: 1024, h: 128 }), w / 2 + 0.6, CURB + 5.5, 0, 0.1, 1, 10, false, 10, 1);
     f.add(plane(w - 2, d - 2, 3), M.concreteFlat, 0, CURB + 0.01, 0);
     this.spots.prisonGateIn = f.pt(w / 2 - 4, 0);
     this.spots.prisonGateOut = f.pt(w / 2 + 6, 0);
     this.spots.prisonPickup = f.pt(w / 2 + 14, 2);
+  }
+  // prédio principal da penitenciária: entra-se pela porta leste; corredor com 16 celas, mesa dos guardas e detector de metais
+  prisonBlock(f0, cx, cz, W, D, H) {
+    const M = this.M, y = CURB, t = 0.4; const f = this.F(...f0.pt(cx, cz), 0, f0.B);
+    const wm = M.facade.concrete, inner = M.wall(0xb8bcb0), band = M.wall(0x5a6a5a);
+    const CH = 4.2; // pé-direito do térreo
+    const wall = (lx, lz, w, d, h = H, y0 = y) => { f.box(wm, lx, y0, lz, w, h, d, false, 24, 25.6); f.collide(lx, y0, lz, w, h, d); };
+    wall(0, -D / 2 + t / 2, W, t); wall(0, D / 2 - t / 2, W, t); wall(-W / 2 + t / 2, 0, t, D);
+    const door = 2.6; const seg = (D - door) / 2;
+    wall(W / 2 - t / 2, -D / 2 + seg / 2, t, seg); wall(W / 2 - t / 2, D / 2 - seg / 2, t, seg);
+    f.box(wm, W / 2 - t / 2, y + 3.2, 0, t, H - 3.2, door, false, 24, 25.6);
+    for (const s2 of [-1, 1]) f.box(M.metal, W / 2 + 0.05, y, s2 * door / 2, 0.1, 3.2, 0.15, false); f.box(M.metal, W / 2 + 0.05, y + 3.1, 0, 0.12, 0.12, door + 0.2, false);
+    f.box(M.concrete, 0, y + H, 0, W + 0.4, 0.4, D + 0.4, true, 2); f.ao(0, 0, W, D, 1.6);
+    f.box(signMat('BLOCO A', { bg: '#2a2a2a', fg: '#e0e0e0', w: 256, h: 64 }), W / 2 + 0.06, y + 3.6, 0, 0.05, 0.5, 2, false, 2, 0.5);
+    // piso, forro e luminárias
+    f.add(plane(W - 0.8, D - 0.8, 3), M.concreteFlat, 0, y + 0.03, 0);
+    f.add(plane(W - 0.8, D - 0.8, 4), M.ceiling, 0, y + CH, 0, 0, Math.PI);
+    f.box(M.concrete, 0, y + CH, 0, W - 0.8, 0.2, D - 0.8, false, 2);
+    for (let i = 0; i < 6; i++) f.add(box(0.4, 0.05, 2.2), M.ceilingLight, -W / 2 + 3 + i * 5.4, y + CH - 0.05, 0);
+    // corredor (z de -3 a 3) com faixa pintada nas paredes das celas
+    const cellD = 4.5, cz0 = 3, cell = 3.5, xs = -W / 2 + 1.0, n = 8;
+    for (const side of [-1, 1]) {
+      const back = side * (cz0 + cellD);
+      f.box(inner, 0, y, back + side * 0.1, W - 0.8, CH, 0.2, true, 2); // fundo das celas
+      for (let i = 0; i <= n; i++) f.box(inner, xs + i * cell, y, side * (cz0 + cellD / 2), 0.2, CH, cellD, true, 2); // paredes entre celas
+      f.box(band, 0, y + CH - 0.6, side * cz0, W - 0.8, 0.6, 0.1, false, 2);
+      for (let i = 0; i < n; i++) {
+        const x0 = xs + i * cell + cell / 2, fz = side * cz0;
+        // grades
+        for (let b = -cell / 2 + 0.2; b < cell / 2 - 0.1; b += 0.16) f.add(cyl(0.022, 0.022, CH - 0.6, 6), M.metalDark, x0 + b, y + (CH - 0.6) / 2, fz);
+        for (const by of [0.08, 1.1, CH - 0.65]) f.add(box(cell - 0.2, 0.06, 0.06), M.metalDark, x0, y + by, fz);
+        f.collide(x0, y, fz, cell - 0.2, CH, 0.15);
+        // beliche, vaso, pia
+        const bz = side * (cz0 + cellD - 0.55);
+        for (const lv of [0.45, 1.55]) { f.box(M.metalDark, x0 - 0.5, y + lv - 0.08, bz, 0.9, 0.06, 2.0, false); f.box(paint(M.flat, 0xd8d0c0), x0 - 0.5, y + lv - 0.02, bz, 0.85, 0.12, 1.9, false); f.box(paint(M.flat, 0xf0f0f0), x0 - 0.5, y + lv + 0.1, bz - side * 0.75, 0.6, 0.12, 0.35, false); }
+        for (const [px, pz] of [[-0.95, -0.95], [-0.95, 0.95], [-0.05, -0.95], [-0.05, 0.95]]) f.box(M.metalDark, x0 - 0.5 + px * 0.45, y, bz + pz, 0.05, 1.7, 0.05, false);
+        f.collide(x0 - 0.5, y, bz, 0.95, 1.8, 2.05);
+        f.add(cyl(0.18, 0.15, 0.42, 10), paint(M.flat, 0xe8e8e8), x0 + 1.1, y + 0.21, side * (cz0 + cellD - 0.4));
+        f.box(paint(M.flat, 0xe8e8e8), x0 + 1.1, y + 0.75, side * (cz0 + 1.2), 0.4, 0.12, 0.35, false);
+        const [px, pz] = f.pt(x0 + 0.4, side * (cz0 + 1.6)); (this.spots.prisonCells = this.spots.prisonCells || []).push([px, pz, side > 0 ? Math.PI : 0]);
+      }
+    }
+    // mesa dos guardas com monitores (fundo do corredor) e detector de metais na entrada
+    f.box(M.woodDark, -W / 2 + 2.2, y, 0, 1.2, 0.9, 3.2, true, 1);
+    for (const mz of [-0.9, 0, 0.9]) { f.box(M.metalDark, -W / 2 + 2.0, y + 0.9, mz, 0.1, 0.5, 0.7, false); f.add(box(0.02, 0.4, 0.6), M.ceilingLight, -W / 2 + 2.07, y + 1.15, mz); }
+    for (const s2 of [-1, 1]) f.box(paint(M.flat, 0x9a9aa0), W / 2 - 2.5, y, s2 * 0.8, 0.3, 2.3, 0.3, true, 1);
+    f.box(paint(M.flat, 0x9a9aa0), W / 2 - 2.5, y + 2.3, 0, 0.3, 0.25, 1.9, false);
+    this.spots.prisonCorridor = f.pt(-4, 0); this.spots.prisonDesk = f.pt(-W / 2 + 3.4, 0); this.spots.prisonDoor = f.pt(W / 2 + 1.5, 0);
+  }
+  // ---------- AEROPORTO (pista norte-sul, terminal com interior, torre, hangar, escada de embarque) ----------
+  airport(B) {
+    const M = this.M, y = CURB; const f = this.F(0, 0, 0, B);
+    const AX = -410, z0 = -440, z1 = -60, RW = 26, zc = (z0 + z1) / 2, len = z1 - z0;
+    const white = paint(M.flat, 0xf0f0f0), yellow = paint(M.flat, 0xe8c21a);
+    const flat = (mtl, x, z, w, d, yy = y + 0.02) => f.add(plane(w, d, w, d), mtl, x, yy, z);
+    // pista com marcações
+    f.add(plane(RW, len, 6), M.asphalt, AX, y + 0.01, zc);
+    for (let z = z0 + 40; z < z1 - 40; z += 22) flat(white, AX, z, 0.7, 12);
+    for (const s of [-1, 1]) flat(white, AX + s * (RW / 2 - 1), zc, 0.6, len - 4);
+    for (const ze of [z0 + 12, z1 - 12]) for (let i = 0; i < 8; i++) flat(white, AX - RW / 2 + 2.5 + i * 3 + (i >= 4 ? 3 : 0), ze, 1.4, 16);
+    for (const [ze, txt, rot] of [[z0 + 32, '18', 0], [z1 - 32, '36', Math.PI]]) f.add(plane(8, 5, 8, 5), signMat(txt, { bg: '#2a2a2a', fg: '#f0f0f0', border: false, w: 256, h: 160 }), AX, y + 0.025, ze, rot);
+    for (let z = z0 + 5; z < z1; z += 30) for (const s of [-1, 1]) f.add(box(0.3, 0.25, 0.3), M.ceilingLight, AX + s * (RW / 2 + 1), y + 0.12, z);
+    // pista de taxiamento e pátio
+    const apX0 = -392, apX1 = -316, apZ0 = -300, apZ1 = -200;
+    f.add(plane(apX0 - (AX + RW / 2) + 1, 20, 6), M.asphalt, (apX0 + AX + RW / 2) / 2, y + 0.012, -250);
+    flat(yellow, (apX0 + AX + RW / 2) / 2, -250, apX0 - (AX + RW / 2), 0.4);
+    f.add(plane(apX1 - apX0, apZ1 - apZ0, 4), M.concreteFlat, (apX0 + apX1) / 2, y + 0.014, (apZ0 + apZ1) / 2);
+    flat(yellow, -362, -250, 30, 0.4, y + 0.022); flat(yellow, -362, -250, 0.4, 14, y + 0.022);
+    // terminal (entrada a leste; portão de embarque com vidro a oeste)
+    const TX = -300, TZ = -250, TW = 22, TD = 50, TH = 8, t = 0.4, door = 3.2;
+    const wall = (x, z, w, d, h = TH, yy = y, mtl = M.facade.concrete) => { f.box(mtl, x, yy, z, w, h, d, false, 24, 25.6); f.collide(x, yy, z, w, h, d); };
+    wall(TX, TZ - TD / 2 + t / 2, TW, t); wall(TX, TZ + TD / 2 - t / 2, TW, t);
+    const segL = (TD - door) / 2;
+    for (const s of [-1, 1]) {
+      wall(TX + TW / 2 - t / 2, TZ + s * (door / 2 + segL / 2), t, segL); // leste
+      // oeste: vidro do chão ao teto com montantes
+      const gz = TZ + s * (door / 2 + segL / 2);
+      f.add(box(0.06, TH - 0.6, segL), M.glass, TX - TW / 2 + 0.2, y + (TH - 0.6) / 2 + 0.3, gz); f.collide(TX - TW / 2 + 0.2, y, gz, 0.3, TH, segL);
+      for (let k = 0; k <= 7; k++) f.box(M.metalDark, TX - TW / 2 + 0.2, y, TZ + s * (door / 2 + k * segL / 7), 0.12, TH, 0.12, false);
+    }
+    f.box(M.facade.concrete, TX + TW / 2 - t / 2, y + 3.4, TZ, t, TH - 3.4, door, false, 24, 25.6);
+    f.box(M.metalDark, TX - TW / 2 + 0.2, y + 3.4, TZ, 0.15, TH - 3.4, door, false);
+    f.box(M.concrete, TX, y + TH, TZ, TW + 1.2, 0.5, TD + 1.2, true, 2); f.ao(TX, TZ, TW, TD, 1.6);
+    f.add(box(0.15, 1.4, 16, 0.15, 1.4), signMat('AEROPORTO DE LOS VALLES', { bg: '#0d2a4a', fg: '#ffffff', glow: true, w: 1024, h: 96 }), TX + TW / 2 + 0.4, y + TH + 1.1, TZ);
+    f.box(M.metalDark, TX + TW / 2 + 2, y + 3.6, TZ, 4, 0.25, 8, false); // marquise
+    // interior
+    f.add(plane(TW - 0.8, TD - 0.8, 3), M.interiorFloor, TX, y + 0.03, TZ);
+    f.add(plane(TW - 0.8, TD - 0.8, 4), M.ceiling, TX, y + TH - 0.05, TZ, 0, Math.PI);
+    for (let i = 0; i < 4; i++) f.add(box(1.2, 0.06, TD - 4), M.ceilingLight, TX - TW / 2 + 3 + i * 5.3, y + TH - 0.1, TZ);
+    // balcões de check-in (parede norte) com placas das companhias e esteiras
+    const airlines = [['VALLES AIR', '#0d4a8a'], ['SOMBRA LINHAS AÉREAS', '#3a1a5a'], ['VALLES AIR', '#0d4a8a'], ['AZUL DO SUL', '#0a6a8a']];
+    airlines.forEach(([nm, bg], i) => {
+      const cx = TX + TW / 2 - 4 - i * 4.4, cz = TZ - TD / 2 + 2.6;
+      f.box(paint(M.flat, 0xf0f0f0), cx, y, cz, 3.2, 1.05, 0.8, true, 1);
+      f.box(paint(M.flat, 0x2a2a2e), cx, y + 1.05, cz, 3.3, 0.05, 0.9, false);
+      f.box(M.metalDark, cx + 1.0, y, cz + 0.9, 0.8, 0.35, 0.8, false); // balança
+      f.box(paint(M.flat, 0x1a1a1a), cx, y + 0.5, cz - 0.9, 3.2, 0.5, 0.7, false); // esteira
+      f.add(box(3.2, 0.6, 0.06, 3.2, 0.6), signMat(nm, { bg, fg: '#fff', glow: true, w: 512, h: 96 }), cx, y + 2.8, cz - 1.0);
+      for (let k = 0; k < 3; k++) { f.add(cyl(0.04, 0.04, 1, 6), M.metalLight, cx - 1.2 + k * 1.2, y + 0.5, cz + 2.4); }
+    });
+    // painel de partidas
+    const depMat = new THREE.MeshLambertMaterial({ map: TX_.departuresTex(), emissiveMap: TX_.departuresTex(), emissive: 0xffffff, emissiveIntensity: 0.8 });
+    f.add(box(0.1, 3, 6), M.metalDark, TX + 2, y + 5, TZ + 6);
+    { const g = new THREE.PlaneGeometry(5.8, 2.8); g.rotateY(Math.PI / 2); f.add(g, depMat, TX + 2.06, y + 5, TZ + 6); }
+    // raio-x e detector antes do portão
+    f.box(paint(M.flat, 0xd8d8d8), TX - TW / 2 + 4.5, y, TZ - 5, 1.0, 1.2, 3.2, true, 1); f.box(M.metalDark, TX - TW / 2 + 4.5, y + 1.2, TZ - 5, 1.1, 0.7, 1.2, false);
+    for (const s of [-1, 1]) f.box(paint(M.flat, 0xb8b8c0), TX - TW / 2 + 4.5, y, TZ - 1.5 + s * 0.75, 0.3, 2.2, 0.3, true, 1);
+    f.box(paint(M.flat, 0xb8b8c0), TX - TW / 2 + 4.5, y + 2.2, TZ - 1.5, 0.3, 0.25, 1.8, false);
+    // cadeiras de espera junto ao vidro (vista para o avião)
+    for (let r = 0; r < 3; r++) for (let k = 0; k < 7; k++) {
+      const sx = TX - TW / 2 + 2.2 + r * 1.6, sz = TZ + 5 + k * 0.62;
+      f.box(paint(M.flat, 0x1a3a6a), sx, y + 0.42, sz, 0.55, 0.08, 0.52, false); f.box(paint(M.flat, 0x1a3a6a), sx - 0.25, y + 0.5, sz, 0.08, 0.5, 0.52, false);
+    }
+    for (let r = 0; r < 3; r++) { f.box(M.metalDark, TX - TW / 2 + 2.2 + r * 1.6, y, TZ + 6.9, 0.3, 0.42, 4.4, false); f.collide(TX - TW / 2 + 2.2 + r * 1.6, y, TZ + 6.9, 0.6, 0.9, 4.4); }
+    // café
+    { const kx = TX + TW / 2 - 4, kz = TZ + TD / 2 - 4;
+      f.box(M.woodDark, kx, y, kz, 4, 1.05, 1.0, true, 1); f.box(M.metalLight, kx, y + 1.05, kz, 4.1, 0.05, 1.1, false);
+      f.box(M.metalDark, kx + 1.2, y + 1.1, kz + 0.2, 0.5, 0.45, 0.4, false);
+      f.add(box(3.4, 1.6, 0.06, 3.4, 1.6), prodMat('board_padaria', true), kx, y + 3, kz + 2.6);
+      f.add(box(3, 0.5, 0.06, 3, 0.5), signMat('CAFÉ AEROPORTO', { bg: '#3a2010', fg: '#f2d08a', glow: true, w: 512, h: 96 }), kx, y + 4.2, kz + 2.6);
+      const [kx2, kz2] = f.pt(kx, kz - 1.3); this.spots.airportCafe = [kx2, kz2]; }
+    // esteira de bagagem
+    f.add(cyl(1.4, 1.4, 0.5, 20), paint(M.flat, 0x2a2a2e), TX + 3, y + 0.25, TZ + TD / 2 - 6); f.add(cyl(1.6, 1.6, 0.45, 20), M.metalLight, TX + 3, y + 0.22, TZ + TD / 2 - 6);
+    f.collide(TX + 3, y, TZ + TD / 2 - 6, 3.2, 0.6, 3.2);
+    for (const [px, pz] of [[TX + TW / 2 - 1.5, TZ + 3], [TX + TW / 2 - 1.5, TZ - 3], [TX - TW / 2 + 1.2, TZ + TD / 2 - 1.5]]) { f.add(cyl(0.3, 0.25, 0.6, 10), paint(M.flat, 0xd8d8d8), px, y + 0.3, pz); f.add(new THREE.IcosahedronGeometry(0.55, 0), M.hedge, px, y + 1.1, pz); }
+    // torre de controle
+    f.add(cyl(2.4, 2.8, 24, 14), M.concrete, -332, y + 12, -335); f.collide(-332, y, -335, 5, 24, 5);
+    f.add(cyl(4, 3.4, 3.2, 10), M.glass, -332, y + 25.6, -335); f.add(cyl(4.4, 4.4, 0.6, 10), M.metalDark, -332, y + 27.5, -335); f.add(cyl(3.6, 3.6, 0.5, 10), M.metalDark, -332, y + 24, -335);
+    this.lamp(-332, y + 28.2, -335);
+    // hangar em arco aberto para o pátio
+    { const hx = -352, hz = -168, R = 16, L = 30;
+      const hm = new THREE.MeshLambertMaterial({ map: TX_.corrugatedTex(), color: 0x9aa0a6, side: THREE.DoubleSide });
+      const arch = new THREE.CylinderGeometry(R, R, L, 18, 1, true, Math.PI / 2, Math.PI); arch.rotateX(Math.PI / 2);
+      f.add(arch, hm, hx, y, hz);
+      const back = new THREE.CircleGeometry(R, 18, 0, Math.PI); f.add(back, hm, hx, y, hz + L / 2);
+      for (const s of [-1, 1]) f.collide(hx + s * (R - 0.5), y, hz, 1, 6, L);
+      f.collide(hx, y, hz + L / 2, R * 2, 8, 0.5);
+      f.add(plane(R * 2 - 1, L, 4), M.concreteFlat, hx, y + 0.02, hz);
+      f.add(box(0.15, 1.2, 10, 0.15, 1.2), signMat('HANGAR 1', { bg: '#2a2a2a', fg: '#e8c21a', w: 512, h: 96 }), hx, y + R - 3, hz - L / 2 - 0.1, Math.PI / 2);
+      for (let i = 0; i < 3; i++) f.add(box(10, 0.1, 0.5), M.ceilingLight, hx, y + R - 1.5, hz - L / 2 + 6 + i * 9);
+    }
+    // escada de embarque (encostada na porta do avião estacionado)
+    const PX = -362, PZ = -250, doorTop = [PX - 6.5, PZ + 1.65], stairLen = 4.6, sh = 2.25;
+    for (let i = 0; i < 10; i++) { const k = (i + 0.5) / 10; f.box(M.metalLight, doorTop[0], y + k * sh - 0.05, doorTop[1] + 0.35 + (1 - k) * stairLen, 1.2, 0.08, stairLen / 10 + 0.05, false); }
+    for (const s of [-1, 1]) { const g = new THREE.BoxGeometry(0.06, 0.06, Math.hypot(stairLen, sh)); f.add(g, M.metalDark, doorTop[0] + s * 0.62, y + sh / 2 + 0.95, doorTop[1] + 0.35 + stairLen / 2, 0, Math.atan2(sh, stairLen)); }
+    f.box(paint(M.flat, 0xe8e8e8), doorTop[0], y, doorTop[1] + 0.35 + stairLen + 1.2, 2.2, 1.2, 2.8, true, 1); // caminhão da escada
+    f.box(paint(M.flat, 0xe8c21a), doorTop[0], y + 1.2, doorTop[1] + 0.35 + stairLen + 2, 2.0, 0.9, 1.2, false);
+    this.spots.planePark = [PX, PZ, -Math.PI / 2]; this.spots.stairTop = doorTop; this.spots.stairBase = [doorTop[0], doorTop[1] + 0.35 + stairLen + 0.2]; this.spots.stairH = sh;
+    this.spots.runway = { x: AX, z0, z1, w: RW };
+    // biruta
+    f.add(cyl(0.08, 0.1, 7, 8), M.metalDark, AX + 22, y + 3.5, -120); f.add(new THREE.ConeGeometry(0.6, 3, 10, 1, true).rotateZ(Math.PI / 2), paint(M.flat, 0xff6a1a), AX + 20.5, y + 6.8, -120);
+    // estrada até a cidade e estacionamento do terminal
+    f.add(plane(42, 9, 6), M.asphalt, -255, y + 0.012, TZ, Math.PI / 2);
+    f.add(plane(9, TD + 10, 6), M.asphalt, -282, y + 0.012, TZ);
+    this.city.parkingLot(this.F(-264, TZ + 24, 0, B), 0, 0, 30, 14, 0);
+    this.city.landmarks.push({ name: 'Aeroporto de Los Valles', x: TX + TW / 2 + 3, z: TZ, kind: 'airport' });
+    this.spots.terminalDoor = [TX + TW / 2 + 2, TZ]; this.spots.terminalGate = [TX - TW / 2 - 1.5, TZ];
   }
   // ---------- ZONA INDUSTRIAL ----------
   warehouse(B, x, z, w, d, h, color, opts = {}) {

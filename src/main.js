@@ -5,6 +5,7 @@ import { Grass } from './grass.js';
 import { Batcher } from './geo.js';
 import { CollisionWorld } from './collision.js';
 import { City, LAYOUT, N, P, ROAD, HALF, roadC, blockC, BLOCK } from './city.js';
+const P_ = P;
 import { Zones } from './zones.js';
 import { PLACES, BW, bwRoad, bwRoadZ, bwBlock, bwBlockZ, RIVER } from './places.js';
 import { Blackwood, BW_LAYOUT } from './blackwood.js';
@@ -13,13 +14,14 @@ import { Phone, VIBE } from './phone.js';
 import { ETHAN_MISSIONS } from './missions_ethan.js';
 import { RYAN_MISSIONS } from './missions_ryan.js';
 import { SIDE_MISSIONS } from './missions_side.js';
-import { ChaseDriver } from './drivers.js';
+import { ChaseDriver, RouteDriver } from './drivers.js';
 import { Humanoid } from './humanoid.js';
 import { sfx } from './audio.js';
 import * as SAVE from './save.js';
 import { CustomShop } from './custom.js';
 import { PerfMeter } from './perf.js';
 import { Weapons, WEAPONS, WEAPON_ORDER, weaponIcon } from './weapons.js';
+import { Airplane } from './plane.js';
 import { itemIcon, handItem } from './products.js';
 import { shopKind } from './city.js';
 import { Vehicle, CAR_COLORS, updateSirens, MOTO_TYPES, CAR_LIST, CAR_TYPES } from './vehicle.js';
@@ -115,6 +117,25 @@ function build() {
     const loop = loops[Math.floor(rand() * loops.length)];
     npcs.push(new NPC(scene, world, randomPedestrian(), { name: 'Pedestre', role: 'ped', lines: [pick(PED_LINES)], behavior: 'loop', loop }));
   }
+  // mar em volta do mapa (vista do avião: Los Valles vira uma ilha)
+  { const sea = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000).rotateX(-Math.PI / 2), new THREE.MeshPhongMaterial({ color: 0x1d4a6a, shininess: 90, specular: 0x557788 }));
+    sea.position.set(200, -0.6, 0); sea.receiveShadow = false; sea.matrixAutoUpdate = false; sea.updateMatrix(); scene.add(sea); }
+  // avião no pátio do aeroporto
+  const plane = new Airplane(world); scene.add(plane.group); plane.place(...zones.spots.planePark); world.dynamic.add(plane);
+  // penitenciária: presos nas celas (e alguns no pátio) e guardas fazendo ronda
+  { const Z = zones.spots; const jump = { shirt: 0xe0701a, pants: 0xe0701a, jacket: null, hat: null, longSleeve: false };
+    const guardLook = () => ({ ...policeLook(), shirt: 0x3a4048, pants: 0x2a2e34, hatColor: 0x2a2e34 });
+    const plines = ['Ei, você aí! Me tira daqui!', 'Sete anos... e ainda contando.', 'Não olha pra mim.', 'Aqui dentro o tempo não passa.', 'Tem cigarro?', 'Eu sou inocente, juro.'];
+    (Z.prisonCells || []).forEach(([x, z, h], i) => { if (i % 3 === 2) return;
+      const n = new NPC(scene, world, { ...randomPedestrian(), female: false, skirt: null, ...jump, hairStyle: pick(['short', 'bald']) }, { name: 'Preso', role: 'prisoner', lines: [pick(plines), pick(plines)], x, z, heading: h, behavior: 'stand' });
+      npcs.push(n); });
+    for (let i = 0; i < 4; i++) { const [px, pz] = Z.prisonGateIn; npcs.push(new NPC(scene, world, { ...randomPedestrian(), female: false, skirt: null, ...jump, hairStyle: 'short' }, { name: 'Preso', role: 'prisoner', lines: [pick(plines)], x: px - 18 - i * 3, z: pz + (i % 2 ? 14 : -14), behavior: 'patrol' })); }
+    const gl = ['Circulando.', 'Visita só no domingo.', 'Nada de gracinha aqui dentro.'];
+    npcs.push(new NPC(scene, world, guardLook(), { name: 'Guarda', role: 'police', lines: gl, x: Z.prisonCorridor[0] - 3, z: Z.prisonCorridor[1], behavior: 'patrol' }));
+    npcs.push(new NPC(scene, world, guardLook(), { name: 'Guarda', role: 'police', lines: gl, x: Z.prisonCorridor[0] + 5, z: Z.prisonCorridor[1], behavior: 'patrol' }));
+    npcs.push(new NPC(scene, world, guardLook(), { name: 'Guarda', role: 'police', lines: gl, x: Z.prisonDesk[0], z: Z.prisonDesk[1], heading: Math.PI / 2, behavior: 'stand' }));
+    for (const dz of [-16, 16]) npcs.push(new NPC(scene, world, guardLook(), { name: 'Guarda', role: 'police', lines: gl, x: Z.prisonGateIn[0] - 10, z: Z.prisonGateIn[1] + dz, behavior: 'patrol' }));
+    const pc = makeCar('police'); pc.place(Z.prisonGarageCar[0], Z.prisonGarageCar[1], Math.PI); pc.parked = true; pc.fuel = 1; }
   // traficantes nos becos (vendedor + vigia) — personagens de ambiente
   for (const a of city.alleys || []) {
     const hood = () => ({ ...randomPedestrian(), female: false, skirt: null, hat: rand() < 0.6 ? 'hood' : 'cap', hatColor: pick([0x141416, 0x2a2a2e, 0x3a1a1a]), shirt: pick([0x1a1a1a, 0x2a2a3a, 0x3a3a3a]), pants: pick([0x1a1a1a, 0x2a3a5a]), jacket: rand() < 0.5 ? 0x111111 : null, hairStyle: 'short', longSleeve: true });
@@ -138,7 +159,7 @@ function build() {
   const blobGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const blobs = new THREE.InstancedMesh(blobGeo, new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }), 900);
   blobs.frustumCulled = false; blobs.renderOrder = 1; scene.add(blobs);
-  Object.assign(G, { grass, blackwood, world, sky, city, zones, cars, drivers, player, npcs, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera, lampLights, glow, blobs });
+  Object.assign(G, { plane, grass, blackwood, world, sky, city, zones, cars, drivers, player, npcs, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera, lampLights, glow, blobs });
   G.aiDrivers = []; G.police = [];
   G.audio = new EngineAudio();
   G.state = SAVE.newState();
@@ -488,10 +509,12 @@ async function runMission(m, from = 0, resumed = false) {
   S.cleanup();
   if (m.side) {
     C.mission = null; C.stage = 0; G.mission = null; C.sideDone = C.sideDone || {}; C.sideDone[m.id] = (C.sideDone[m.id] || 0) + 1;
+    if (C.flags.moedaInfinita) { G.addMoney(50); setTimeout(() => toast('+R$ 50 (Moeda Infinita)', 2), 1800); }
     showBanner('CONCLUÍDA', m.title, false); syncWorld(); SAVE.writeSlot('auto', snapshot()); return;
   }
   C.done.push(m.id); C.mission = null; C.stage = 0; G.mission = null;
   if (m.reward) G.addMoney(m.reward);
+  if (C.flags.moedaInfinita) { G.addMoney(50); setTimeout(() => toast('+R$ 50 (Moeda Infinita)', 2), 1800); }
   if (m.id === 'prologo' && C.char === 'ethan') setTimeout(() => toast('RYAN COLE DESBLOQUEADO — aperte Z para trocar de personagem a qualquer momento', 6), 3500);
   showBanner('MISSÃO CONCLUÍDA', m.title, false);
   syncWorld();
@@ -587,6 +610,12 @@ function combatCtx() {
       for (const a of G.npcs) if (a.team === 'ally' && a.alive && !a.inCar && !a.removed) { const d = Math.hypot(a.x - n.x, a.z - n.z); if (d < bd) { bd = d; best = a; } }
       return best;
     },
+    gangTarget: (n) => {
+      let best = null, bd = 45;
+      if (n.hatesPlayer && P.hp > 0) { const d = Math.hypot(P.x - n.x, P.z - n.z); if (d < bd) { bd = d; best = P; } }
+      for (const a of G.npcs) if (a.gang && a.gang !== n.gang && a.alive && !a.removed) { const d = Math.hypot(a.x - n.x, a.z - n.z); if (d < bd) { bd = d; best = a; } }
+      return best;
+    },
     nearestEnemy: (n, r) => {
       let best = null, bd = r;
       for (const e of G.npcs) if (e.team === 'enemy' && e.alive && !e.removed && (e.behavior === 'hostile')) { const d = Math.hypot(e.x - n.x, e.z - n.z); if (d < bd) { bd = d; best = e; } }
@@ -624,6 +653,7 @@ function playerPunch() {
     else if (tgt.behavior === 'guard') { G.story.addAlert(30); tgt.investigate = [P.x, P.z]; }
     return;
   }
+  if (tgt.gang) { tgt.hp -= 34; if (tgt.hp <= 0) tgt.knockDown(0, punchImpulse(P, tgt)); provokeGang(tgt); return; }
   // civis e policiais
   tgt.hp -= 40;
   if (tgt.hp <= 0) { tgt.prevBehavior = tgt.behavior === 'down' ? 'loop' : tgt.behavior; tgt.knockDown(8, punchImpulse(P, tgt)); }
@@ -849,6 +879,154 @@ function updateHeist(dt) {
   }
 }
 G.startHeist = startHeist;
+// ---------------- EVENTOS ALEATÓRIOS (tiroteio de gangues, perseguição policial, assalto) ----------------
+const EV = { t: 70 + Math.random() * 50, active: null };
+function provokeGang(n) { for (const m of G.npcs) if (m.gang === n.gang && m.alive) m.hatesPlayer = true; }
+G.provokeGang = provokeGang;
+function eventSpot(minD = 45, maxD = 120) {
+  const P = G.player; const loops = G.city.pedLoops.filter((l) => { const d = Math.hypot(l.cx - P.x, l.cz - P.z); return d > minD && d < maxD && l.cx < 300; });
+  if (!loops.length) return null; const l = pick(loops); const side = Math.floor(Math.random() * 4); const h = l.half;
+  const pts = [[l.cx, l.cz - h], [l.cx + h, l.cz], [l.cx, l.cz + h], [l.cx - h, l.cz]]; return { p: pts[side], along: side % 2 === 0 ? [1, 0] : [0, 1] };
+}
+function spawnNpc(look, opts) { const n = new NPC(scene, G.world, look, opts); G.npcs.push(n); G.world.dynamic.add(n); return n; }
+function panicAround(x, z, r = 40) { for (const n of G.npcs) if (n.role === 'ped' && n.alive && !n.gang && !n.eventRole && Math.hypot(n.x - x, n.z - z) < r) { n.behavior = 'panic'; n.panicFrom = [x, z]; n.panicT = 10; } }
+const EVENTS = {
+  gangues() {
+    const sp = eventSpot(); if (!sp) return null; const [x, z] = sp.p; const [ax, az] = sp.along;
+    const gangs = [{ id: 'vermelhos', shirt: 0x8a1a1a, hat: 0x6a0a0a }, { id: 'azuis', shirt: 0x1a3a8a, hat: 0x0a1a5a }];
+    const members = [];
+    gangs.forEach((g, gi) => { for (let i = 0; i < 4; i++) {
+      const look = { ...randomPedestrian(), female: false, skirt: null, shirt: g.shirt, jacket: Math.random() < 0.5 ? 0x141414 : null, hat: Math.random() < 0.6 ? 'cap' : null, hatColor: g.hat, hairStyle: 'short' };
+      const off = (gi ? 9 : -9) + (Math.random() - 0.5) * 4, lat = (i - 1.5) * 1.6;
+      const n = spawnNpc(look, { name: gi ? 'Gangue Azul' : 'Gangue Vermelha', role: 'gang', x: x + ax * off - az * lat, z: z + az * off + ax * lat, behavior: 'gang', hp: 70, interactable: false });
+      n.gang = g.id; n.gun = i < 2; n.gunDmg = 5; n.damage = 9; n.eventRole = true; members.push(n);
+    } });
+    panicAround(x, z); toast('Tiroteio entre gangues aqui perto!', 3); G.sound('shot');
+    return { name: 'gangues', x, z, t: 0, members, update(dt) {
+      this.t += dt; const alive = (id) => members.filter((m) => m.gang === id && m.alive).length;
+      const P = G.player; const far = Math.hypot(P.x - x, P.z - z) > 220;
+      if (!this.over && (alive('vermelhos') === 0 || alive('azuis') === 0)) { this.over = true; this.t = Math.max(this.t, 0); this.endT = this.t + 20; for (const m of members) if (m.alive) { m.behavior = 'panic'; m.panicFrom = [P.x, P.z]; m.panicT = 15; } }
+      if (far || this.t > 150 || (this.over && this.t > this.endT)) { for (const m of members) if (!m.removed && Math.hypot(m.x - P.x, m.z - P.z) > 40) { m.remove(); G.world.dynamic.delete(m); } this.done = members.every((m) => m.removed || Math.hypot(m.x - P.x, m.z - P.z) > 40) || far; if (this.done) G.npcs = G.npcs.filter((m) => !m.removed); }
+    } };
+  },
+  perseguicao() {
+    const P = G.player; const sp = eventSpot(70, 160); if (!sp) return null;
+    // rota de fuga: caminha pelos cruzamentos da cidade
+    let a = Math.round((sp.p[0] - roadC(0)) / P_), b = Math.round((sp.p[1] - roadC(0)) / P_); a = Math.max(0, Math.min(N, a)); b = Math.max(0, Math.min(N, b));
+    const route = []; let d = Math.floor(Math.random() * 4);
+    for (let i = 0; i < 12; i++) { const D = [[1, 0], [0, 1], [-1, 0], [0, -1]]; let tries = 0; do { d = (d + (Math.random() < 0.5 ? 0 : Math.random() < 0.5 ? 1 : 3)) % 4; tries++; } while ((a + D[d][0] < 0 || a + D[d][0] > N || b + D[d][1] < 0 || b + D[d][1] > N) && tries < 10); a += D[d][0]; b += D[d][1]; route.push([roadC(a), roadC(b)]); }
+    const runner = makeCarAt(pick(['coupe', 'sedan', 'hatch', 'luxo']), route[0][0], route[0][1]);
+    const rd = new RouteDriver(runner, route.slice(1), { speed: 22, rubber: false }); G.aiDrivers.push(rd);
+    const cops = []; for (let i = 0; i < 2; i++) { const c = makeCarAt('police', route[0][0] - 12 - i * 10, route[0][1]); const cd = new ChaseDriver(c, () => runner, { speed: 24 }); G.aiDrivers.push(cd); cops.push({ c, cd }); }
+    toast('Perseguição policial passando pela região!', 3); G.sound('siren', 3);
+    return { name: 'perseguicao', t: 0, update(dt) {
+      this.t += dt; const far = Math.hypot(runner.x - G.player.x, runner.z - G.player.z) > 260;
+      if (rd.done || this.t > 75 || far) {
+        for (const o of [rd, ...cops.map((k) => k.cd)]) { const i = G.aiDrivers.indexOf(o); if (i >= 0) G.aiDrivers.splice(i, 1); }
+        for (const c of [runner, ...cops.map((k) => k.c)]) if (c !== G.car) { c.driver = null; if (Math.hypot(c.x - G.player.x, c.z - G.player.z) > 60) removeCar(c); }
+        this.done = true;
+      }
+    } };
+  },
+  assalto() {
+    const P = G.player; const peds = G.npcs.filter((n) => n.role === 'ped' && n.alive && !n.inCar && !n.eventRole && Math.hypot(n.x - P.x, n.z - P.z) > 25 && Math.hypot(n.x - P.x, n.z - P.z) < 70);
+    if (!peds.length) return null; const v = pick(peds);
+    const look = { ...randomPedestrian(), female: false, skirt: null, hat: 'hood', hatColor: 0x141416, shirt: 0x1a1a1a, hairStyle: 'short' };
+    const m = spawnNpc(look, { name: 'Assaltante', role: 'gang', x: v.x + Math.sin(v.heading) * 1.6, z: v.z + Math.cos(v.heading) * 1.6, behavior: 'mug', hp: 60, interactable: false });
+    m.victim = v; m.gang = 'assalto'; m.gun = true; m.gunDmg = 6; m.eventRole = true;
+    v.behavior = 'stand'; v.pose = 'handsup'; v.eventRole = true;
+    toast('Um pedestre está sendo assaltado — ajude se quiser', 3);
+    return { name: 'assalto', t: 0, update(dt) {
+      this.t += dt;
+      if (!m.alive && !this.rewarded) { this.rewarded = true; v.pose = null; v.behavior = 'stand'; G.addMoney(100); toast('"Obrigado por me ajudar!" — a vítima te deu R$ 100', 3); this.endT = this.t + 8; }
+      if (m.alive && this.t > 9 && m.behavior === 'mug') { m.behavior = 'panic'; m.panicFrom = [v.x, v.z]; m.panicT = 20; v.pose = null; v.behavior = 'panic'; v.panicFrom = [m.x, m.z]; v.panicT = 5; }
+      if ((this.endT && this.t > this.endT) || this.t > 40) { v.eventRole = false; if (v.loop) v.behavior = 'loop'; if (Math.hypot(m.x - G.player.x, m.z - G.player.z) > 30 || !m.alive) { m.remove(); G.world.dynamic.delete(m); G.npcs = G.npcs.filter((x) => x !== m); } this.done = true; }
+    } };
+  },
+};
+function makeCarAt(type, x, z) { const c = new Vehicle(type, pick(CAR_COLORS), G.world); scene.add(c.group); G.world.dynamic.add(c); G.cars.push(c); c.place(x, z, 0); c.fuel = 1; return c; }
+function updateEvents(dt) {
+  if (!started || G.mission || G.heist || G.flight) return;
+  if (EV.active) { EV.active.update(dt); if (EV.active.done) EV.active = null; return; }
+  if ((EV.t -= dt) > 0) return;
+  EV.t = 110 + Math.random() * 110;
+  const kind = pick(['gangues', 'gangues', 'perseguicao', 'assalto']);
+  EV.active = EVENTS[kind]() || null;
+}
+G.startEvent = (k) => { if (EV.active) return EV.active.name; EV.active = EVENTS[k](); return EV.active && EV.active.name; };
+G.EV = EV;
+// ---------------- AVIÃO: embarque pela escada, voo e pouso ----------------
+function planeBoardSpot() {
+  const P = G.player, pl = G.plane, Z = G.zones.spots; if (P.mode !== 'foot') return null;
+  const parked = Math.hypot(pl.x - Z.planePark[0], pl.z - Z.planePark[1]) < 3 && Math.abs(pl.speed) < 0.5;
+  if (parked && Math.hypot(P.x - Z.stairBase[0], P.z - Z.stairBase[1]) < 2.4) return { stairs: true };
+  const [dx, dz] = pl.local(pl.dims.R + 1.4, 8);
+  if (Math.hypot(P.x - dx, P.z - dz) < 2.6) return { stairs: false, door: [dx, dz] };
+  return null;
+}
+function boardPlane(st) {
+  const P = G.player, Z = G.zones.spots;
+  if (G.weapons.current !== 'mao') G.weapons.equip('mao');
+  G.board = { t: 0, phase: 'walk', st, x0: P.x, z0: P.z, y0: P.y };
+  G.inputLocked = true; P.mode = 'board'; // a física de andar fica desligada durante a animação
+}
+function updateBoarding(dt) {
+  const B = G.board; if (!B) return; const P = G.player, Z = G.zones.spots, pl = G.plane; B.t += dt;
+  const base = B.st.stairs ? Z.stairBase : B.st.door, top = B.st.stairs ? Z.stairTop : B.st.door;
+  const gy = G.world.groundFn(base[0], base[1]); const topY = gy + (B.st.stairs ? Z.stairH : 2.2);
+  if (B.phase === 'walk') {
+    const k = Math.min(1, B.t / 0.5); P.x = B.x0 + (base[0] - B.x0) * k; P.z = B.z0 + (base[1] - B.z0) * k; P.heading = Math.atan2(top[0] - base[0], (top[1] - base[1]) || -1); P.sync();
+    P.model.update(dt, { speed: 1.6, grounded: true, mode: 'foot' });
+    if (B.t >= 0.5) { B.phase = 'climb'; B.t = 0; }
+  } else if (B.phase === 'climb') { // sobe degrau por degrau
+    const D = B.st.stairs ? 1.9 : 0.7; const k = Math.min(1, B.t / D);
+    P.x = base[0] + (top[0] - base[0]) * k; P.z = base[1] + (top[1] - base[1]) * k; P.y = gy + (topY - gy) * k; P.sync();
+    P.model.update(dt, { speed: 1.4, grounded: true, mode: 'foot' });
+    if (B.t >= D) { B.phase = 'enter'; B.t = 0; P.heading = pl.heading - Math.PI / 2; P.sync(); }
+  } else if (B.phase === 'enter') { // entra pela porta
+    const k = Math.min(1, B.t / 0.5); const [ix, iz] = pl.local(0, 8); P.x = top[0] + (ix - top[0]) * k; P.z = top[1] + (iz - top[1]) * k; P.y = topY; P.sync();
+    P.model.update(dt, { speed: 1.4, grounded: true, mode: 'foot' });
+    if (B.t >= 0.5) { G.board = null; startFlight(); }
+  }
+}
+function startFlight() {
+  const P = G.player; P.mode = 'plane'; P.model.root.visible = false; G.flight = { camT: 0 }; G.inputLocked = false; G.camOverride = true;
+  showBanner('AVIÃO', 'W/S motor · A/D virar · Espaço sobe o nariz · Shift desce · E sai (parado no chão)', false);
+  toast('Acelere (W) até 150 km/h e puxe o nariz (Espaço) para decolar', 5); G.sound('ping');
+}
+function endFlight(crash = false) {
+  const P = G.player, pl = G.plane; G.flight = null; G.camOverride = false; P.mode = 'foot'; P.model.root.visible = true; camera.fov = settings.fov; camera.far = Q.far; camera.updateProjectionMatrix();
+  const [ox, oz] = crash ? [pl.x, pl.z] : pl.local(pl.dims.R + 2, 8); P.place(ox, oz, pl.heading); G.cam.yaw = pl.heading + Math.PI; G.cam.initialized = false;
+  G.audio.update(false, 0, 0, 'jet');
+}
+const _cp = new THREE.Vector3(), _cl = new THREE.Vector3();
+function updateFlight(dt) {
+  if (!G.flight) return; const pl = G.plane, P = G.player, S = G.story;
+  const locked = G.inputLocked || G.phone.open || paused;
+  const inp = locked ? { throttle: 0, steer: 0, pitch: 0 } : { throttle: (down('KeyW', 'ArrowUp') ? 1 : 0) - (down('KeyS', 'ArrowDown') ? 1 : 0), steer: (down('KeyA', 'ArrowLeft') ? 1 : 0) - (down('KeyD', 'ArrowRight') ? 1 : 0), pitch: (down('Space') ? 1 : 0) - (down('ShiftLeft', 'ShiftRight') ? 1 : 0) };
+  if (G.testPlaneInput) Object.assign(inp, G.testPlaneInput);
+  const ev = pl.update(dt, inp);
+  P.x = pl.x; P.z = pl.z; P.y = pl.y;
+  if (ev === 'land') toast('Pouso! Use S para frear e E para sair quando parar', 3);
+  if (pl.atEdge && !G.flight.edgeMsg) { G.flight.edgeMsg = true; toast('Limite do mapa — voltando para a cidade', 2.5); } else if (!pl.atEdge) G.flight.edgeMsg = false;
+  if (ev === 'crash') {
+    G.flash(); G.sound('crash'); G.shake && G.shake(0.6); pl.group.visible = false;
+    endFlight(true); damagePlayer(65); P.startRagdoll({ x: Math.sin(pl.heading) * 6, y: 4, z: Math.cos(pl.heading) * 6 }, null, 3);
+    showBanner('O AVIÃO CAIU', 'Um novo avião estará no aeroporto em instantes', true);
+    setTimeout(() => { pl.group.visible = true; pl.place(...G.zones.spots.planePark); }, 8000);
+    return;
+  }
+  if (!locked && hit('KeyE') && pl.onGround && pl.speed < 3) { endFlight(false); return; }
+  if (!locked && hit('KeyE') && !(pl.onGround && pl.speed < 3)) toast('Pare o avião no chão para sair', 1.5);
+  // câmera de perseguição atrás do avião
+  const fx = Math.sin(pl.heading), fz = Math.cos(pl.heading);
+  _cp.set(pl.x - fx * 32, pl.y + 9 + Math.max(0, -pl.pitch) * 8, pl.z - fz * 32);
+  const k = G.flight.camT === 0 ? 1 : Math.min(1, dt * 4); G.flight.camT += dt;
+  camera.position.lerp(_cp, k); _cl.set(pl.x + fx * 12, pl.y + 2.5 + Math.sin(pl.pitch) * 10, pl.z + fz * 12); camera.lookAt(_cl);
+  if (camera.fov !== settings.fov + 6 || camera.far < 1500) { camera.fov = settings.fov + 6; camera.far = 1800; camera.updateProjectionMatrix(); }
+  G.audio.update(true, 10 + pl.throttle * 40, pl.throttle, 'jet');
+}
+G.boardPlane = boardPlane; G.planeBoardSpot = planeBoardSpot;
 // ---------------- CÓDIGOS (app do celular) ----------------
 const spawned = [];
 G.spawnVehicle = (type) => {
@@ -867,6 +1045,7 @@ G.cheat = (code) => {
   if (k === 'SEMFOME') { C.needs.fome = 100; return { msg: 'Fome cheia (continua descendo normalmente).' }; }
   if (k === 'VIDACHEIA') { G.player.hp = 100; C.needs.dor = 0; return { msg: 'Vida cheia.' }; }
   if (k === 'SEMPOLICIA') { G.wanted.stars = 0; return { msg: 'Procurado zerado.' }; }
+  if (k === 'MOEDAINFINITA') { G.addMoney(20000); C.flags.moedaInfinita = true; SAVE.writeSlot('auto', snapshot()); return { msg: 'R$ 20.000 adicionados! A partir de agora cada missão concluída dá +R$ 50.' }; }
   return { msg: 'Código inválido.' };
 };
 // motoristas visíveis no trânsito: bonecos reaproveitados, só nos carros mais próximos da câmera
@@ -1148,7 +1327,7 @@ function step(dt) {
   if (active && !locked2 && hit('KeyF')) playerPunch();
   punchCd -= dt; pulsoCd -= dt;
   updateEat(dt);
-  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt);
+  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt);
   // interiores das casas: só desenha os que estão perto (o jogador ou a câmera)
   if ((interiorT -= dt) <= 0) { interiorT = 0.25; const cx = G.camera.position.x, cz = G.camera.position.z; for (const it of G.city.interiors) { const dx = it.x - p.x, dz = it.z - p.z, ex = it.x - cx, ez = it.z - cz; it.group.visible = dx * dx + dz * dz < 1600 || ex * ex + ez * ez < 900; } }
   if (active && !locked2 && hit('KeyQ') && G.campaign().tools.pulso) {
@@ -1172,6 +1351,7 @@ function step(dt) {
     else if (nearDoor) { prompt = '[E] Dormir (8 horas e salvar)'; if (free && G.consumeInteract()) sleep(); }
     else if (nearHosp && !G.mission) { prompt = '[E] Atendimento médico (R$ 150)'; if (free && G.consumeInteract()) service('hospital'); }
     else if (npc && (!car || nd < 1.8) && !G.mission) { prompt = `[E] Falar com ${npc.name}`; if (free && G.consumeInteract()) interactNPC(npc); }
+    else if (!G.mission && G.plane && !G.plane.crashed && G.plane.onGround && planeBoardSpot()) { const st = planeBoardSpot(); prompt = st.stairs ? '[E] Subir a escada e embarcar no avião' : '[E] Entrar no avião'; if (free && G.consumeInteract()) boardPlane(st); }
     else if (car) {
       const jackable = car.driver === 'ai' && !car.T.police && !car.storyKey && !G.mission && G.drivers.some((d) => d.car === car);
       const word = car.T.moto ? 'na moto' : 'no carro';
@@ -1221,7 +1401,9 @@ function step(dt) {
     else if (active && !locked2 && hit('KeyG')) { if (nearGas) service('posto'); else if (nearShop && !G.mission) G.custom.enter(car); }
   } else G.audio.update(false, 0, 0);
   // trânsito, missões e polícia
-  const ctx = { lights: G.lights, cars: G.cars, player: p, npcs: G.npcs };
+  // carros que importam para a IA: em movimento, com motorista ou fora da vaga (os estacionados no meio-fio ficam de fora)
+  const trafficCars = G.cars.filter((c) => !c.parked || c.awake || c.driver || Math.abs(c.speed) > 0.1);
+  const ctx = { lights: G.lights, cars: G.cars, trafficCars, player: p, npcs: G.npcs };
   for (const d of G.drivers) d.update(dt, ctx);
   for (const d of G.aiDrivers) d.update(dt, ctx);
   if (active) updatePolice(dt);
@@ -1243,6 +1425,7 @@ function step(dt) {
     c.group.visible = d < (c.driver ? Q.far * 0.7 : Q.far * 0.42);
     // carros parados usam o modelo simplificado a partir de 18 m; em movimento, a partir de 45 m
     const still = !c.driver && Math.abs(c.speed) < 0.1 && !c.awake && !(c.doorT > 0);
+    c.cheap = c.driver === 'ai' && !c.storyKey && !c.sirenL && d > 110 && !G.police.some((u) => u.car === c);
     c.setLOD(c.driver !== 'player' && !c.sirenL && !c.storyKey && !c.jacked && (still ? d > 18 : d > 45));
   }
   // morte
@@ -1276,12 +1459,14 @@ function step(dt) {
   }
   updateSwitchAnim(dt);
   if (shakeT > 0) { shakeT -= dt; camera.position.x += (Math.random() - 0.5) * shakeT * 0.6; camera.position.y += (Math.random() - 0.5) * shakeT * 0.6; }
-  G.sky.follow(p.x, p.z); G.sky.tick(dt);
+  G.sky.follow(p.x, p.z, G.flight ? camera.position.y - 30 : 0); G.sky.tick(dt);
   if ((treeT -= dt) <= 0) { treeT = 0.5; G.city.updateTrees(camera.position.x, camera.position.z); }
   if (G.grass) G.grass.update(dt, camera.position);
   // Blackwood é mais enevoada
   const fogT = p.x > 440 ? Math.min(1, (p.x - 440) / 50) : 0;
-  G.sky.fogMul = (G.sky.fogMul || 1) + ((1 + fogT * 1.6) - (G.sky.fogMul || 1)) * Math.min(1, dt * 2);
+  const fogTarget = G.flight ? Math.max(0.22, 1 - G.plane.altitude / 260) : 1 + fogT * 1.6; // voando alto: menos neblina para ver a cidade
+  G.sky.fogMul = (G.sky.fogMul || 1) + (fogTarget - (G.sky.fogMul || 1)) * Math.min(1, dt * 2);
+  if (G.scene.fog) G.scene.fog.density = G.sky.baseFogD ? G.sky.baseFogD * G.sky.fogMul : G.scene.fog.density;
   updateLighting(dt, p);
   updateBlobs();
   if (G.car && G.sky.night > 0.4) {
@@ -1299,7 +1484,10 @@ function step(dt) {
   vibeT -= dt; if (started && vibeT < 0) { vibeT = 150 + Math.random() * 120; const p2 = pick(VIBE.aleatorio); G.phone.addPost({ ...p2, notify: false }); }
   // HUD
   $('prompt').textContent = prompt; $('prompt').style.display = prompt && started && !S.cut ? 'block' : 'none';
-  if (G.car) {
+  if (G.flight) {
+    const pl = G.plane; $('speedo').style.display = 'block'; $('speed').textContent = Math.round(pl.kmh); $('gear').textContent = pl.onGround ? 'SOLO' : 'VOO';
+    $('fuel').textContent = `Altitude ${Math.round(pl.altitude)} m · Motor ${Math.round(pl.throttle * 100)}%${!pl.onGround && pl.speed < 34 ? ' · ESTOL! acelere' : ''}`;
+  } else if (G.car) {
     $('speedo').style.display = 'block'; $('speed').textContent = Math.round(G.car.kmh); $('gear').textContent = G.car.speed < -0.5 ? 'R' : G.car.speed > 0.5 ? 'D' : 'N';
     $('fuel').textContent = `Combustível ${Math.round(G.car.fuel * 100)}% · Estado ${Math.round(G.car.health * 100)}%${G.car.fuel <= 0 ? ' · SEM COMBUSTÍVEL' : ''}`;
   } else $('speedo').style.display = 'none';

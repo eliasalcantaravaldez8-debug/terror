@@ -202,6 +202,15 @@ export class NPC {
         if (tgt) { moveSpeed = this.fight(tgt, dt, ctx); wantHeading = Math.atan2(tgt.x - this.x, tgt.z - this.z); } else this.aimPose = false;
         break;
       }
+      case 'gang': { // briga de gangues: ataca o rival mais perto (ou o jogador, se ele provocou)
+        const tgt = ctx.gangTarget ? ctx.gangTarget(this) : null;
+        if (tgt) { moveSpeed = this.fight(tgt, dt, ctx); wantHeading = Math.atan2(tgt.x - this.x, tgt.z - this.z); } else this.aimPose = false;
+        break;
+      }
+      case 'mug': { // assaltante apontando a arma para a vítima
+        if (this.victim) { wantHeading = Math.atan2(this.victim.x - this.x, this.victim.z - this.z); this.aimPose = true; }
+        break;
+      }
       case 'scripted': {
         if (this.goal) {
           const r = this.moveTo(this.goal[0], this.goal[1], this.goalSpeed || 1.5, dt, 0.35);
@@ -245,7 +254,7 @@ export class NPC {
     this.animSkip += dt;
     const stepT = pd > 45 ? 0.1 : 0;
     if (this.animSkip >= stepT) {
-      this.model.update(this.animSkip, { speed: this.speed, grounded: true, mode, talk: this.talking && mode === 'foot', crouch, phone: this.phone, aim: this.aimPose && this.behavior === 'hostile' });
+      this.model.update(this.animSkip, { speed: this.speed, grounded: true, mode, talk: this.talking && mode === 'foot', crouch, phone: this.phone, aim: this.aimPose && (this.behavior === 'hostile' || this.behavior === 'gang' || this.behavior === 'mug') });
       this.animSkip = 0;
     }
     this.sync();

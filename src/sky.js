@@ -98,7 +98,7 @@ export class Sky {
     this.uniforms.cloudCol.value.copy(lc('cloud')); this.uniforms.cloudShade.value.copy(lc('cloudShade')); this.uniforms.cover.value = ln('cover') + (this.rain || 0) * 0.4;
     this.sun.color.copy(lc('sunColor')); this.sun.intensity = ln('sunI') * (1 - (this.rain || 0) * 0.5);
     this.hemi.color.copy(lc('hemiSky')); this.hemi.groundColor.copy(lc('hemiGround')); this.hemi.intensity = ln('hemiI');
-    this.scene.fog.color.copy(lc('fog')); this.scene.fog.density = ln('fogD') * (1 + (this.rain || 0) * 0.8) * (this.fogMul || 1);
+    this.scene.fog.color.copy(lc('fog')); this.baseFogD = ln('fogD') * (1 + (this.rain || 0) * 0.8); this.scene.fog.density = this.baseFogD * (this.fogMul || 1);
     this.renderer.toneMappingExposure = ln('exposure');
     this.stars.material.opacity = night > 0.9 ? 0.9 : night > 0.4 ? 0.2 : 0;
     this.night = night;
@@ -111,8 +111,8 @@ export class Sky {
     const now = performance.now();
     if (forceEnv || !this._envT || now - this._envT > 2500) { this._envT = now; this.updateEnv(); }
   }
-  follow(x, z) {
-    this.dome.position.set(x, 0, z); this.stars.position.set(x, 0, z);
+  follow(x, z, y = 0) {
+    this.dome.position.set(x, y, z); this.stars.position.set(x, y, z); // acompanha a altura (voo de avião)
     // luz direcional acompanha o jogador; posição "presa" a texels para evitar tremulação das sombras
     let sx = x, sz = z;
     if (this.sun.castShadow) {
