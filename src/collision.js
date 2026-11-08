@@ -74,6 +74,7 @@ export class CollisionWorld {
       // obstáculos dinâmicos (carros)
       for (const o of this.dynamic) {
         if (o === ignore || !o.collidable) continue;
+        if (Math.abs(o.x - x) > 7 + r || Math.abs(o.z - z) > 7 + r) continue; // filtro rápido (carros e pessoas longe)
         const res = o.pushCircleOut(x, z, r, y0, y1, fromCar);
         if (res) { x = res.x; z = res.z; nx += res.nx; nz += res.nz; hit = true; moved = true; }
       }

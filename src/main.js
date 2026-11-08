@@ -16,7 +16,7 @@ import { sfx } from './audio.js';
 import * as SAVE from './save.js';
 import { CustomShop } from './custom.js';
 import { PerfMeter } from './perf.js';
-import { Weapons, WEAPONS } from './weapons.js';
+import { Weapons, WEAPONS, WEAPON_ORDER, weaponIcon } from './weapons.js';
 import { itemIcon, handItem } from './products.js';
 import { shopKind } from './city.js';
 import { Vehicle, CAR_COLORS, updateSirens } from './vehicle.js';
@@ -30,16 +30,16 @@ import { EngineAudio } from './audio.js';
 import { rand, pick, setSeed, rr, glowTex, blobTex } from './textures.js';
 
 // ---------------- CONFIGURAÇÕES ----------------
-const DEFAULTS = { sensitivity: 1.0, invertY: false, quality: 'media', autoFollow: true, fov: 68, showFps: true, time: 'entardecer', sound: true, adaptive: true, autoDialog: false };
+const DEFAULTS = { sensitivity: 1.0, invertY: false, quality: 'media', autoFollow: true, fov: 68, showFps: true, time: 'entardecer', sound: true, adaptive: true, autoDialog: false, freeWeapons: true };
 function loadSettings() {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('entreSombras.settings') || '{}') }; } catch (e) { return { ...DEFAULTS }; }
 }
 function saveSettings() { try { localStorage.setItem('entreSombras.settings', JSON.stringify(settings)); } catch (e) { /* ignora */ } }
 const settings = loadSettings();
 const QUALITY = {
-  baixa: { label: 'Baixa', pr: 0.75, aa: false, shadows: false, size: 512, extent: 40, peds: 28, traffic: 8, far: 320, lamps: 0, soft: false },
-  media: { label: 'Média', pr: 1.0, aa: false, shadows: true, size: 2048, extent: 42, peds: 45, traffic: 12, far: 400, lamps: 4, soft: false },
-  alta: { label: 'Alta', pr: Math.min(window.devicePixelRatio || 1, 1.5), aa: true, shadows: true, size: 2048, extent: 60, peds: 60, traffic: 16, far: 480, lamps: 8, soft: true },
+  baixa: { label: 'Baixa', pr: 0.75, aa: false, shadows: false, size: 512, extent: 40, peds: 40, traffic: 11, far: 320, lamps: 0, soft: false },
+  media: { label: 'Média', pr: 1.0, aa: false, shadows: true, size: 2048, extent: 42, peds: 70, traffic: 18, far: 400, lamps: 4, soft: false },
+  alta: { label: 'Alta', pr: Math.min(window.devicePixelRatio || 1, 1.5), aa: true, shadows: true, size: 2048, extent: 60, peds: 95, traffic: 24, far: 480, lamps: 8, soft: true },
 };
 const Q = QUALITY[settings.quality] || QUALITY.media;
 
@@ -68,6 +68,7 @@ window.addEventListener('resize', () => {
 
 const G = {}; // estado global do jogo (exposto para testes em window.game)
 window.game = G;
+G.freeWeapons = settings.freeWeapons;
 
 function build() {
   const t0 = performance.now();
@@ -147,9 +148,9 @@ window.addEventListener('keydown', (e) => {
   if (!keys.has(e.code)) pressed.add(e.code);
   keys.add(e.code);
 });
-window.addEventListener('keyup', (e) => keys.delete(e.code));
+window.addEventListener('keyup', (e) => { keys.delete(e.code); if (e.code === 'Tab' && wheel.open && performance.now() - wheel.t0 > 300) closeWheel(true); });
 window.addEventListener('blur', () => keys.clear());
-document.addEventListener('mousemove', (e) => { if (locked && !paused && G.cam) G.cam.onMouse(e.movementX || 0, e.movementY || 0); });
+document.addEventListener('mousemove', (e) => { if (wheel.open) { wheelMouse(e.movementX || 0, e.movementY || 0); return; } if (locked && !paused && G.cam && !G.switchAnim) G.cam.onMouse(e.movementX || 0, e.movementY || 0); });
 document.addEventListener('wheel', (e) => { if (G.cam && started && !paused && !G.phone.open) G.cam.onWheel(e.deltaY); }, { passive: true });
 const overlayOpen = () => G.phone.open || G.docOpen || $('dialog-choices').children.length > 0 || $('slots').style.display === 'flex';
 document.addEventListener('pointerlockchange', () => {
@@ -158,7 +159,7 @@ document.addEventListener('pointerlockchange', () => {
 });
 renderer.domElement.addEventListener('click', () => { if (started && !paused && !overlayOpen()) requestLock(); if (G.story) G.story.advance = true; });
 let mouseFire = false, mouseAim = false, aimToggle = false;
-renderer.domElement.addEventListener('mousedown', (e) => { if (!locked) return; if (e.button === 0) mouseFire = true; if (e.button === 2) mouseAim = true; });
+renderer.domElement.addEventListener('mousedown', (e) => { if (!locked) return; if (wheel.open) { if (e.button === 0) closeWheel(true); else closeWheel(false); return; } if (e.button === 0) mouseFire = true; if (e.button === 2) mouseAim = true; });
 window.addEventListener('mouseup', (e) => { if (e.button === 0) mouseFire = false; if (e.button === 2) mouseAim = false; });
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 function requestLock() { try { const p = renderer.domElement.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* ignore */ } }
@@ -214,7 +215,7 @@ function syncSettingsUI() {
   $('opt-fov').value = settings.fov; $('opt-fov-v').textContent = settings.fov;
   $('opt-quality').value = settings.quality; $('opt-fps').checked = settings.showFps;
   $('opt-time').value = G.sky.current || 'dia'; $('opt-sound').checked = settings.sound;
-  $('opt-adaptive').checked = settings.adaptive; $('opt-auto').checked = settings.autoDialog;
+  $('opt-adaptive').checked = settings.adaptive; $('opt-auto').checked = settings.autoDialog; $('opt-guns').checked = settings.freeWeapons; G.freeWeapons = settings.freeWeapons;
   $('gpu-info').textContent = (gpuName ? 'Placa de vídeo: ' + gpuName.replace(/ANGLE \(|\)$/g, '') : '') + ' · resolução ' + Math.round(pixelRatio * 100) + '%';
   $('opt-dist').value = G.cam ? G.cam.footDist : 4.2; $('opt-dist-v').textContent = (G.cam ? G.cam.footDist : 4.2).toFixed(1);
   $('btn-switch').textContent = G.state.char === 'ethan' ? 'JOGAR COMO RYAN' : 'JOGAR COMO ETHAN';
@@ -227,6 +228,7 @@ function bindUI() {
   $('opt-dist').oninput = (e) => { G.cam.footDist = +e.target.value; $('opt-dist-v').textContent = G.cam.footDist.toFixed(1); };
   $('opt-fps').onchange = (e) => { settings.showFps = e.target.checked; G.perf.toggle(settings.showFps); saveSettings(); };
   $('opt-auto').onchange = (e) => { settings.autoDialog = e.target.checked; saveSettings(); };
+  $('opt-guns').onchange = (e) => { settings.freeWeapons = e.target.checked; G.freeWeapons = settings.freeWeapons; saveSettings(); };
   $('opt-adaptive').onchange = (e) => { settings.adaptive = e.target.checked; saveSettings(); if (!settings.adaptive) G.setPixelRatio(Q.pr); };
   $('opt-sound').onchange = (e) => { settings.sound = e.target.checked; G.audio.enabled = settings.sound; saveSettings(); };
   $('opt-time').onchange = (e) => { G.setHour({ dia: 12, entardecer: 18.6, noite: 23 }[e.target.value]); };
@@ -247,7 +249,7 @@ function bindUI() {
   $('btn-play').disabled = false;
   $('btn-play').onclick = () => latest ? startFromState(latest.data) : startFromState(SAVE.newState());
   $('btn-new').hidden = !latest; $('btn-new').onclick = () => startFromState(SAVE.newState());
-  $('btn-ryan').hidden = false; $('btn-ryan').onclick = () => { const st = latest ? latest.data : SAVE.newState(); st.char = 'ryan'; startFromState(st); };
+  $('btn-ryan').hidden = !(latest && ryanUnlocked(latest.data)); $('btn-ryan').onclick = () => { const st = latest ? latest.data : SAVE.newState(); st.char = 'ryan'; startFromState(st); };
   $('btn-load').hidden = !latest; $('btn-load').onclick = () => openSlots('load');
 }
 function openSlots(mode) {
@@ -269,11 +271,94 @@ function snapshot() {
   if (G.mission) { C.mission = G.mission.id; C.stage = G.missionStage || 0; }
   return JSON.parse(JSON.stringify(st));
 }
+// Ryan Cole só fica disponível depois da primeira missão (Prólogo) da campanha do Ethan
+function ryanUnlocked(st = G.state) { return !!st && (st.ethan.done.includes('prologo') || st.char === 'ryan'); }
+G.ryanUnlocked = () => ryanUnlocked();
+// troca de personagem no meio do jogo (estilo GTA): a câmera sobe ao céu, troca e desce no outro personagem
 function switchCharacter() {
-  if (G.mission) { toast('Termine ou saia da missão antes de trocar de personagem'); return; }
-  const st = snapshot(); st.char = st.char === 'ethan' ? 'ryan' : 'ethan';
-  SAVE.writeSlot('auto', st); SAVE.requestLoad('auto');
+  if (!started || G.switchAnim) return;
+  if (paused) { showPause(false); requestLock(); }
+  if (!ryanUnlocked()) { toast('Ryan Cole é desbloqueado depois da primeira missão (Prólogo)', 3); return; }
+  if (G.mission) { toast('Termine ou saia da missão antes de trocar de personagem', 2.5); return; }
+  if (G.wanted.stars) { toast('Despiste a polícia antes de trocar de personagem', 2.5); return; }
+  if (G.story.cut || G.inputLocked || G.custom.open) return;
+  const P = G.player;
+  G.switchAnim = { t: 0, phase: 'up', from: camera.position.clone(), x: P.x, y: P.y, z: P.z };
+  G.inputLocked = true; G.sound('page'); closeWheel(false);
 }
+G.switchCharacter = switchCharacter;
+function doSwitch() {
+  if (G.car) forceExitCar();
+  const st = snapshot(); G.state = st; st.char = st.char === 'ethan' ? 'ryan' : 'ethan';
+  const C = G.campaign(); if (C.pos) C.pos = [...C.pos];
+  applyCampaign(); G.weapons.attach();
+  SAVE.writeSlot('auto', snapshot());
+  toast(C.char === 'ryan' ? 'Agora você é RYAN COLE' : 'Agora você é ETHAN', 2.5);
+}
+const ease = (k) => k * k * (3 - 2 * k);
+function updateSwitchAnim(dt) {
+  const a = G.switchAnim; if (!a) return; a.t += dt; const H = 170, P = G.player;
+  if (a.phase === 'up') {
+    const k = ease(Math.min(1, a.t / 1.1));
+    camera.position.set(a.from.x + (a.x - a.from.x) * k, a.from.y + (a.y + H - a.from.y) * k, a.from.z + (a.z + 0.1 - a.from.z) * k);
+    camera.lookAt(a.x, a.y, a.z);
+    if (a.t >= 1.1) { doSwitch(); a.phase = 'hold'; a.t = 0; a.x = P.x; a.y = P.y; a.z = P.z; G.flash(); G.cam.initialized = false; }
+  } else if (a.phase === 'hold') {
+    camera.position.set(a.x + (a.t * 3), a.y + H, a.z + 0.1); camera.lookAt(a.x, a.y, a.z);
+    if (a.t > 0.35) { a.phase = 'down'; a.t = 0; }
+  } else {
+    const k = ease(Math.min(1, a.t / 1.2)); const tx = camera.position.x, ty = camera.position.y, tz = camera.position.z; // posição normal da câmera (já calculada)
+    camera.position.set(a.x + (tx - a.x) * k, a.y + H + (ty - a.y - H) * k, a.z + 0.1 + (tz - a.z - 0.1) * k);
+    camera.lookAt(P.x, P.y + 1.4 * k, P.z);
+    if (a.t >= 1.2) { G.switchAnim = null; G.inputLocked = false; }
+  }
+}
+
+// ---------------- MENU DE ARMAS (Tab) ----------------
+const wheel = { open: false, sel: 0, mx: 0, my: 0, t0: 0, built: false };
+function buildWheel() {
+  const ring = $('wheel-ring'); ring.innerHTML = '';
+  WEAPON_ORDER.forEach((id, i) => {
+    const a = -Math.PI / 2 + i * (Math.PI * 2 / WEAPON_ORDER.length);
+    const el = document.createElement('div'); el.className = 'wslot'; el.dataset.i = i;
+    el.style.left = (50 + Math.cos(a) * 37) + '%'; el.style.top = (50 + Math.sin(a) * 37) + '%';
+    el.innerHTML = `<img src="${weaponIcon(id)}" alt=""><b>${i + 1}. ${WEAPONS[id].name}</b><small></small>`;
+    el.onclick = () => { wheel.sel = i; closeWheel(true); };
+    ring.appendChild(el);
+  });
+  wheel.built = true;
+}
+function refreshWheel() {
+  const inv = G.weapons.inv;
+  $('wheel-ring').querySelectorAll('.wslot').forEach((el, i) => {
+    const id = WEAPON_ORDER[i], W = WEAPONS[id], s = inv[id];
+    const owned = id === 'mao' || s.owned;
+    el.classList.toggle('sel', i === wheel.sel); el.classList.toggle('locked', !owned);
+    el.querySelector('small').textContent = id === 'mao' ? 'socos (F)' : owned ? `${s.clip} / ${s.ammo}` : `Ferragens · R$ ${W.price.toLocaleString('pt-BR')}`;
+  });
+  const id = WEAPON_ORDER[wheel.sel]; const W = WEAPONS[id];
+  $('wheel-name').textContent = W.name;
+  $('wheel-info').textContent = id === 'mao' ? 'Sem arma' : `${W.auto ? 'Automática' : id === 'escopeta' ? 'Espalha chumbo' : 'Semiautomática'} · dano ${W.dmg * W.pellets} · pente ${W.mag}`;
+}
+function openWheel() {
+  if (!started || paused || G.player.mode !== 'foot' || G.story.cut || G.inputLocked || G.phone.open || G.switchAnim || overlayOpen()) return;
+  if (!wheel.built) buildWheel();
+  wheel.open = true; wheel.sel = Math.max(0, WEAPON_ORDER.indexOf(G.weapons.current)); wheel.mx = wheel.my = 0; wheel.t0 = performance.now();
+  $('wheel').style.display = 'flex'; refreshWheel();
+}
+function closeWheel(apply) {
+  if (!wheel.open) return; wheel.open = false; $('wheel').style.display = 'none';
+  if (apply) { const id = WEAPON_ORDER[wheel.sel]; if (id !== G.weapons.current) G.weapons.equip(id); }
+  mouseFire = false;
+}
+function wheelMouse(dx, dy) {
+  wheel.mx = Math.max(-140, Math.min(140, wheel.mx + dx)); wheel.my = Math.max(-140, Math.min(140, wheel.my + dy));
+  if (Math.hypot(wheel.mx, wheel.my) < 30) return;
+  const a = Math.atan2(wheel.my, wheel.mx) + Math.PI / 2; const n = WEAPON_ORDER.length;
+  const i = ((Math.round(a / (Math.PI * 2 / n)) % n) + n) % n;
+  if (i !== wheel.sel) { wheel.sel = i; refreshWheel(); }
+}
+G.wheel = wheel; G.openWheel = openWheel; G.closeWheel = closeWheel;
 
 // ---------------- INÍCIO DE CAMPANHA ----------------
 function lookFor(C) {
@@ -289,6 +374,13 @@ function startFromState(st) {
   requestLock();
   G.sky.setHour(st.hour, true);
   if (st.blackwood) G.zones.unlockBlackwood();
+  applyCampaign();
+  lastAutosave = performance.now();
+  G.perf.toggle(!!settings.showFps);
+}
+// aplica a campanha ativa (personagem, carro, armas, posição, missão). Usado ao iniciar e na troca de personagem.
+function applyCampaign() {
+  const C = G.campaign();
   G.player.setLook(lookFor(C));
   G.player.hp = C.hp;
   G.ethanCar.owner = C.char === 'ryan' ? 'Ryan' : 'Ethan';
@@ -307,8 +399,6 @@ function startFromState(st) {
   if (C.mission) { const m = missions().find((x) => x.id === C.mission); if (m) runMission(m, C.stage || 0, true); }
   else checkAutoMissions();
   if (C.char === 'ryan' && !C.flags.introRyan) { C.flags.introRyan = true; toast('Campanha de Ryan Cole', 3); }
-  lastAutosave = performance.now();
-  G.perf.toggle(!!settings.showFps);
 }
 // personagens fixos do mundo aberto (fora das missões)
 function syncWorld() {
@@ -386,6 +476,7 @@ async function runMission(m, from = 0, resumed = false) {
   }
   C.done.push(m.id); C.mission = null; C.stage = 0; G.mission = null;
   if (m.reward) G.addMoney(m.reward);
+  if (m.id === 'prologo' && C.char === 'ethan') setTimeout(() => toast('RYAN COLE DESBLOQUEADO — aperte Z para trocar de personagem a qualquer momento', 6), 3500);
   showBanner('MISSÃO CONCLUÍDA', m.title, false);
   syncWorld();
   SAVE.writeSlot('missao', snapshot()); SAVE.writeSlot('auto', snapshot());
@@ -458,7 +549,8 @@ G.forceExitCar = forceExitCar;
 
 // ---------------- COMBATE ----------------
 let punchCd = 0, lastHurt = -99;
-function damagePlayer(amount) {
+function damagePlayer(amount, from = null) {
+  if (from) G.lastHitFrom = [from.x, from.z];
   const C = G.campaign(); G.player.hp = Math.max(0, G.player.hp - amount); C.needs.dor = Math.min(100, C.needs.dor + amount * 0.7);
   lastHurt = G.story.t; $('vignette').style.background = 'radial-gradient(ellipse at center, rgba(120,0,0,0) 45%, rgba(140,0,0,0.6) 100%)';
   setTimeout(() => { $('vignette').style.background = ''; }, 250);
@@ -484,15 +576,17 @@ function combatCtx() {
       return best;
     },
     hit: (att, tgt, dmg) => {
-      if (tgt === P) { damagePlayer(dmg); return; }
+      if (tgt === P) { damagePlayer(dmg, att); return; }
       if (tgt.team === 'ally') { tgt.hp = Math.max(30, tgt.hp - dmg * 0.5); return; }
       tgt.hp -= dmg; G.sound('punch');
-      if (tgt.hp <= 0) tgt.knockDown(0);
+      if (tgt.hp <= 0) tgt.knockDown(0, punchImpulse(att, tgt));
     },
     teleportFollower: (n) => G.story.teleportFollower(n),
     npcShoot: (n, tgt) => G.weapons.npcShoot(n, tgt),
   };
 }
+// empurrão do soco: na direção de quem bate para quem apanha
+function punchImpulse(a, b, f = 3.2) { const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz) || 1; return { x: dx / d * f, y: 0.8, z: dz / d * f }; }
 function playerPunch() {
   const P = G.player; if (punchCd > 0 || P.mode !== 'foot') return;
   punchCd = 0.45; P.model.punch();
@@ -508,14 +602,14 @@ function playerPunch() {
   const tfx = Math.sin(tgt.heading), tfz = Math.cos(tgt.heading);
   const behind = ((P.x - tgt.x) * tfx + (P.z - tgt.z) * tfz) / (bd || 1) < -0.2;
   if (tgt.team === 'enemy') {
-    if (tgt.behavior === 'guard' && behind && (!G.story.alert || G.story.alert.value < 75)) { tgt.knockDown(0); toast('Segurança nocauteado em silêncio', 1.5); return; }
-    tgt.hp -= 34; if (tgt.hp <= 0) tgt.knockDown(0);
+    if (tgt.behavior === 'guard' && behind && (!G.story.alert || G.story.alert.value < 75)) { tgt.knockDown(0, punchImpulse(P, tgt, 1.2)); toast('Segurança nocauteado em silêncio', 1.5); return; }
+    tgt.hp -= 34; if (tgt.hp <= 0) tgt.knockDown(0, punchImpulse(P, tgt));
     else if (tgt.behavior === 'guard') { G.story.addAlert(30); tgt.investigate = [P.x, P.z]; }
     return;
   }
   // civis e policiais
   tgt.hp -= 40;
-  if (tgt.hp <= 0) { tgt.prevBehavior = tgt.behavior === 'down' ? 'loop' : tgt.behavior; tgt.knockDown(8); }
+  if (tgt.hp <= 0) { tgt.prevBehavior = tgt.behavior === 'down' ? 'loop' : tgt.behavior; tgt.knockDown(8, punchImpulse(P, tgt)); }
   witnessCrime(tgt.role === 'police' ? 2 : 1, 'agressão', tgt);
   for (const n of G.npcs) if (n.role === 'ped' && n.alive && Math.hypot(n.x - P.x, n.z - P.z) < 18) { n.behavior = 'panic'; n.panicFrom = [P.x, P.z]; n.panicT = 6; }
 }
@@ -613,13 +707,13 @@ function shopMenu(npc) {
   let items = (MENUS[kind] || []).map((k) => IT[k]);
   if (kind === 'ferragens') {
     const inv = G.weapons.inv;
-    for (const id of ['pistola', 'escopeta']) {
+    for (const id of WEAPON_ORDER.slice(1)) {
       const W2 = WEAPONS[id];
-      if (!inv[id].owned) items.push({ text: `${W2.name} — R$ ${W2.price}`, price: W2.price, weapon: id, icon: id });
-      items.push({ text: `Munição de ${W2.name.toLowerCase()} (${W2.ammoPack}) — R$ ${W2.ammoPrice}`, price: W2.ammoPrice, ammo: id, icon: 'municao' });
+      if (!inv[id].owned) items.push({ text: `${W2.name} — R$ ${W2.price}`, price: W2.price, weapon: id, wicon: id });
+      else items.push({ text: `Munição: ${W2.name} (${W2.ammoPack}) — R$ ${W2.ammoPrice}`, price: W2.ammoPrice, ammo: id, icon: 'municao' });
     }
   }
-  return items.map((it) => ({ ...it, iconUrl: it.icon ? itemIcon(it.icon) : null }));
+  return items.map((it) => ({ ...it, iconUrl: it.wicon ? weaponIcon(it.wicon) : it.icon ? itemIcon(it.icon) : null }));
 }
 // comer/beber: o item aparece na mão do personagem por alguns segundos
 let eatModel = null;
@@ -841,7 +935,7 @@ function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), 1 / 20);
   G.perf.tick();
-  if (!G.manual) { step(dt); adaptResolution(dt); }
+  if (!G.manual) { step(wheel.open ? dt * 0.25 : dt); adaptResolution(dt); }
   if (!G.noRender) renderer.render(scene, camera);
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 0.5) { fpsShown = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
@@ -856,7 +950,10 @@ function step(dt) {
   // diálogos / escolhas / documentos
   if (active && hit('KeyE', 'Space', 'Enter')) S.advance = true;
   const choosing = $('dialog-choices').children.length > 0;
-  for (let i = 1; i <= 9; i++) if (hit('Digit' + i, 'Numpad' + i)) { if (choosing) S.choice = i - 1; else if (active && !locked2 && !S.cut && i <= 3) G.weapons.equip(['mao', 'pistola', 'escopeta'][i - 1]); }
+  for (let i = 1; i <= 9; i++) if (hit('Digit' + i, 'Numpad' + i)) { if (choosing) S.choice = i - 1; else if (wheel.open && i <= WEAPON_ORDER.length) { wheel.sel = i - 1; closeWheel(true); } else if (active && !locked2 && !S.cut && i <= WEAPON_ORDER.length) G.weapons.equip(WEAPON_ORDER[i - 1]); }
+  if (hit('Tab')) { if (wheel.open) closeWheel(true); else if (active && !locked2) openWheel(); }
+  if (wheel.open && (hit('Escape') || p.mode !== 'foot' || S.cut)) closeWheel(false);
+  if (active && !locked2 && hit('KeyZ')) switchCharacter();
   if (active && S.cut && hit('KeyX', 'Backspace') && !choosing) { S.skipCut = true; }
   if (hit('F3')) { G.perf.toggle(); settings.showFps = G.perf.visible; saveSettings(); }
   if (hit('F4')) { if (G.perf.session) { const r = G.perf.stopSession(); toast(`Medição: mín ${r.min.toFixed(0)} · méd ${r.avg.toFixed(0)} · máx ${r.max.toFixed(0)} FPS`, 4); } else { G.perf.startSession(); G.perf.toggle(true); toast('Medição de FPS iniciada (F4 para parar)', 2); } }
@@ -960,6 +1057,17 @@ function step(dt) {
     c.setLOD(d > 45 && c.driver !== 'player' && !c.sirenL && !c.storyKey);
   }
   // morte
+  // atropelado: o jogador vira ragdoll e levanta depois de alguns segundos
+  if (started && p.mode === 'foot' && !p.ragdoll && !S.cut) for (const c of G.cars) {
+    if (c === G.car || Math.abs(c.speed) < 7 || Math.abs(c.x - p.x) > 6 || Math.abs(c.z - p.z) > 6) continue;
+    const r = c.pushCircleOut(p.x, p.z, 0.4, p.y, p.y + 1.7); if (!r) continue;
+    const sp = Math.abs(c.speed); damagePlayer(Math.min(60, sp * 1.6), c);
+    p.startRagdoll({ x: c.velX * 0.8 + r.nx * 2, y: 2.5 + sp * 0.1, z: c.velZ * 0.8 + r.nz * 2 }, { x: p.x, y: p.y + 0.6, z: p.z }, 2.6); G.sound('crash'); break;
+  }
+  if (started && p.hp <= 0 && p.mode === 'foot' && !p.ragdoll) { // corpo cai de verdade
+    const f = G.lastHitFrom || [p.x - Math.sin(p.heading), p.z - Math.cos(p.heading)]; const dx = p.x - f[0], dz = p.z - f[1], d = Math.hypot(dx, dz) || 1;
+    p.startRagdoll({ x: dx / d * 2.4, y: 0.6, z: dz / d * 2.4 }, null, 1.0);
+  }
   if (started && p.hp <= 0 && !G.dead) {
     if (G.mission) { if (!S.failChecks) S.fail('Você morreu'); }
     else { G.dead = true; onDeath(); }
@@ -977,6 +1085,7 @@ function step(dt) {
     if (p.mode === 'car') G.cam.update(dt, tmpV.set(G.car.x, G.car.y + 1.25, G.car.z), G.car);
     else G.cam.update(dt, tmpV.set(p.x, p.y + (p.crouch ? 1.1 : 1.55), p.z), null);
   }
+  updateSwitchAnim(dt);
   if (shakeT > 0) { shakeT -= dt; camera.position.x += (Math.random() - 0.5) * shakeT * 0.6; camera.position.y += (Math.random() - 0.5) * shakeT * 0.6; }
   G.sky.follow(p.x, p.z); G.sky.tick(dt);
   // Blackwood é mais enevoada

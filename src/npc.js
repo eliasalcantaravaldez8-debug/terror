@@ -2,6 +2,7 @@
 // Comportamentos: stand, loop (calçada), patrol, guard (ronda), follow (segue o jogador), ally (segue e luta),
 // hostile (ataca), scripted (vai até um ponto), flee (foge por uma rota), panic, down (nocauteado), chair, sleep.
 import { Humanoid } from './humanoid.js';
+import { Ragdoll, endRagdoll } from './ragdoll.js';
 import { rand, rr } from './textures.js';
 
 const damp = (a, b, k, dt) => a + (b - a) * (1 - Math.exp(-k * dt));
@@ -11,6 +12,7 @@ function angDamp(a, b, k, dt) {
 }
 
 export class NPC {
+  static ragdolls = true;
   constructor(scene, world, look, opts = {}) {
     this.world = world; this.scene = scene;
     this.model = new Humanoid(look);
@@ -47,9 +49,23 @@ export class NPC {
   }
   get alive() { return this.behavior !== 'down'; }
   setLying(angle, lift = 0.15) { this.lying = angle; this.lift = lift; }
-  knockDown(getUpAfter = 0) {
+  // impulse: velocidade do empurrão (tiro, soco, carro) em m/s; at: ponto do impacto
+  knockDown(getUpAfter = 0, impulse = null, at = null) {
+    if (this.ragdoll) { if (impulse) this.ragdoll.push(impulse, at); this.behavior = 'down'; this.downT = 0; this.getUp = getUpAfter; this.hp = 0; return; }
     this.behavior = 'down'; this.downT = 0; this.getUp = getUpAfter; this.hp = 0;
-    this.setLying(Math.PI / 2, 0.15); this.collidable = false; this.interactable = false; this.speed = 0;
+    this.collidable = false; this.interactable = false; this.speed = 0;
+    if (NPC.ragdolls && !this.inCar && this.model.root.visible) {
+      // sem impulso: cai para trás (em relação a quem está de frente)
+      const imp = impulse || { x: -Math.sin(this.heading) * 1.6, y: 0.4, z: -Math.cos(this.heading) * 1.6 };
+      this.setLying(0, 0); this.sync(); this.ragdoll = new Ragdoll(this.model, this.world, imp, at);
+    } else this.setLying(Math.PI / 2, 0.15);
+  }
+  // levanta do ragdoll no lugar onde o corpo parou
+  endRagdoll() {
+    if (!this.ragdoll) return;
+    const c = this.ragdoll.center(); this.x = c.x; this.z = c.z;
+    this.y = this.world.groundAt(this.x, this.z, 0.3, this.y + 0.3);
+    endRagdoll(this.model); this.ragdoll = null; this.model.root.rotation.set(0, this.heading, 0);
   }
   loopPos(s) {
     const h = this.loop.half + this.lat, L = h * 2, per = L * 4;
@@ -82,10 +98,10 @@ export class NPC {
         this.dodge = 0.7; this.dodgeX = -fz * sgn * 5; this.dodgeZ = fx * sgn * 5;
       }
     }
-    const res = car.pushCircleOut(this.x, this.z, this.r, this.y, this.y + 1.7);
+    const res = car.pushCircleOut(this.x, this.z, this.r + (sp > 6 ? 0.25 : 0), this.y, this.y + 1.7); // margem: o NPC pode já ter sido empurrado para fora neste quadro
     if (res) {
       this.x = res.x; this.z = res.z;
-      if (sp > 6) { this.knockDown(this.role === 'ped' || this.role === 'police' ? 6 : 0); return true; }
+      if (sp > 6) { const k = Math.min(1.2, sp / 14); this.knockDown(this.role === 'ped' || this.role === 'police' ? 7 : 0, { x: car.velX * k + res.nx * 2, y: 2.5 + sp * 0.12, z: car.velZ * k + res.nz * 2 }, { x: this.x, y: this.y + 0.6, z: this.z }); return true; }
     }
     return false;
   }
@@ -105,6 +121,15 @@ export class NPC {
     const pd = Math.hypot(pdx, pdz);
     let moveSpeed = 0; let wantHeading = this.heading; let mode = 'foot'; let crouch = false;
     if (this.inCar) { this.sync(); return; }
+    if (this.ragdoll) {
+      if (this.behavior !== 'down') this.endRagdoll(); // uma missão reviveu/moveu o personagem
+      else {
+        this.downT += dt;
+        if (pd < 90 && this.model.root.visible) this.ragdoll.update(dt);
+        if (this.getUp > 0 && this.downT > this.getUp) { this.endRagdoll(); this.behavior = this.prevBehavior || 'panic'; this.collidable = true; this.hp = this.maxHp; this.interactable = true; this.panicT = 6; this.sync(); }
+        return;
+      }
+    }
     if (this.behavior === 'down') {
       this.downT += dt;
       if (this.getUp > 0 && this.downT > this.getUp) { this.behavior = this.prevBehavior || 'panic'; this.setLying(0, 0); this.collidable = true; this.hp = this.maxHp; this.interactable = true; this.panicT = 6; }
@@ -253,7 +278,7 @@ export class NPC {
   }
   remove() { this.scene.remove(this.model.root); this.removed = true; this.collidable = false; }
   sync() {
-    if (this.inCar) return;
+    if (this.inCar || this.ragdoll) return;
     this.model.root.position.set(this.x, this.y + (this.lift || 0) * Math.min(1, Math.abs(this.lying)), this.z);
     this.model.root.rotation.set(this.lying || 0, this.heading, 0);
   }

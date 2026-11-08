@@ -420,14 +420,14 @@ export class Vehicle {
     // freio de mão: trava as rodas traseiras => desaceleração firme e constante (não desliza sem fim)
     if (hb) { const d = Math.min(Math.abs(this.speed), 6.5 * dt); this.speed -= Math.sign(this.speed) * d; }
     // direção: ângulo máximo diminui com a velocidade
-    const maxSteer = st.steer / (1 + Math.abs(this.speed) * 0.07);
-    this.steer = damp(this.steer, (inp.steer || 0) * maxSteer, 7, dt);
+    const maxSteer = st.steer / (1 + Math.abs(this.speed) * 0.05);
+    this.steer = damp(this.steer, (inp.steer || 0) * maxSteer, 9.5, dt);
     let targetYaw = this.speed * Math.tan(this.steer) / T.wheelBase;
     // limite de aderência lateral (depende do carro); com freio de mão a traseira solta um pouco
-    const gripLimit = st.grip * (hb ? 1.35 : 1.4);
+    const gripLimit = st.grip * (hb ? 1.55 : 1.72);
     const maxYaw = gripLimit / Math.max(4, Math.abs(this.speed));
     targetYaw = Math.max(-maxYaw, Math.min(maxYaw, targetYaw * (hb ? 1.15 : 1)));
-    this.yawRate = damp(this.yawRate, targetYaw, hb ? 5.5 : 9, dt);
+    this.yawRate = damp(this.yawRate, targetYaw, hb ? 6 : 10.5, dt);
     this.heading += this.yawRate * dt;
     // derrapagem controlada: velocidade lateral limitada e que se recupera rápido ao soltar
     const slip = hb ? 0.05 * st.drift : 0.012;

@@ -130,7 +130,7 @@ export class TrafficDriver {
         }
       }
     };
-    for (const o of ctx.cars) if (o !== car && !o.removed) checkObs(o, o.x, o.z, o.velX, o.velZ, o.T.L / 2, 2.0);
+    for (const o of ctx.cars) if (o !== car && !o.removed && Math.abs(o.x - car.x) < 35 && Math.abs(o.z - car.z) < 35) checkObs(o, o.x, o.z, o.velX, o.velZ, o.T.L / 2, 2.0);
     if (ctx.player.mode === 'foot') checkObs(ctx.player, ctx.player.x, ctx.player.z, 0, 0, 0.4, 1.7);
     for (const n of ctx.npcs) if (n.dodge > 0 || n.behavior === 'panic' || (n.alive && !n.inCar && Math.abs(n.x - car.x) < 12 && Math.abs(n.z - car.z) < 12 && Math.abs(car.x - n.x) + Math.abs(car.z - n.z) < 12 && ctxRoad(n))) checkObs(n, n.x, n.z, 0, 0, 0.3, 1.5);
     // preso atrás de algo parado (sem semáforo) => ultrapassa quando a contramão está livre

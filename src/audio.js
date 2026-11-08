@@ -59,6 +59,10 @@ export function sfx(ctx, name, dur = 1) {
   } else if (name === 'shotgun') {
     const n = noise(0.6); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1400; n.connect(f); f.connect(out);
     out.gain.setValueAtTime(0.7, t); out.gain.exponentialRampToValueAtTime(0.001, t + 0.55); n.start(t); n.stop(t + 0.55);
+  } else if (name === 'rifle' || name === 'smg') { // AK-47 (grave e seco) / metralhadora (curto e agudo)
+    const n = noise(0.3); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = name === 'rifle' ? 2000 : 4200; n.connect(f); f.connect(out);
+    const len = name === 'rifle' ? 0.28 : 0.13;
+    out.gain.setValueAtTime(name === 'rifle' ? 0.6 : 0.38, t); out.gain.exponentialRampToValueAtTime(0.001, t + len); n.start(t); n.stop(t + len);
   } else if (name === 'crash' || name === 'shot' || name === 'punch') {
     const n = noise(name === 'crash' ? 1.2 : 0.4); const f = ctx.createBiquadFilter(); f.type = 'lowpass';
     f.frequency.value = name === 'shot' ? 3000 : name === 'punch' ? 500 : 900; n.connect(f); f.connect(out);

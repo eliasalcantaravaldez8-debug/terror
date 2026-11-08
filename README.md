@@ -17,7 +17,7 @@ Siga o documento oficial — veja **[HISTORIA.md](HISTORIA.md)** para o mapa com
 
 **Campanha de Ethan:** Prólogo (esconderijo, fuga, batida e prisão) → Sete Anos Depois (saída da penitenciária, carro blindado, reencontro com Ryan) → Os Nomes do Livro (casa abandonada, território rival, Blake se rende, Victor foge, livro recuperado) → O Primeiro Suspeito (Lucas, ligação misteriosa, fotografia) → O Irmão (binóculos na colina) → A Fotografia (12/08/2027) → A Mansão (furtividade com alerta 0–100, confronto, perseguição) → O Galpão (luta, interrogatório, disparo, pessoa misteriosa, Ryan desaparece) → Culpado?? (o investigador).
 
-**Campanha de Ryan:** ligação com contrato (aceitar ou recusar) → A Casa das Câmeras (Pulso Eletrônico, Fernando del Costa: eliminar ou interrogar e fugir).
+**Campanha de Ryan** (desbloqueada ao terminar o Prólogo; troque com **Z** a qualquer momento fora de missão): ligação com contrato (aceitar ou recusar) → A Casa das Câmeras (Pulso Eletrônico, Fernando del Costa: eliminar ou interrogar e fugir).
 
 Missões com marcador azul começam quando você chega nele e aperta **E**. Missões em sequência começam sozinhas. Se falhar, a missão volta ao último checkpoint.
 
@@ -35,13 +35,17 @@ Missões com marcador azul começam quando você chega nele e aperta **E**. Miss
 | Agachar (furtividade) | C |
 | Celular (mapa, mensagens, banco, VIBE...) | T |
 | Pulso Eletrônico (Ryan) | Q |
+| **Menu de armas** (roda) | **Tab** (mouse ou 1–5 escolhe; clique ou Tab confirma) |
+| Trocar de arma direto | 1 mãos · 2 pistola · 3 metralhadora · 4 escopeta · 5 AK-47 |
+| Mirar / atirar / recarregar | botão direito (ou V) / botão esquerdo (segure nas automáticas) / R |
+| **Trocar de personagem** (Ethan ↔ Ryan) | **Z** (depois do Prólogo) |
 | Abastecer no posto / consertar na oficina (dentro do carro) | G |
 | Escolhas nos diálogos | 1, 2, 3 ou clique |
 | Acelerar / frear / ré | W / S (segure S parado para dar ré) |
 | Virar o carro | A / D |
 | Freio de mão | Espaço |
 | Avançar 3 horas (fora de missão) | N |
-| Opções, salvar, carregar, trocar de personagem | Esc |
+| Opções, salvar, carregar | Esc |
 | Ajuda na tela | H |
 
 ## O que tem no jogo
@@ -73,17 +77,34 @@ Ethan e Ryan podem fazer as duas, cada um com o próprio dinheiro.
 **Carros (todos dirigíveis, cada um com direção, aceleração, frenagem, aderência e som de motor próprios):**
 Popular 1.0, Hatch Pulse, Sedan Aurora, SUV Montana, Picape Bravo, Imperial Luxo, Coupé GT Sombra, Clássico 1965, **Besouro 1300** (clássico inspirado no Fusca), **Fúria V12** (superesportivo inspirado em Lamborghini), Táxi e Viatura. Os nomes são fictícios porque as marcas reais são registradas. Um Fúria, um Besouro e um Coupé ficam estacionados na rua em frente à casa.
 
+**Direção:** mais leve que antes (vira de 20% a 30% mais rápido), mas os carros ainda têm peso e perdem aderência em alta velocidade.
+
 **Freio de mão:** trava as rodas traseiras, reduz a velocidade de forma firme e permite derrapagem controlada; ao soltar, o carro recupera a aderência.
 
 **Los Valles Custom (oficina):** no Estacionamento Central. Entre com o carro e aperte **G**. Pintura (16 cores), 6 tipos de rodas, aerofólio, saias laterais, película, neon, faróis xenon, motor (3 níveis), freios (3), suspensão (3), turbo e reparo. O carro gira na tela enquanto você escolhe; as mudanças aparecem na hora e só são cobradas ao comprar. O carro customizado vira o **seu carro** e fica salvo.
 
-**Armas:** pistola e escopeta (compre na Ferragens Ramírez; Ryan já começa com pistola). **1/2/3** troca, **botão direito** ou **V** mira, **botão esquerdo** atira, **R** recarrega. Quem é atingido cai, sem sangue. Atirar em público assusta as pessoas e dá estrelas; com 3 estrelas ou mais, policiais descem armados. Alguns inimigos das missões também atiram.
+**Armas:** pistola, metralhadora, escopeta e **AK-47**.
+- **Tab** abre o **menu de armas** (roda): o jogo fica em câmera lenta. Escolha com o mouse ou com 1–5 e confirme com clique ou soltando o Tab. O menu mostra a munição de cada arma.
+- **Botão direito** (ou V) mira, **botão esquerdo** atira, **R** recarrega.
+- A AK-47 e a metralhadora são automáticas: segure o botão. Elas têm recuo (a mira sobe) e espalham menos quando você mira.
+- A opção **"Todas as armas liberadas"** (menu Esc) vem ligada: todas as armas ficam disponíveis com munição de reserva. Desligue para ter de comprar armas e munição na Ferragens Ramírez (Ryan já começa com pistola).
+- Quem é atingido cai, sem sangue. Atirar em público assusta as pessoas e dá estrelas; com 3 estrelas ou mais, policiais descem armados. Alguns inimigos das missões também atiram.
+
+**Ragdoll (corpo mole):** NPCs e o jogador caem com física de verdade.
+- O corpo é empurrado na direção do tiro, do soco ou do carro. Braços e pernas caem soltos, com limite nos joelhos e cotovelos. O corpo bate nas paredes e para no chão.
+- Atropelar alguém lança a pessoa. Se **você** for atropelado, cai e levanta depois de alguns segundos.
+- Quando o personagem morre, o corpo cai antes de voltar ao último salvamento.
+- Corpos parados "dormem" (deixam de calcular física) para não pesar no PC.
+
+**Troca de personagem estilo GTA:** com **Z**, a câmera sobe até o céu, troca e desce no outro personagem. Cada um continua de onde parou, com dinheiro, armas, carro e missões próprios. O Ryan Cole só fica disponível depois da primeira missão (Prólogo). Não dá para trocar durante uma missão nem procurado pela polícia.
 
 **Cutscenes:** **X** pula a cena; opção "Diálogos avançam sozinhos" no menu.
 
 **Medidor de desempenho real (F3):** FPS e milissegundos por quadro medidos do intervalo real entre quadros, gráfico, memória JavaScript (no Chrome/Edge; em outros navegadores aparece "indisponível"), chamadas de desenho e triângulos. **F4** inicia/para uma medição e mostra FPS mínimo, médio, máximo e 1% mais baixo.
 
 **Minimapa:** a seta e a rotação do mapa foram corrigidas (a seta aponta para onde você anda ou dirige).
+
+**Cidade mais viva:** mais pedestres e carros (qualidade Média: 70 pedestres e 18 carros com IA; Baixa: 40 e 11; Alta: 95 e 24). As colisões entre carros foram otimizadas: o jogo gasta menos CPU que antes, mesmo com mais gente.
 
 **Trânsito:** a IA cede passagem nos cruzamentos, espera para virar à esquerda, prevê colisões e ultrapassa obstáculos parados.
 
@@ -96,7 +117,7 @@ Popular 1.0, Hatch Pulse, Sedan Aurora, SUV Montana, Picape Bravo, Imperial Luxo
 - **Celular**: Mapa, Mensagens, Ligações, Banco, Câmera (tira fotos de verdade), Garagem (chamar o carro), Missões, Notícias, VIBE e Status. Ryan tem também Arquivos, Casos, Contratos, Ferramentas e Anotações.
 - **VIBE**: rede social fictícia que reage aos acontecimentos (alguns posts são rumores não confirmados).
 - **Salvamento**: automático a cada 5 minutos, ao concluir missões, em cada checkpoint e após compras importantes; 5 espaços manuais (Esc → Salvar). Ao morrer, volta ao último salvamento.
-- **Duas campanhas** com dinheiro e progresso separados (Esc → Jogar como Ryan/Ethan).
+- **Duas campanhas** com dinheiro e progresso separados. Troque com **Z** (ou Esc → Trocar personagem) depois do Prólogo.
 
 ## Gráficos
 
@@ -174,7 +195,8 @@ npm run dev       # recompila automaticamente ao salvar
 | `src/blackwood.js` | Cidade de Blackwood |
 | `src/missions_side.js` | Missões secundárias (corrida, entregas) |
 | `src/custom.js` | Oficina Los Valles Custom |
-| `src/weapons.js` | Armas |
+| `src/weapons.js` | Armas e menu de armas (ícones) |
+| `src/ragdoll.js` | Física de corpo mole (ragdoll) |
 | `src/perf.js` | Medidor de desempenho real |
 | `src/camera.js` | Câmera em terceira pessoa |
 | `src/player.js` | Movimentação do Ethan |

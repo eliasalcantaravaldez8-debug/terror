@@ -1,5 +1,6 @@
 // Controle do Ethan: aceleração/desaceleração, caminhada, corrida, pulo, rotação suave e colisões.
 import { Humanoid } from './humanoid.js';
+import { Ragdoll, endRagdoll } from './ragdoll.js';
 
 const damp = (a, b, k, dt) => a + (b - a) * (1 - Math.exp(-k * dt));
 function angDamp(a, b, k, dt) {
@@ -33,7 +34,18 @@ export class Player {
     (parent || this.scene).add(this.model.root);
     this.sync();
   }
+  // ragdoll do jogador (morte, atropelamento, explosão de escopeta de perto)
+  startRagdoll(impulse, at = null, getUp = 0) {
+    if (this.ragdoll) { this.ragdoll.push(impulse, at); this.ragdollT = Math.max(this.ragdollT, getUp); return; }
+    this.sync(); this.ragdoll = new Ragdoll(this.model, this.world, impulse, at); this.ragdollT = getUp; this.vx = this.vz = this.vy = 0;
+  }
+  stopRagdoll() {
+    if (!this.ragdoll) return;
+    const c = this.ragdoll.center(); this.x = c.x; this.z = c.z; this.y = this.world.groundAt(this.x, this.z, 0.3, this.y + 0.3);
+    endRagdoll(this.model); this.ragdoll = null; this.sync();
+  }
   place(x, z, heading = 0, y = null) {
+    if (this.ragdoll) { endRagdoll(this.model); this.ragdoll = null; }
     this.x = x; this.z = z; this.heading = heading;
     // procura o chão a partir do nível do terreno (não sobe em telhados ao entrar em construções)
     this.y = this.world.groundAt(x, z, PLAYER.radius, y ?? this.world.groundFn(x, z) + 0.3);
@@ -43,6 +55,11 @@ export class Player {
   // input: {x, z (−1..1, relativo à câmera), run, jump}, camYaw
   update(dt, input, camYaw) {
     const P = PLAYER;
+    if (this.ragdoll) { // corpo mole: a câmera segue o quadril; levanta sozinho se não morreu
+      this.ragdoll.update(dt); const c = this.ragdoll.center(); this.x = c.x; this.z = c.z; this.y = Math.max(this.world.groundFn(c.x, c.z), c.y - 0.95); this.speed = 0;
+      if (this.ragdollT > 0 && this.hp > 0) { this.ragdollT -= dt; if (this.ragdollT <= 0) this.stopRagdoll(); }
+      return;
+    }
     // direção desejada relativa à câmera (sem girar a câmera!)
     const fx = -Math.sin(camYaw), fz = -Math.cos(camYaw);
     const rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
@@ -106,6 +123,7 @@ export class Player {
     this.sync();
   }
   sync() {
+    if (this.ragdoll) return;
     this.model.root.position.set(this.x, this.y, this.z);
     this.model.root.rotation.set(this.lying || 0, this.heading, 0);
     if (this.lying) this.model.root.position.y += 0.15;
