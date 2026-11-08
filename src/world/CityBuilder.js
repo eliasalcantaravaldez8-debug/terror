@@ -122,7 +122,7 @@ export class CityBuilder {
     else B.box(b.x0, GF - 0.01, b.z0, b.x1, GF, b.z1, { top: roof });
     // cornice over shops and parapet on the roof
     B.box(b.x0 - 0.25, GF - 0.1, b.z0 - 0.25, b.x1 + 0.25, GF + 0.25, b.z1 + 0.25, { sides: trim, top: trim, bottom: trim, tile: { w: 4, h: 4 } });
-    const p = 0.3, ph = 0.9;
+    const p = 0.3, ph = 0.75;
     B.box(b.x0 - 0.15, height, b.z0 - 0.15, b.x1 + 0.15, height + ph, b.z0 + p, { sides: trim, top: trim, tile: { w: 4, h: 4 } });
     B.box(b.x0 - 0.15, height, b.z1 - p, b.x1 + 0.15, height + ph, b.z1 + 0.15, { sides: trim, top: trim, tile: { w: 4, h: 4 } });
     B.box(b.x0 - 0.15, height, b.z0 + p, b.x0 + p, height + ph, b.z1 - p, { sides: trim, top: trim, tile: { w: 4, h: 4 } });
@@ -241,9 +241,11 @@ export class CityBuilder {
     // podium + main block
     B.box(h.x0, 0, h.z0, h.x1, 6, h.z1, { sides: stone, tile: { w: 6, h: 6 } });
     B.box(h.x0, 6, h.z0, h.x1, H, h.z1, { sides: facade, top: m.roof(), tile: { w: 12, h: 6, yBase: 6 }, topTile: 6 });
-    B.box(h.x0 - 0.4, H, h.z0 - 0.4, h.x1 + 0.4, H + 1.2, h.z1 + 0.4, { sides: stone, top: stone, tile: { w: 4, h: 4 } });
+    B.box(h.x0 - 0.4, H, h.z0 - 0.4, h.x1 + 0.4, H + 0.15, h.z1 + 0.4, { sides: stone, top: stone, tile: { w: 4, h: 4 } });
+    // balustrade along the roof edge
+    B.box(h.x0 - 0.4, H + 0.15, h.z1 - 0.4, h.x1 + 0.4, H + 0.8, h.z1 + 0.4, { sides: stone, top: stone, tile: { w: 4, h: 4 } });
     this.world.addBox(h.x0, 0, h.z0, h.x1, H, h.z1, { tag: 'building' });
-    this.world.addBox(h.x0 - 0.4, H, h.z1 - 0.4, h.x1 + 0.4, H + 1.2, h.z1 + 0.4, { tag: 'parapet' });
+    this.world.addBox(h.x0 - 0.4, H, h.z1 - 0.4, h.x1 + 0.4, H + 0.8, h.z1 + 0.4, { tag: 'parapet' });
     // portico: steps + columns + pediment
     for (let s = 0; s < 4; s++) {
       const z1 = h.z1 + 4 - s * 1.0;

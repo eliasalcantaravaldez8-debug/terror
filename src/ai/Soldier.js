@@ -8,7 +8,7 @@ const DEG = Math.PI / 180;
 /** AI weapon profiles (fictional). */
 export const AI_WEAPONS = {
   rifleman: { name: 'rifle', damage: 11, range: 250, fireInterval: 0.11, burst: [3, 6], mag: 30, reload: 2.6, sound: 'rifle', headMultiplier: 2, falloffStart: 30, falloffEnd: 120, minDamageScale: 0.6, accuracy: 1 },
-  ally: { name: 'rifle', damage: 34, range: 300, fireInterval: 0.12, burst: [3, 5], mag: 30, reload: 2.4, sound: 'rifle', headMultiplier: 3, falloffStart: 40, falloffEnd: 120, minDamageScale: 0.6, accuracy: 1 },
+  ally: { name: 'rifle', damage: 22, range: 300, fireInterval: 0.12, burst: [3, 5], mag: 30, reload: 2.4, sound: 'rifle', headMultiplier: 3, falloffStart: 40, falloffEnd: 120, minDamageScale: 0.6, accuracy: 1 },
   mg: { name: 'mg', damage: 9, range: 250, fireInterval: 0.085, burst: [8, 14], mag: 100, reload: 4, sound: 'mg', headMultiplier: 2, falloffStart: 30, falloffEnd: 120, minDamageScale: 0.6, accuracy: 0.8 },
   sniper: { name: 'sniper', damage: 58, range: 600, fireInterval: 1.6, burst: [1, 1], mag: 5, reload: 3.5, sound: 'sniper', headMultiplier: 1.5, falloffStart: 300, falloffEnd: 600, minDamageScale: 1, accuracy: 1.6 },
 };

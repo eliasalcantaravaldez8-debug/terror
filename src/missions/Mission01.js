@@ -58,8 +58,8 @@ const WAVES = [
   {
     id: 'w1', zone: { x0: -11, x1: 11, z0: -52, z1: -6 },
     enemies: [
-      { id: 'sniper', x: -11.75, y: 25.5, z: -35, kind: 'sniper', static: true },
-      { x: 11.7, y: 10.5, z: -10, static: true },
+      { id: 'sniper', x: -14, y: 25.5, z: -22.45, kind: 'sniper', static: true, face: [0, 1] },
+      { x: 16, y: 10.5, z: 4.55, static: true, face: [0, 1] },
       { x: -4, z: -31.4 }, { x: 2, z: -45 }, { x: 6.5, z: -38.8 }, { x: -6, z: -40.3 },
       { x: 25, z: -25, delay: 1.0, rush: false }, { x: 27, z: -26, delay: 4.5 },
     ],
@@ -67,7 +67,7 @@ const WAVES = [
   {
     id: 'w2', zone: { x0: -22, x1: 22, z0: -96, z1: -54 },
     enemies: [
-      { id: 'rpg', x: 11.7, y: 13.5, z: -73, static: true },
+      { id: 'rpg', x: 11.5, y: 13.5, z: -73, static: true, face: [-1, 0] },
       { x: -1, z: -83 }, { x: 2.5, z: -83.2 }, { x: 7.6, z: -86 }, { x: 3, z: -74 }, { x: -6.3, z: -90.5 },
       { x: -60, z: -62, delay: 2 }, { x: 60, z: -61, delay: 3.5 },
       { balcony: { x: -11, z: -80 } },
@@ -78,7 +78,7 @@ const WAVES = [
     enemies: [
       { x: 0, z: -153.7, kind: 'mg' },
       { x: -3.5, z: -113.4 }, { x: -6.2, z: -124.9 }, { x: 4.5, z: -138.7 }, { x: -4, z: -147.4 }, { x: 6.5, z: -151.2 },
-      { x: -6, y: 15, z: -168.75, static: true }, { x: 11.7, y: 22.5, z: -120, static: true },
+      { x: -6, y: 15, z: -168.6, static: true, face: [0, 1] }, { x: 11.4, y: 13.5, z: -150, static: true, face: [-1, 0] },
       { x: -6, z: -164, delay: 6 }, { x: 6, z: -164, delay: 9 },
     ],
   },
@@ -160,7 +160,8 @@ export class Mission01 {
       s.groundY = y;
       s.brain = new EnemyBrain(s, { zone: wave.zone });
       s.brain.rush = !!e.rush;
-      s.faceYaw = 0; // look south toward the plaza
+      s.faceYaw = e.face ? Math.atan2(e.face[0], e.face[1]) : 0; // look toward the street
+      if (e.face) { s.staticBase = s.pos.clone(); s.edgeFace = new THREE.Vector3(e.face[0], 0, e.face[1]); }
       s.waveIndex = index;
       s.spawnDelay = e.delay || 0;
       if (e.delay) { s.model.root.visible = false; s.alive = true; s.hiddenUntilActive = true; }

@@ -148,7 +148,10 @@ function check(cond, msg) {
           // move toward the squad anchor / nearest enemy
           let goal = target ? target.e.pos : g.hud.objective?.target;
           // elevated shooters can't be seen from directly below: back off into the street
-          if (target && target.e.pos.y > 2) goal = { x: target.e.pos.x * -0.4, z: target.e.pos.z + 14 };
+          if (target && target.e.pos.y > 2) {
+            const f = target.e.edgeFace || { x: 0, z: 1 };
+            goal = { x: f.x ? target.e.pos.x + f.x * 24 : target.e.pos.x * -0.3, z: target.e.pos.z + f.z * 26 + 3 };
+          }
           if (goal) {
             const path = g.nav.findPath(p.pos.x, p.pos.z, goal.x, goal.z);
             const wp = path && path.length ? path[0] : goal;

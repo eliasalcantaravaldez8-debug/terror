@@ -139,6 +139,13 @@ export class EnemyBrain {
   /** Hide/peek cycle at current spot. coverH: height of the cover in front. */
   _fightFromSpot(dt, coverH) {
     const s = this.s;
+    // elevated shooters step back from the edge to hide and up to the parapet to fire
+    if (s.staticBase && s.edgeFace) {
+      const back = this.phase === 'peek' ? 0 : 1.1;
+      const tx = s.staticBase.x - s.edgeFace.x * back, tz = s.staticBase.z - s.edgeFace.z * back;
+      const k = 1 - Math.exp(-5 * dt);
+      s.pos.x += (tx - s.pos.x) * k; s.pos.z += (tz - s.pos.z) * k;
+    }
     const lowCover = coverH > 0.7 && coverH < 1.45;
     if (this.phase !== 'hide' && this.phase !== 'peek') { this.phase = 'hide'; this.phaseT = 0; this.hideFor = 1; }
     if (this.phase === 'hide') {
