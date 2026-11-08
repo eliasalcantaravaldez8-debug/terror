@@ -760,6 +760,8 @@ const MENUS = {
   mercado: ['sanduiche', 'marmita', 'agua', 'refri', 'cafe'],
   lanche: ['burger', 'prato', 'refri', 'cafe'],
   padaria: ['pao', 'sonho', 'cafeleite', 'agua'],
+  cinema: ['refri', 'agua', 'cafe'],
+  academia: ['agua', 'cafe'],
   farmacia: ['remedio', 'agua'],
 };
 function shopMenu(npc) {
@@ -964,7 +966,7 @@ function updateStoreKeepers(dt) {
   for (const r of G.city.storeRooms) {
     const d = Math.hypot(r.x - P.x, r.z - P.z);
     if (!r.npc && d < 38) {
-      const n = new NPC(scene, G.world, shopkeeperLook(), { name: 'Atendente — ' + r.name, role: 'shop', lines: [pick(SHOP_LINES), pick(SHOP_LINES)], x: r.x, z: r.z, heading: r.heading, behavior: 'stand' });
+      const n = new NPC(scene, G.world, shopkeeperLook(), { name: 'Atendente — ' + r.name, role: 'shop', lines: [pick(SHOP_LINES), pick(SHOP_LINES)], x: r.x, z: r.z, y: r.y, heading: r.heading, behavior: 'stand' });
       G.npcs.push(n); G.world.dynamic.add(n); r.npc = n;
     } else if (r.npc && d > 70) { r.npc.remove(); G.world.dynamic.delete(r.npc); G.npcs = G.npcs.filter((x) => x !== r.npc); r.npc = null; }
   }

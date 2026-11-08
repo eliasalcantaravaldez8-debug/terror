@@ -74,6 +74,8 @@ export class Frame {
 // tipo de loja pelo nome (define o interior)
 export function shopKind(name) {
   const n = name.toLowerCase();
+  if (/cinema/.test(n)) return 'cinema';
+  if (/academia/.test(n)) return 'academia';
   if (/café|bar do|restaurante/.test(n)) return 'lanche';
   if (/livraria/.test(n)) return 'livraria';
   if (/joalheria|ótica|sapataria/.test(n)) return 'boutique';
@@ -682,7 +684,7 @@ export class City {
 
   // LOJA DE RUA visitável no térreo: vidro, porta, divisórias e interior conforme o nome
   storeRoom(sf, x, faceZ, seg, core, names, idx) {
-    const M = this.M, y0 = CURB, GF = core.GF, sd = core.sd;
+    const M = this.M, y0 = core.y0 ?? CURB, GF = core.GF, sd = core.sd;
     const name = names && names.length ? names.shift() : this.nextStoreName();
     core.lastName = name; const kind = shopKind(name);
     // fachada (no bloco da cidade): rodapé, vidros dos dois lados da porta, montantes e verga
@@ -705,9 +707,9 @@ export class City {
     r.add(box(w * 0.5, 0.05, 0.35), M.ceilingLight, 0, y0 + GF - 0.06, 0);
     for (const sx of [-1, 1]) r.box(M.interior, sx * (w / 2 - 0.01), y0, 0, 0.02, GF - 0.1, d, false);
     r.box(M.interior, 0, y0, -d / 2 + 0.02, w, GF - 0.1, 0.02, false);
-    this.storeInterior(r, kind, w, d, y0);
-    const [kx, kz] = r.pt(-w / 4, -d / 2 + 0.75); const [ex, ez] = r.pt(0, d / 2 + 1);
-    this.storeRooms.push({ x: kx, z: kz, heading: r.ry, name, kind, door: [ex, ez] });
+    const kp = this.storeInterior(r, kind, w, d, y0) || [-w / 4, -d / 2 + 0.75, 0];
+    const [kx, kz] = r.pt(kp[0], kp[1]); const [ex, ez] = r.pt(0, d / 2 + 1);
+    this.storeRooms.push({ x: kx, z: kz, y: core.y0 !== undefined ? y0 : undefined, heading: r.ry + kp[2], name, kind, door: [ex, ez] });
     this.landmarks.push({ name, x: ex, z: ez, kind: 'shop' });
   }
   // nomes das lojas de rua: lista embaralhada (sem repetir seguidos)
@@ -722,6 +724,32 @@ export class City {
   storeInterior(r, kind, w, d, y0) {
     const M = this.M; const P = (c) => paint(M.flat, c);
     const backZ = -d / 2 + 0.32, rightX = w / 2 - 0.3;
+    if (kind === 'cinema') {
+      // sala pequena: tela iluminada no fundo, fileiras de poltronas vermelhas e bombonière perto da porta
+      r.box(P(0x111111), 0, y0 + 0.5, backZ, w - 1.2, 2.6, 0.08, false);
+      r.add(box(w - 1.6, 2.2, 0.03, w - 1.6, 2.2), homeMat('art' + Math.floor(rand() * 8)), 0, y0 + 1.8, backZ + 0.06);
+      r.add(plane(w - 0.6, d - 3, 2.5, 2.5), homeMat('rug' + Math.floor(rand() * 4)), 0, y0 + 0.04, -0.6);
+      for (let row = 0; row < 3; row++) for (let k = 0; k < 6; k++) { const sx = -w / 2 + 1.6 + k * ((w - 3.2) / 5), sz = -d / 2 + 2.6 + row * 1.25;
+        r.box(P(0x8a1a1a), sx, y0 + 0.4, sz, 0.6, 0.12, 0.55, false); r.box(P(0x8a1a1a), sx, y0 + 0.4, sz + 0.25, 0.6, 0.65, 0.1, false); r.box(M.metalDark, sx, y0, sz, 0.08, 0.4, 0.3, false); }
+      r.collide(0, y0, -d / 2 + 3.85, w - 2.6, 1.0, 3.2);
+      r.box(P(0xc41a1a), -w / 2 + 1.4, y0, d / 2 - 1.8, 2.0, 1.05, 0.7, true, 1); r.box(M.metalLight, -w / 2 + 1.4, y0 + 1.05, d / 2 - 1.8, 2.1, 0.05, 0.8, false);
+      r.add(box(1.8, 0.4, 0.05, 1.8, 0.4), signMat('PIPOCA', { bg: '#c41a1a', fg: '#ffe14a', glow: true, w: 512, h: 96 }), -w / 2 + 1.4, y0 + 2.6, d / 2 - 2.3);
+      return [-w / 2 + 1.4, d / 2 - 2.5, 0];
+    }
+    if (kind === 'academia') {
+      // esteiras de frente para o espelho, supino, suporte de halteres e tapete
+      r.add(box(w - 1.0, 2.0, 0.02, w - 1.0, 2.0), M.glass, 0, y0 + 1.3, backZ + 0.02);
+      for (let k = 0; k < 3; k++) { const tx = -w / 2 + 1.6 + k * 1.4, tz = -d / 2 + 1.6; r.box(P(0x1a1a1a), tx, y0, tz, 0.75, 0.2, 1.7, true, 1); r.box(P(0x2a2a2a), tx, y0 + 0.2, tz, 0.55, 0.02, 1.4, false);
+        for (const sx of [-0.33, 0.33]) r.box(M.metalDark, tx + sx, y0 + 0.2, tz - 0.7, 0.05, 1.1, 0.05, false); r.box(M.metalDark, tx, y0 + 1.25, tz - 0.72, 0.7, 0.2, 0.15, false); }
+      const bx = w / 4, bz = 0; r.box(P(0x1a1a1a), bx, y0 + 0.35, bz, 0.35, 0.12, 1.3, false); r.box(M.metalDark, bx, y0, bz, 0.25, 0.35, 0.25, false);
+      for (const sx of [-0.55, 0.55]) r.box(M.metalDark, bx + sx, y0, bz - 0.5, 0.06, 1.2, 0.06, false);
+      r.add(cyl(0.02, 0.02, 1.8, 6).rotateZ(Math.PI / 2), M.metalLight, bx, y0 + 1.15, bz - 0.5); for (const sx of [-0.8, 0.8]) r.add(cyl(0.22, 0.22, 0.06, 14).rotateZ(Math.PI / 2), P(0x1a1a1a), bx + sx, y0 + 1.15, bz - 0.5);
+      r.collide(bx, y0, bz, 1.4, 1.2, 1.4);
+      r.box(M.metalDark, rightX - 0.25, y0, 1.0, 0.5, 0.8, 2.4, true, 1); for (let k = 0; k < 6; k++) { const hz = 0 + k * 0.4; r.add(cyl(0.07, 0.07, 0.36, 8).rotateX(Math.PI / 2), P(0x1a1a1a), rightX - 0.25, y0 + 0.88, hz); }
+      r.add(plane(2.4, 2.0, 2.4, 2.0), P(0x2a3a5a), -w / 6, y0 + 0.04, d / 2 - 1.8);
+      r.box(M.woodDark, -w / 4, y0, d / 2 - 1.0, 1.6, 1.05, 0.6, true, 1);
+      return [-w / 4, d / 2 - 1.6, 0];
+    }
     // balcão com caixa
     if (kind !== 'lavanderia') { r.box(M.woodDark, -w / 4, y0, -d / 2 + 1.5, w / 2 - 0.6, 1.05, 0.7, true, 1); r.box(M.metalLight, -w / 4, y0 + 1.05, -d / 2 + 1.5, w / 2 - 0.5, 0.05, 0.8, false); r.box(M.metalDark, -w / 4 - 0.5, y0 + 1.1, -d / 2 + 1.5, 0.35, 0.22, 0.3, false); }
     const backShelf = (strips, o) => this.wallShelf(r, w / 4, backZ, 0, w / 2 - 0.8, strips, y0, o);
@@ -1409,9 +1437,10 @@ export class City {
     const left = ['Moda Vale Roupas', 'Mega Eletrônicos', 'Joalheria Diamante', 'Livraria Saber'];
     const right = ['Farmácia do Shopping', 'Ótica Olhar', 'Barbearia Estilo', 'Supermercado Express'];
     const mallStore = (sf, x, seg, core, name, bulkTop) => {
+      const b = core.y0 ?? y;
       this.storeRoom(sf, x, 0, seg, core, [name]);
-      sf.box(cream, x, y + 3.4, -0.12, seg, bulkTop - 3.4, 0.26, false);
-      sf.add(box(seg - 1.6, 0.72, 0.06, seg - 1.6, 0.72), signMat(name.toUpperCase(), { bg: pick(['#1a1a1a', '#14283b', '#3b1414', '#102b1a', '#2b1a3b']), fg: pick(['#ffd27a', '#ffffff', '#b0e0ff']), glow: true, w: 512, h: 96 }), x, y + 4.0, 0.04);
+      sf.box(cream, x, b + 3.4, -0.12, seg, bulkTop - 3.4, 0.26, false);
+      sf.add(box(seg - 1.6, 0.72, 0.06, seg - 1.6, 0.72), signMat(name.toUpperCase(), { bg: pick(['#1a1a1a', '#14283b', '#3b1414', '#102b1a', '#2b1a3b']), fg: pick(['#ffd27a', '#ffffff', '#b0e0ff']), glow: true, w: 512, h: 96 }), x, b + 4.0, 0.04);
     };
     const coreS = { GF: 5, sd: 9.5, IB };
     for (const s of [-1, 1]) {
@@ -1424,7 +1453,7 @@ export class City {
       sf.add(box(8, 0.9, 0.06, 8, 0.9), signMat('PRAÇA DE ALIMENTAÇÃO', { bg: '#7a1a1a', fg: '#fff', glow: true, w: 1024, h: 128 }), 0, y + 7.2, -5.5); }
     for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) this.tableSet(r, -7.5 + i * 3, 13.8 + j * 2, y, pick([0xb02a2a, 0x1d3f8a, 0xd8a01a, 0x2a2a2a]));
     // ---- mezanino (andar de cima, com lojas "em breve") ----
-    const up = ['Cinema Valles 3D', 'Academia Forma', 'Games Zone', 'Cosméticos Bela', 'Esportes Pro', 'Brinquedos Alegria', 'Perfumaria Essência', 'Calçados Passo Certo'];
+    const up = [['Cinema Valles 3D', 'Academia Forma', 'Eletrônicos Games Zone', 'Livraria Gibis & Cia'], ['Roupas Esportes Pro', 'Mercadinho Brinquedos Alegria', 'Joalheria Perfumaria Essência', 'Sapataria Passo Certo']];
     const yM = y + 5; const STZ = [-11, -9]; // escadas chegam em z -11..-9
     for (const s of [-1, 1]) {
       r.box(cream, s * 13, yM - 0.4, 2, 4, 0.4, 36, true, 1);
@@ -1435,15 +1464,10 @@ export class City {
       for (const zz of [-16, 20]) { r.add(box(4, 1.0, 0.05), M.glass, s * 13, yM + 0.55, zz); r.collide(s * 13, yM, zz, 4, 1.2, 0.2); }
       // pilares
       for (let k = 0; k < 4; k++) r.box(cream, s * 11.3, y, -15 + k * 11.5, 0.45, 4.6, 0.45, true);
-      // fachadas das lojas do andar de cima
-      for (let k = 0; k < NSTORE; k++) { const wz = Z0S + SEG / 2 + k * SEG, nm = up[k + (s > 0 ? 4 : 0)];
-        r.box(P(0x26262c), s * 15.1, yM, wz, 0.1, 3.4, SEG - 0.6, false);
-        r.add(box(0.05, 2.9, SEG - 1.2), M.glass, s * 14.98, yM + 1.45, wz);
-        r.box(cream, s * 15.05, yM + 3.4, wz, 0.24, H - 5.5, SEG, false);
-        const sg = this.sub(r, s * 14.9, wz, s < 0 ? Math.PI / 2 : -Math.PI / 2); sg.add(box(SEG - 1.8, 0.7, 0.06, SEG - 1.8, 0.7), signMat(nm.toUpperCase(), { bg: '#1a1a1a', fg: pick(['#ffd27a', '#ffffff', '#ffb0e0']), glow: true, w: 512, h: 96 }), 0, yM + 3.85, 0);
-        sg.add(box(1.6, 0.35, 0.03, 1.6, 0.35), signMat('EM BREVE', { bg: '#c41a1a', fg: '#fff', w: 256, h: 64 }), 0, yM + 1.6, 0.04); }
-      r.collide(s * 15.1, yM, 2, 0.3, 3.4, 36);
-      r.box(wallC, s * 15.25, yM, 2, 0.04, H - 5.1, 36, false);
+      // lojas do andar de cima (dá para entrar): piso sobre as lojas do térreo
+      r.collide(s * 19.8, yM - 0.4, 2, 9.6, 0.4, 36);
+      { const sf = new Frame(...r.pt(s * 15, 0), s < 0 ? Math.PI / 2 : -Math.PI / 2, IB, this.world); const core = { GF: 3.6, sd: 9.5, IB, y0: yM };
+        for (let k = 0; k < NSTORE; k++) { const wz = Z0S + SEG / 2 + k * SEG; mallStore(sf, s < 0 ? -wz : wz, SEG, core, up[s < 0 ? 0 : 1][k], H - yM - 0.1); } }
       for (const ez3 of [-16.05, 20.05]) r.box(wallC, s * 19.8, y, ez3, 9.6, H - 0.1, 0.1, true);
       // escada de verdade: 20 degraus de 25 cm do térreo (|x| = 4) até o mezanino (|x| = 11)
       const run = 7 / 20, zc = (STZ[0] + STZ[1]) / 2, sw = STZ[1] - STZ[0];

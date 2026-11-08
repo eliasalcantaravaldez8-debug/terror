@@ -172,7 +172,7 @@ Popular 1.0, Hatch Pulse, Sedan Aurora, SUV Montana, Picape Bravo, Imperial Luxo
   - **Térreo:** 8 lojas que dá para entrar, 4 de cada lado (roupas, eletrônicos, joalheria, livraria, farmácia, ótica, barbearia e supermercado). A farmácia e o supermercado vendem itens, como as outras lojas.
   - **Praça de alimentação** com lanchonete, pizzaria e padaria (dá para comprar comida) e 12 mesas.
   - **Centro:** chafariz, bancos, floreiras, quiosque de sorvete e clientes passeando.
-  - **Mezanino:** escadas de verdade que dá para subir, guarda-corpo de vidro e mais 8 vitrines ("em breve": cinema, academia, games...).
+  - **Mezanino (andar de cima):** escadas de verdade que dá para subir, guarda-corpo de vidro e mais 8 lojas que dá para entrar: **cinema** (sala com tela, poltronas vermelhas e bombonière que vende refrigerante, água e café), **academia** (esteiras, supino, halteres e espelho; vende água e café), games/eletrônicos, gibis, artigos esportivos, brinquedos, perfumaria e calçados, todas com atendente.
   - **Teto:** claraboia grande com vigas metálicas.
 
 ## Novidades: aeroporto, avião, prisão, eventos e Moeda Infinita
