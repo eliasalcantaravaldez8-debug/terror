@@ -162,6 +162,19 @@ Popular 1.0, Hatch Pulse, Sedan Aurora, SUV Montana, Picape Bravo, Imperial Luxo
 - **Comer e beber de verdade**: depois da compra, o personagem segura o item (hambúrguer, lata, copo de café, garrafa de água, pão ou caixa de remédio) e leva à boca por alguns segundos.
 - Tudo fica em **uma única textura** (atlas 2048×2048), por isso o desempenho continua igual: medi as mesmas chamadas de desenho e triângulos de antes.
 
+## Novidades: qualidade Ultra, emergências, prédios visitáveis e shopping
+
+- **Qualidade Ultra** (Esc → Qualidade gráfica): veja a seção *Desempenho* abaixo.
+- **Viaturas, ambulâncias e caminhões de bombeiro** passam pelas ruas de Los Valles de vez em quando (a cada 40–100 segundos, no máximo 2 ao mesmo tempo), com sirene e luzes piscando. Eles atravessam o cruzamento perto de você e seguem viagem. Não aparecem durante missões nem enquanto você pilota o avião.
+- **Lojas de rua visitáveis**: as lojas no térreo dos prédios do centro, das quadras mistas e das ruas comerciais agora têm porta e interior de verdade (87 lojas em Los Valles, além das de Blackwood). Cada uma é decorada conforme o nome: café/bar/restaurante com vitrine e mesas, livraria com estantes, joalheria/ótica/sapataria com vitrines de vidro, lavanderia com máquinas, floricultura com vasos, hotel/cinema com saguão, mercadinho com prateleiras. Cada loja tem um atendente que aparece quando você chega perto.
+- **Hospital e delegacia visitáveis**: o Hospital Los Valles tem recepção com enfermeira (o atendimento médico de R$ 150 é feito no balcão), sala de espera e leitos com cortinas, soro e monitores. A delegacia tem balcão de atendimento com policial de plantão, mesas com computador, celas e quadro de procurados.
+- **Shopping Los Valles** (entrada pela Rua Ramírez, no quarteirão vizinho ao da Loja de Roupas Vega e da Padaria Aurora, onde antes ficava a segunda praça; no minimapa o quarteirão tem cor bege própria): prédio grande com fachada de vidro e letreiro iluminado.
+  - **Térreo:** 8 lojas que dá para entrar, 4 de cada lado (roupas, eletrônicos, joalheria, livraria, farmácia, ótica, barbearia e supermercado). A farmácia e o supermercado vendem itens, como as outras lojas.
+  - **Praça de alimentação** com lanchonete, pizzaria e padaria (dá para comprar comida) e 12 mesas.
+  - **Centro:** chafariz, bancos, floreiras, quiosque de sorvete e clientes passeando.
+  - **Mezanino:** escadas de verdade que dá para subir, guarda-corpo de vidro e mais 8 vitrines ("em breve": cinema, academia, games...).
+  - **Teto:** claraboia grande com vigas metálicas.
+
 ## Novidades: aeroporto, avião, prisão, eventos e Moeda Infinita
 
 - **Aeroporto de Los Valles** (oeste da cidade, siga a estrada do terminal):
@@ -236,6 +249,7 @@ No menu **Esc → Qualidade gráfica**:
 - **Baixa**: sem sombras, resolução reduzida, menos pedestres e trânsito. Use se o jogo travar.
 - **Média** (padrão): sombras leves.
 - **Alta**: sombras melhores e antisserrilhamento.
+- **Ultra** (placa de vídeo dedicada, ex.: RX 580 / GTX 1060 ou melhor): sombras 4096 em área maior com borda suave, pós-processamento de verdade (cena em alta faixa dinâmica com MSAA 4x, brilho/bloom que fica mais forte à noite nos postes, faróis e janelas, nitidez e vinheta leves), filtragem anisotrópica máxima nas texturas, mais pedestres (115) e carros (30), grama mais densa, mais postes com luz real e distância de visão maior (objetos e interiores aparecem de mais longe). Se a placa não aguentar, volte para Alta.
 
 Otimizações usadas: materiais leves (Lambert/Phong, sem PBR pesado), reflexos por mapa de ambiente gerado só quando o horário muda, poucas luzes reais (só os postes mais próximos), cidade agrupada em blocos (poucas chamadas de desenho), atlas único para as placas, árvores instanciadas, carros distantes com modelo simplificado, personagens com 1 malha cada, sem pós-processamento pesado e com neblina limitando a distância de desenho.
 

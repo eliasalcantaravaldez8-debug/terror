@@ -30,7 +30,7 @@ export const LAYOUT = [
   ['res', 'park', 'mixed', 'gas', 'mixed', 'res'],
   ['res', 'shops', 'down', 'down', 'apart', 'res'],
   ['res', 'police', 'down', 'down', 'parking', 'res'],
-  ['res', 'hospital', 'mixed', 'shops2', 'park', 'res'],
+  ['res', 'hospital', 'mixed', 'shops2', 'mall', 'res'],
   ['res', 'res', 'res', 'res', 'res', 'res'],
 ];
 
@@ -74,6 +74,13 @@ export class Frame {
 // tipo de loja pelo nome (define o interior)
 export function shopKind(name) {
   const n = name.toLowerCase();
+  if (/café|bar do|restaurante/.test(n)) return 'lanche';
+  if (/livraria/.test(n)) return 'livraria';
+  if (/joalheria|ótica|sapataria/.test(n)) return 'boutique';
+  if (/lavanderia/.test(n)) return 'lavanderia';
+  if (/floricultura/.test(n)) return 'floricultura';
+  if (/hotel|cinema|banco popular/.test(n)) return 'lobby';
+  if (/tabacaria|mercadinho/.test(n)) return 'mercado';
   if (/farmácia/.test(n)) return 'farmacia';
   if (/lanchonete|pizzaria|restaurante/.test(n)) return 'lanche';
   if (/padaria/.test(n)) return 'padaria';
@@ -92,7 +99,7 @@ export class City {
     this.root = new THREE.Group(); this.root.name = 'LosValles';
     scene.add(this.root);
     this.parkedCars = []; this.npcs = []; this.trees = []; this.shopkeepers = []; this.landmarks = [];
-    this.pedLoops = []; this.lamps = []; this.interiors = []; this.grassRects = [];
+    this.pedLoops = []; this.lamps = []; this.interiors = []; this.grassRects = []; this.storeRooms = [];
     world.groundFn = groundHeight;
     this.M = mats();
     Batcher.soft.add(this.M.grass); Batcher.soft.add(this.M.ao);
@@ -206,7 +213,7 @@ export class City {
       shops: () => this.shopsBlock(F, ['Mercado Los Valles', 'Farmácia São Lucas', 'Lanchonete do Joe', 'Ferragens Ramírez']),
       shops2: () => this.shopsBlock(F, ['Loja de Roupas Vega', 'Padaria Aurora', 'Conveniência 24h', 'Eletrônicos Sombra']),
       police: () => this.policeBlock(F), gas: () => this.gasBlock(F), parking: () => this.parkingBlock(F),
-      apart: () => this.apartBlock(F), park: () => this.parkBlock(F), hospital: () => this.hospitalBlock(F),
+      apart: () => this.apartBlock(F), park: () => this.parkBlock(F), hospital: () => this.hospitalBlock(F), mall: () => this.mallBlock(F),
     };
     builders[type]();
     // calçada para pedestres
@@ -606,8 +613,18 @@ export class City {
     const y0 = CURB; const H = floors * fh;
     const fac = M.facade[kind];
     const f = new Frame(...F.pt(lx, lz), 0, F.B, this.world);
-    f.box(fac, 0, y0, 0, w, H, d, true, 24, 25.6);
-    f.ao(0, 0, w + (opts.storefronts?.length ? 0.6 : 0), d + (opts.storefronts?.length ? 0.6 : 0), 1.8);
+    const sfs = opts.storefronts || []; const GF = sfs.length ? 4.0 : 0; let core = null;
+    if (!GF) f.box(fac, 0, y0, 0, w, H, d, true, 24, 25.6);
+    else {
+      // andares de cima inteiros; no térreo, um núcleo sólido e lojas visitáveis junto às fachadas com vitrine
+      f.box(fac, 0, y0 + GF, 0, w, H - GF, d, false, 24, 25.6); f.collide(0, y0 + GF, 0, w, H - GF, d);
+      const sd = Math.max(4.5, Math.min(8, Math.min(w, d) / 2 - 1));
+      let x0 = -w / 2, x1 = w / 2, z0 = -d / 2, z1 = d / 2;
+      if (sfs.includes('w')) x0 += sd; if (sfs.includes('e')) x1 -= sd; if (sfs.includes('s')) z0 += sd; if (sfs.includes('n')) z1 -= sd;
+      f.box(fac, (x0 + x1) / 2, y0, (z0 + z1) / 2, x1 - x0, GF, z1 - z0, true, 24, 25.6);
+      core = { x0, x1, z0, z1, sd, GF, IB: new Batcher() };
+    }
+    f.ao(0, 0, w + (sfs.length ? 0.6 : 0), d + (sfs.length ? 0.6 : 0), 1.8);
     // cornija e platibanda
     f.box(M.concrete, 0, y0 + H, 0, w + 0.4, 0.3, d + 0.4, false);
     for (const [ax, az, aw, ad] of [[0, d / 2, w, 0.3], [0, -d / 2, w, 0.3], [w / 2, 0, 0.3, d], [-w / 2, 0, 0.3, d]])
@@ -628,29 +645,120 @@ export class City {
       if (rand() < 0.6) f.add(cyl(0.05, 0.08, 8, 6), M.metalDark, 0, y0 + H + tf * fh + 4.5, 0);
     }
     // lojas no térreo voltadas para a rua
-    for (const face of opts.storefronts || []) this.storefront(f, w, d, face, opts.names);
+    for (const face of sfs) this.storefront(f, w, d, face, opts.names, core);
+    if (core) { const grp = new THREE.Group(); grp.name = 'interior'; core.IB.flush(grp, { castShadow: false }); grp.visible = false; this.root.add(grp); this.interiors.push({ group: grp, x: f.x, z: f.z }); }
     return f;
   }
 
-  storefront(f, w, d, face, names) {
+  storefront(f, w, d, face, names, core = null) {
     const M = this.M; const y0 = CURB;
     const rot = { s: Math.PI, n: 0, e: Math.PI / 2, w: -Math.PI / 2 }[face];
     const along = face === 'n' || face === 's' ? w : d;
     const depth = face === 'n' || face === 's' ? d : w;
     const sf = new Frame(...f.pt(0, 0), rot, f.B, this.world);
-    const n = Math.max(1, Math.floor(along / 9));
-    const seg = along / n;
-    sf.box(M.darkTrim, 0, y0, depth / 2 + 0.15, along, 3.8, 0.3, false, 2);
+    // faixa ao longo da fachada ocupada por lojas (nas fachadas leste/oeste, só entre o núcleo)
+    let a0 = -along / 2, a1 = along / 2;
+    if (core && (face === 'e' || face === 'w')) { const z0 = core.z0, z1 = core.z1; [a0, a1] = face === 'e' ? [-z1, -z0] : [z0, z1]; }
+    const alongUse = a1 - a0;
+    const n = Math.max(1, Math.floor(alongUse / 8.5));
+    const seg = alongUse / n;
+    if (!core) sf.box(M.darkTrim, 0, y0, depth / 2 + 0.15, along, 3.8, 0.3, false, 2);
+    else sf.box(M.darkTrim, 0, y0 + 3.4, depth / 2 + 0.15, along, 0.6, 0.3, false, 2); // viga sobre as vitrines
     for (let i = 0; i < n; i++) {
-      const x = -along / 2 + seg * (i + 0.5);
-      sf.add(box(seg - 1.4, 2.4, 0.05, seg - 1.4, 2.4), M.shopWin, x, y0 + 1.6, depth / 2 + 0.32);
-      sf.add(box(1.0, 2.2, 0.05), M.glass, x + seg / 2 - 0.55, y0 + 1.1, depth / 2 + 0.33);
+      const x = a0 + seg * (i + 0.5);
+      if (core) this.storeRoom(sf, x, depth / 2, seg, core, names, i);
+      else {
+        sf.add(box(seg - 1.4, 2.4, 0.05, seg - 1.4, 2.4), M.shopWin, x, y0 + 1.6, depth / 2 + 0.32);
+        sf.add(box(1.0, 2.2, 0.05), M.glass, x + seg / 2 - 0.55, y0 + 1.1, depth / 2 + 0.33);
+      }
       // toldo
       sf.add(box(seg - 0.6, 0.08, 1.6), pick(M.awning), x, y0 + 3.3, depth / 2 + 1.0, 0, 0.3);
       // letreiro
-      const name = names && names.length ? names.shift() : pick(['Café Noir', 'Barbearia Sombra', 'Livraria Lua', 'Ótica Visão', 'Pizzaria Napoli', 'Lavanderia', 'Joalheria Ouro', 'Banco Popular', 'Hotel Esperanza', 'Cinema Ritz', 'Tabacaria', 'Floricultura', 'Sapataria', 'Bar do Mário', 'Restaurante El Sol']);
+      const name = (core && core.lastName) || (names && names.length ? names.shift() : pick(['Café Noir', 'Barbearia Sombra', 'Livraria Lua', 'Ótica Visão', 'Pizzaria Napoli', 'Lavanderia', 'Joalheria Ouro', 'Banco Popular', 'Hotel Esperanza', 'Cinema Ritz', 'Tabacaria', 'Floricultura', 'Sapataria', 'Bar do Mário', 'Restaurante El Sol'])); if (core) core.lastName = null;
       const sm = signMat(name, { bg: pick(['#1a1a1a', '#3b1414', '#14283b', '#2b2b10', '#102b1a']), fg: pick(['#ffd27a', '#ffffff', '#ffb0b0', '#b0e0ff']), glow: true, border: false, w: 512, h: 96 });
       sf.add(box(seg - 1.0, 0.75, 0.08, seg - 1.0, 0.75), sm, x, y0 + 4.2, depth / 2 + 0.36);
+    }
+  }
+
+  // LOJA DE RUA visitável no térreo: vidro, porta, divisórias e interior conforme o nome
+  storeRoom(sf, x, faceZ, seg, core, names, idx) {
+    const M = this.M, y0 = CURB, GF = core.GF, sd = core.sd;
+    const name = names && names.length ? names.shift() : this.nextStoreName();
+    core.lastName = name; const kind = shopKind(name);
+    // fachada (no bloco da cidade): rodapé, vidros dos dois lados da porta, montantes e verga
+    const door = 1.6, gw = (seg - door) / 2 - 0.25, fz = faceZ - 0.1;
+    for (const s of [-1, 1]) {
+      const cx = x + s * (door / 2 + gw / 2);
+      sf.box(M.darkTrim, cx, y0, fz, gw, 0.5, 0.2, false);
+      sf.add(box(gw, 2.6, 0.04), M.glass, cx, y0 + 0.5 + 1.3, fz); sf.collide(cx, y0, fz, gw, GF, 0.3);
+      sf.box(M.darkTrim, x + s * (door / 2), y0, fz, 0.12, 3.4, 0.22, false);
+      sf.box(M.darkTrim, x + s * (seg / 2 - 0.12), y0, fz, 0.25, 3.4, 0.3, true);
+    }
+    sf.box(M.darkTrim, x, y0 + 3.1, fz, seg, 0.3, 0.22, false);
+    // divisórias entre as lojas e paredes laterais
+    for (const s of [-1, 1]) { sf.box(M.facade.concrete, x + s * (seg / 2 - 0.06), y0, faceZ - sd / 2, 0.12, GF, sd - 0.2, true, 24, 25.6); }
+    // interior (grupo separado: só desenhado de perto)
+    const r = new Frame(...sf.pt(x, faceZ - sd / 2), sf.ry, core.IB, this.world);
+    const w = seg - 0.4, d = sd - 0.3;
+    r.add(plane(w, d, 2), ['boutique', 'livraria', 'lobby'].includes(kind) ? M.interiorWood : M.interiorFloor, 0, y0 + 0.03, 0);
+    r.add(plane(w, d, 4), M.ceiling, 0, y0 + GF - 0.03, 0, 0, Math.PI);
+    r.add(box(w * 0.5, 0.05, 0.35), M.ceilingLight, 0, y0 + GF - 0.06, 0);
+    for (const sx of [-1, 1]) r.box(M.interior, sx * (w / 2 - 0.01), y0, 0, 0.02, GF - 0.1, d, false);
+    r.box(M.interior, 0, y0, -d / 2 + 0.02, w, GF - 0.1, 0.02, false);
+    this.storeInterior(r, kind, w, d, y0);
+    const [kx, kz] = r.pt(-w / 4, -d / 2 + 0.75); const [ex, ez] = r.pt(0, d / 2 + 1);
+    this.storeRooms.push({ x: kx, z: kz, heading: r.ry, name, kind, door: [ex, ez] });
+    this.landmarks.push({ name, x: ex, z: ez, kind: 'shop' });
+  }
+  // nomes das lojas de rua: lista embaralhada (sem repetir seguidos)
+  nextStoreName() {
+    if (!this.namePool || !this.namePool.length) {
+      const base = ['Café Noir', 'Barbearia Sombra', 'Livraria Lua', 'Ótica Visão', 'Pizzaria Napoli', 'Lavanderia Bolha', 'Joalheria Ouro', 'Banco Popular', 'Hotel Esperanza', 'Cinema Ritz', 'Tabacaria Fumaça', 'Floricultura Jardim', 'Sapataria Passo', 'Bar do Mário', 'Restaurante El Sol', 'Café Central', 'Pizzaria Bella', 'Livraria Página', 'Ótica Foco', 'Joalheria Brilho', 'Sapataria Elegance', 'Hotel Plaza', 'Bar da Esquina', 'Restaurante Sabor', 'Barbearia Navalha', 'Lavanderia Limpinho', 'Floricultura Rosa', 'Café Aroma', 'Mercadinho do Bairro', 'Farmácia Bem-Estar'];
+      this.namePool = base.slice(); for (let i = this.namePool.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [this.namePool[i], this.namePool[j]] = [this.namePool[j], this.namePool[i]]; }
+    }
+    return this.namePool.pop();
+  }
+  // interior compacto (lojas de rua são rasas): balcão no fundo à esquerda + móveis conforme o tipo
+  storeInterior(r, kind, w, d, y0) {
+    const M = this.M; const P = (c) => paint(M.flat, c);
+    const backZ = -d / 2 + 0.32, rightX = w / 2 - 0.3;
+    // balcão com caixa
+    if (kind !== 'lavanderia') { r.box(M.woodDark, -w / 4, y0, -d / 2 + 1.5, w / 2 - 0.6, 1.05, 0.7, true, 1); r.box(M.metalLight, -w / 4, y0 + 1.05, -d / 2 + 1.5, w / 2 - 0.5, 0.05, 0.8, false); r.box(M.metalDark, -w / 4 - 0.5, y0 + 1.1, -d / 2 + 1.5, 0.35, 0.22, 0.3, false); }
+    const backShelf = (strips, o) => this.wallShelf(r, w / 4, backZ, 0, w / 2 - 0.8, strips, y0, o);
+    const sideShelf = (strips, o) => this.wallShelf(r, rightX, d / 2 - 2.6 - (d - 4.5) / 2 + 1.0, -Math.PI / 2, Math.max(1.5, d - 4.2), strips, y0, o);
+    if (kind === 'lanche' || kind === 'padaria') {
+      this.displayCase(r, -w / 4, -d / 2 + 1.5, w / 2 - 1.0, kind === 'lanche' ? ['lanche'] : ['padaria1', 'padaria2'], y0, true);
+      r.add(box(2.6, 1.3, 0.05, 2.6, 1.3), prodMat(kind === 'lanche' ? 'board_lanche' : 'board_padaria', true), -w / 4, y0 + 2.6, backZ - 0.05);
+      this.fridge(r, w / 4, backZ + 0.18, 0, w / 2 - 1.2, y0);
+      if (d > 5) this.tableSet(r, w / 6, d / 2 - 1.6, y0, pick([0xb02a2a, 0x1d3f8a, 0x2a2a2a]));
+    } else if (kind === 'mercado' || kind === 'farmacia') {
+      backShelf(kind === 'farmacia' ? ['farmacia1', 'farmacia2'] : ['mercado1', 'mercado2', 'mercado3'], kind === 'farmacia' ? { mat: M.white } : {});
+      sideShelf(kind === 'farmacia' ? ['farmacia2'] : ['bebidas1', 'mercado3'], kind === 'farmacia' ? { mat: M.white } : {});
+    } else if (kind === 'livraria' || kind === 'antiquario') {
+      for (const [lx, lz, ry, len] of [[w / 4, backZ, 0, w / 2 - 0.8], [rightX, 0, -Math.PI / 2, d - 1.5]]) {
+        const g = this.sub(r, lx, lz, ry); const H = 2.3, D = 0.4;
+        g.box(M.woodDark, 0, y0, -D / 2 + 0.03, len, H, 0.06, false); for (const s of [-1, 1]) g.box(M.woodDark, s * (len / 2 - 0.03), y0, 0, 0.06, H, D, false);
+        for (let k = 0; k < 5; k++) { g.box(M.woodDark, 0, y0 + 0.05 + k * 0.45, 0, len, 0.04, D, false); if (k < 5) g.add(box(len - 0.12, 0.36, 0.24, len - 0.12, 0.36), kind === 'livraria' ? homeMat('books') : prodMat('strip_antiquario'), 0, y0 + 0.27 + k * 0.45, -0.04); }
+        g.collide(0, y0, 0, len, H, D);
+      }
+      r.box(M.wood, w / 6, y0 + 0.7, d / 2 - 1.8, 1.4, 0.06, 0.8, false); r.add(box(1.2, 0.08, 0.6, 1.2, 0.6), homeMat('books'), w / 6, y0 + 0.77, d / 2 - 1.8);
+    } else if (kind === 'boutique') {
+      for (let k = 0; k < 2; k++) { const vx = w / 6 + (k - 0.5) * 1.8; r.box(M.white, vx, y0, d / 2 - 2.2, 1.2, 0.9, 0.6, true, 1); r.add(box(1.2, 0.35, 0.6), M.glass, vx, y0 + 1.08, d / 2 - 2.2); r.add(box(1.0, 0.04, 0.4, 1.0, 0.4), prodMat(pick(['strip_eletronicos', 'strip_roupas'])), vx, y0 + 0.95, d / 2 - 2.2); }
+      sideShelf(['roupas'], { mat: M.woodDark, levels: 3 }); r.add(box(1.0, 1.8, 0.03), M.glass, w / 4, y0 + 1.2, backZ);
+    } else if (kind === 'lavanderia') {
+      for (let k = 0; k < Math.floor((w - 1) / 0.85); k++) { const mx = -w / 2 + 0.7 + k * 0.85; r.box(M.white, mx, y0, backZ + 0.35, 0.75, 0.9, 0.7, true, 1); r.add(cyl(0.24, 0.24, 0.04, 16).rotateX(Math.PI / 2), M.glass, mx, y0 + 0.5, backZ + 0.72); r.add(cyl(0.27, 0.27, 0.03, 16).rotateX(Math.PI / 2), M.metalLight, mx, y0 + 0.5, backZ + 0.71); }
+      r.box(P(0x1a3a6a), 0, y0 + 0.42, d / 2 - 1.6, w * 0.5, 0.08, 0.5, false); r.collide(0, y0, d / 2 - 1.6, w * 0.5, 0.5, 0.5);
+    } else if (kind === 'floricultura') {
+      for (let k = 0; k < 6; k++) { const px = -w / 2 + 0.8 + (k % 3) * (w / 3), pz = (k < 3 ? -0.3 : d / 2 - 1.5); r.add(cyl(0.22, 0.17, 0.4, 10), P(0xa8582a), px, y0 + 0.2, pz); r.add(new THREE.IcosahedronGeometry(0.4, 1), P(pick([0x3a8a3a, 0x4ab04a, 0x2a6a3a])), px, y0 + 0.75, pz); for (let f2 = 0; f2 < 4; f2++) r.add(new THREE.IcosahedronGeometry(0.08, 0), P(pick([0xe83a6a, 0xf2d21a, 0xf2f2f2, 0xb03ae8])), px + rr(-0.25, 0.25), y0 + 0.95 + rr(0, 0.2), pz + rr(-0.25, 0.25)); }
+      r.box(M.wood, rightX - 0.3, y0, 0, 0.6, 0.8, d - 2.5, true, 1);
+    } else if (kind === 'lobby') {
+      r.add(box(2.2, 1.0, 0.05, 2.2, 1.0), homeMat('art' + Math.floor(rand() * 8)), w / 4, y0 + 2.0, backZ);
+      for (const s of [-1, 1]) { const sz = d / 2 - 2.0; r.box(P(0x6a2a2a), w / 6 + s * 1.2, y0, sz, 1.0, 0.42, 0.85, true, 1); r.box(P(0x6a2a2a), w / 6 + s * 1.2, y0, sz - 0.38, 1.0, 0.85, 0.15, false); }
+      r.add(plane(2.6, 1.8, 2.6, 1.8), homeMat('rug' + Math.floor(rand() * 4)), w / 6, y0 + 0.04, d / 2 - 2.0);
+      r.add(cyl(0.25, 0.2, 0.5, 10), P(0xd8d8d8), rightX - 0.2, y0 + 0.25, d / 2 - 0.9); r.add(new THREE.IcosahedronGeometry(0.5, 0), M.hedge, rightX - 0.2, y0 + 1.0, d / 2 - 0.9);
+    } else { // barbearia, eletrônicos, roupas, ferragens...
+      backShelf(kind === 'eletronicos' ? ['eletronicos'] : kind === 'ferragens' ? ['ferragens'] : kind === 'barbearia' ? ['barbearia'] : ['roupas', 'mercado3'], { levels: 3 });
+      sideShelf(kind === 'eletronicos' ? ['eletronicos'] : ['roupas'], { levels: 3 });
     }
   }
 
@@ -1013,7 +1121,8 @@ export class City {
     const f = new Frame(F.x, F.z, 0, F.B, this.world);
     const w = 34, d = 16, H = 7.4;
     const bz = inner - d / 2 - 6; // de frente para +z (Rua)
-    f.box(M.facade.concrete, 0, CURB, bz, w, H, d, true, 24, 25.6);
+    const HO = this.hollow(f, 0, bz, w, d, H, M.facade.concrete, 'n');
+    this.policeInterior(HO);
     f.ao(0, bz, w, d, 1.8);
     f.box(M.blue, 0, CURB + 3.2, bz + d / 2 + 0.02, w, 0.5, 0.05, false);
     f.box(M.concrete, 0, CURB + H, bz, w + 0.6, 0.5, d + 0.6, false);
@@ -1021,7 +1130,6 @@ export class City {
     f.box(M.concrete, 0, CURB, bz + d / 2 + 2, 10, 0.3, 4, false);
     f.box(M.concrete, 0, CURB + 4.2, bz + d / 2 + 2, 10.4, 0.4, 4.2, false);
     for (const s of [-4.5, -1.6, 1.6, 4.5]) { f.box(M.white, s, CURB + 0.3, bz + d / 2 + 3.7, 0.5, 3.9, 0.5, true); }
-    f.box(M.glass, 0, CURB + 0.3, bz + d / 2 + 0.05, 3, 2.8, 0.05, false);
     f.box(signMat('DELEGACIA DE POLÍCIA', { bg: '#0e2a5c', fg: '#fff', glow: true, w: 1024, h: 128 }), 0, CURB + 4.7, bz + d / 2 + 4.12, 9, 0.9, 0.08, false, 9, 0.9);
     f.box(signMat('LOS VALLES', { bg: '#0e2a5c', fg: '#ffd27a', glow: true, w: 512, h: 96 }), 0, CURB + 5.8, bz + d / 2 + 0.06, 6, 0.9, 0.08, false, 6, 0.9);
     // mastro com bandeira
@@ -1112,13 +1220,14 @@ export class City {
     const M = this.M; const inner = (BLOCK - SW * 2) / 2;
     const f = new Frame(F.x, F.z, 0, F.B, this.world);
     const w = 40, d = 22, H = 4 * 3.2, bz = -inner + d / 2 + 4;
-    f.box(M.facade.plaster, 0, CURB, bz, w, H, d, true, 24, 25.6);
+    const HO = this.hollow(f, 0, bz, w, d, H, M.facade.plaster, 's');
+    this.hospitalInterior(HO);
     f.ao(0, bz, w, d, 1.8);
     f.box(M.white, 0, CURB + H, bz, w + 0.6, 0.6, d + 0.6, false);
     // entrada com marquise (voltada para -z)
     f.box(M.white, 0, CURB + 3.4, bz - d / 2 - 2.5, 12, 0.35, 5, false);
     for (const s of [-5.5, 5.5]) f.box(M.white, s, CURB, bz - d / 2 - 4.6, 0.4, 3.4, 0.4, true);
-    f.box(M.glass, 0, CURB, bz - d / 2 - 0.05, 5, 3, 0.06, false);
+    for (const sx of [-1, 1]) f.box(M.glass, sx * 2.3, CURB, bz - d / 2 - 0.05, 1.4, 3, 0.06, false);
     f.box(signMat('HOSPITAL LOS VALLES', { bg: '#ffffff', fg: '#b01818', glow: true, w: 1024, h: 128 }), 0, CURB + H - 1.6, bz - d / 2 - 0.08, 14, 1.4, 0.08, false, 14, 1.4);
     // cruz vermelha
     f.box(M.red, 0, CURB + H + 1.2, bz - d / 2 + 0.3, 3, 0.8, 0.3, false); f.box(M.red, 0, CURB + H + 0.4, bz - d / 2 + 0.3, 0.8, 2.4, 0.3, false);
@@ -1129,6 +1238,70 @@ export class City {
     for (let i = 0; i < 4; i++) this.trees.push([F.x - inner + 4 + i * 16, F.z - 2, rr(0.8, 1.1)]);
   }
 
+  // prédio com térreo visitável: andares de cima fechados, paredes com porta na face indicada ('s' = -z, 'n' = +z)
+  hollow(f, cx, cz, w, d, H, mat, face, GF = 4) {
+    const M = this.M, y = CURB, t = 0.3, door = 3;
+    f.box(mat, cx, y + GF, cz, w, H - GF, d, false, 24, 25.6); f.collide(cx, y + GF, cz, w, H - GF, d);
+    const wall = (x, z, ww, dd) => f.box(mat, x, y, z, ww, GF, dd, true, 24, 25.6);
+    const fz = face === 's' ? cz - d / 2 + t / 2 : cz + d / 2 - t / 2, bz = face === 's' ? cz + d / 2 - t / 2 : cz - d / 2 + t / 2;
+    wall(cx, bz, w, t); wall(cx - w / 2 + t / 2, cz, t, d); wall(cx + w / 2 - t / 2, cz, t, d);
+    const seg = (w - door) / 2; wall(cx - w / 2 + seg / 2, fz, seg, t); wall(cx + w / 2 - seg / 2, fz, seg, t);
+    f.box(mat, cx, y + 3.2, fz, door, GF - 3.2, t, false, 24, 25.6);
+    const IB = new Batcher(); const r = new Frame(...f.pt(cx, cz), f.ry + (face === 's' ? Math.PI : 0), IB, this.world);
+    const iw = w - 0.7, id = d - 0.7;
+    r.add(plane(iw, id, 2), M.interiorFloor, 0, y + 0.03, 0);
+    r.add(plane(iw, id, 4), M.ceiling, 0, y + GF - 0.03, 0, 0, Math.PI);
+    for (let i = 0; i < Math.floor(iw / 6); i++) r.add(box(0.4, 0.05, id * 0.7), M.ceilingLight, -iw / 2 + 3 + i * 6, y + GF - 0.06, 0);
+    for (const sx of [-1, 1]) r.box(M.interior, sx * (iw / 2 - 0.01), y, 0, 0.02, GF - 0.1, id, false);
+    r.box(M.interior, 0, y, -id / 2 + 0.01, iw, GF - 0.1, 0.02, false);
+    for (const sx of [-1, 1]) r.box(M.interior, sx * (iw / 4 + door / 4), y, id / 2 - 0.01, iw / 2 - door / 2, GF - 0.1, 0.02, false);
+    return { r, IB, w: iw, d: id, y, GF, cx, cz, f };
+  }
+  closeHollow(HO) { const grp = new THREE.Group(); grp.name = 'interior'; HO.IB.flush(grp, { castShadow: false }); grp.visible = false; this.root.add(grp); const [x, z] = HO.f.pt(HO.cx, HO.cz); this.interiors.push({ group: grp, x, z }); }
+  hospitalInterior(HO) {
+    const M = this.M, { r, w, d, y } = HO; const P = (c) => paint(M.flatIn, c);
+    // recepção e espera (perto da porta, +z)
+    r.box(P(0xf0f0f0), -w / 4, y, d / 2 - 4, 4, 1.05, 0.8, true, 1); r.box(P(0x1a8a6a), -w / 4, y + 1.05, d / 2 - 4, 4.1, 0.05, 0.9, false);
+    r.box(M.metalDark, -w / 4 - 1, y + 1.1, d / 2 - 4.1, 0.5, 0.35, 0.05, false);
+    r.add(box(3, 0.5, 0.05, 3, 0.5), signMat('RECEPÇÃO', { bg: '#1a8a6a', fg: '#fff', w: 512, h: 96 }), -w / 4, y + 2.9, d / 2 - 4.5);
+    for (let row = 0; row < 2; row++) for (let k = 0; k < 6; k++) { const sx = w / 6 + k * 0.62, sz = d / 2 - 3 - row * 1.5; r.box(P(0x2a5a8a), sx, y + 0.42, sz, 0.55, 0.08, 0.5, false); r.box(P(0x2a5a8a), sx, y + 0.5, sz - 0.24, 0.55, 0.5, 0.06, false); }
+    r.collide(w / 6 + 1.55, y, d / 2 - 3.75, 3.8, 0.9, 2.2);
+    // leitos com cortinas, suporte de soro e monitor (fundo)
+    const nb = Math.floor((w - 2) / 3.2);
+    for (let k = 0; k < nb; k++) {
+      const bx = -w / 2 + 1.8 + k * 3.2, bzz = -d / 2 + 1.5;
+      r.box(M.metalLight, bx, y, bzz, 1.0, 0.55, 2.0, true, 1); r.box(P(0xf4f4f4), bx, y + 0.55, bzz, 0.95, 0.15, 1.9, false); r.box(P(0xa8c8e8), bx, y + 0.7, bzz + 0.3, 0.98, 0.04, 1.2, false); r.box(P(0xffffff), bx, y + 0.72, bzz - 0.7, 0.6, 0.12, 0.35, false);
+      r.add(cyl(0.02, 0.02, 1.8, 6), M.metalLight, bx + 0.7, y + 0.9, bzz - 0.8); r.add(box(0.12, 0.2, 0.05), P(0xd8e8f8), bx + 0.7, y + 1.75, bzz - 0.8);
+      r.box(M.metalDark, bx - 0.7, y + 1.3, bzz - 0.95, 0.4, 0.3, 0.1, false); r.add(box(0.3, 0.2, 0.01), M.ceilingLight, bx - 0.7, y + 1.45, bzz - 0.89);
+      if (k < nb - 1) r.box(P(0x8ab8d8), bx + 1.6, y + 0.1, bzz, 0.04, 2.2, 2.2, false);
+    }
+    r.box(M.white, w / 2 - 0.4, y, -1, 0.6, 2.0, 2.5, true, 1); // armário de remédios
+    r.add(box(0.02, 1.5, 2.0, 1.5, 2.0), prodMat('strip_farmacia1'), w / 2 - 0.71, y + 1.0, -1);
+    for (const [px, pz] of [[-w / 2 + 0.6, d / 2 - 0.8], [w / 2 - 0.6, d / 2 - 0.8]]) { r.add(cyl(0.25, 0.2, 0.5, 10), P(0xd8d8d8), px, y + 0.25, pz); r.add(new THREE.IcosahedronGeometry(0.5, 0), M.hedge, px, y + 1.0, pz); }
+    const [nx, nz] = r.pt(-w / 4, d / 2 - 5); this.hospitalNurse = [nx, nz, r.ry];
+    const [hx, hz] = r.pt(-w / 4, d / 2 - 3); this.landmarks.push({ name: 'Recepção do Hospital', x: hx, z: hz, kind: 'hospital' });
+    this.closeHollow(HO);
+  }
+  policeInterior(HO) {
+    const M = this.M, { r, w, d, y } = HO; const P = (c) => paint(M.flatIn, c);
+    // balcão de atendimento
+    r.box(M.woodDark, 0, y, d / 2 - 3, 5, 1.1, 0.8, true, 1); r.box(P(0x1a2a5a), 0, y + 1.1, d / 2 - 3, 5.1, 0.05, 0.9, false);
+    r.add(box(5, 1.0, 0.03), M.glass, 0, y + 1.6, d / 2 - 2.65);
+    r.add(box(2.4, 0.45, 0.05, 2.4, 0.45), signMat('ATENDIMENTO', { bg: '#0e2a5c', fg: '#fff', w: 512, h: 96 }), 0, y + 2.9, d / 2 - 3.45);
+    // mesas com computador
+    for (let k = 0; k < 4; k++) { const tx = -w / 2 + 3 + k * 3.2, tz = -1; r.box(M.wood, tx, y + 0.74, tz, 1.6, 0.05, 0.8, false, 1); for (const sx of [-0.7, 0.7]) r.box(M.metalDark, tx + sx, y, tz, 0.05, 0.74, 0.7, false); r.box(M.metalDark, tx, y + 0.79, tz - 0.2, 0.5, 0.35, 0.05, false); r.add(box(0.44, 0.28, 0.01), M.ceilingLight, tx, y + 0.97, tz - 0.17); r.box(P(0x1a1a1a), tx, y + 0.45, tz + 0.7, 0.5, 0.08, 0.5, false); r.collide(tx, y, tz, 1.6, 0.8, 0.8); }
+    // celas (fundo à direita) e armários
+    const cx0 = w / 2 - 6, cw = 2.6;
+    for (let k = 0; k < 2; k++) { const x0 = cx0 + k * cw + cw / 2; r.box(P(0xb8bcb0), x0 + cw / 2, y, -d / 2 + 1.5, 0.12, 3.4, 3, true, 1);
+      for (let b = -cw / 2 + 0.2; b < cw / 2; b += 0.16) r.add(cyl(0.02, 0.02, 3.2, 6), M.metalDark, x0 + b, y + 1.6, -d / 2 + 3); r.collide(x0, y, -d / 2 + 3, cw, 3.4, 0.15);
+      r.box(M.metalDark, x0, y + 0.4, -d / 2 + 0.8, 1.8, 0.08, 0.7, false); }
+    r.box(P(0xb8bcb0), cx0, y, -d / 2 + 1.5, 0.12, 3.4, 3, true, 1);
+    for (let k = 0; k < 5; k++) r.box(P(0x5a6a7a), -w / 2 + 0.5, y, -d / 2 + 1 + k * 0.62, 0.55, 1.9, 0.58, true, 1);
+    // quadro de procurados
+    r.box(M.woodDark, -w / 4, y + 1.2, -d / 2 + 0.05, 2.6, 1.4, 0.05, false); for (let k = 0; k < 4; k++) r.add(box(0.5, 0.6, 0.01, 0.5, 0.6), homeMat('photo'), -w / 4 - 0.9 + k * 0.6, y + 1.9, -d / 2 + 0.09);
+    const [ox, oz] = r.pt(0, d / 2 - 4.1); this.policeDesk = [ox, oz, r.ry + Math.PI];
+    this.closeHollow(HO);
+  }
   bench(f, lx, lz, ry) {
     const M = this.M;
     const b = new Frame(...f.pt(lx, lz), ry, f.B, this.world);
@@ -1171,6 +1344,133 @@ export class City {
       f.collide(x, 0, z, 0.25, 4, 0.25);
     }
     this.landmarks.push({ name: 'Praça', x: F.x, z: F.z, kind: 'park' });
+  }
+
+  // SHOPPING LOS VALLES: prédio grande com átrio, chafariz, claraboia, 8 lojas no térreo, praça de alimentação
+  // e mezanino de verdade (escadas que dá para subir). Interior num grupo separado, só desenhado de perto.
+  mallBlock(F) {
+    const M = this.M, y = CURB; const P = (c) => paint(M.flatIn, c);
+    const f = new Frame(F.x, F.z, 0, F.B, this.world);
+    const W = 50, D = 40, cz = 3, H = 11, t = 0.4, z0 = cz - D / 2, z1 = cz + D / 2; // z0 = -17 (frente), z1 = 23
+    const fac = paint(M.flat, 0xd6cdbd), fin = paint(M.flat, 0x3a4250);
+    // ---- casca externa ----
+    f.box(fac, 0, y, z1 - t / 2, W, H, t, true, 24, 25.6);
+    for (const s of [-1, 1]) f.box(fac, s * (W / 2 - t / 2), y, cz, t, H, D, true, 24, 25.6);
+    for (const s of [-1, 1]) f.box(fac, s * (9 + (W / 2 - 9) / 2), y, z0 + t / 2, W / 2 - 9, H, t, true, 24, 25.6);
+    f.box(fac, 0, y + 7, z0 + t / 2, 18, H - 7, t, false, 24, 25.6);
+    // fachada de vidro com porta larga no meio
+    for (const s of [-1, 1]) {
+      f.add(box(6, 6.8, 0.06), M.glass, s * 6, y + 3.4, z0 + t / 2); f.collide(s * 6, y, z0 + t / 2, 6, 7, t);
+      f.box(M.darkTrim, s * 3.05, y, z0 + t / 2, 0.16, 7, 0.5, false); f.box(M.darkTrim, s * 9, y, z0 + t / 2, 0.3, 7, 0.5, false);
+      for (let k = 1; k < 3; k++) f.box(M.darkTrim, s * (3 + k * 2), y, z0 + t / 2, 0.08, 7, 0.12, false);
+    }
+    f.add(box(6, 3.4, 0.06), M.glass, 0, y + 5.3, z0 + t / 2);
+    f.box(M.darkTrim, 0, y + 3.5, z0 + t / 2, 6.1, 0.18, 0.4, false); f.box(M.darkTrim, 0, y + 6.9, z0 + t / 2, 18.4, 0.25, 0.5, false);
+    // faixas, cornija, telhado e equipamentos no teto
+    for (const yy of [5, H - 0.6]) { f.box(M.white, 0, y + yy, z0 - 0.05, W + 0.2, 0.5, 0.3, false); f.box(M.white, 0, y + yy, z1 + 0.05, W + 0.2, 0.5, 0.3, false); for (const s of [-1, 1]) f.box(M.white, s * (W / 2 + 0.05), y + yy, cz, 0.3, 0.5, D + 0.2, false); }
+    f.box(M.roof[1], 0, y + H, cz, W + 0.6, 0.5, D + 0.6, false); f.collide(0, y + H, cz, W, 0.5, D);
+    f.box(M.metalLight, 0, y + H + 0.5, cz - 1, 11, 0.9, 31, false); f.add(box(10.4, 0.06, 30.4), M.glass, 0, y + H + 1.43, cz - 1);
+    for (const [ax, az] of [[-18, 14], [-18, 6], [18, 14], [18, -8], [-18, -8]]) { f.box(M.metalLight, ax, y + H + 0.5, az, 3, 1.4, 2.2, false); f.add(cyl(0.6, 0.6, 0.1, 14), M.metalDark, ax, y + H + 1.95, az); }
+    // aletas verticais escuras e painéis de cor na fachada (visual de centro comercial)
+    for (const s of [-1, 1]) { for (let k = 0; k < 5; k++) f.box(fin, s * (11 + k * 3.4), y, z0 - 0.18, 0.6, H - 0.6, 0.36, false); for (let k = 0; k < 9; k++) f.box(fin, s * (W / 2 + 0.18), y, z0 + 3 + k * 4.4, 0.36, H - 0.6, 0.6, false); }
+    for (let k = 0; k < 11; k++) f.box(fin, -W / 2 + 3 + k * 4.4, y, z1 + 0.18, 0.6, H - 0.6, 0.36, false);
+    for (const s of [-1, 1]) f.box(signMat(s < 0 ? 'MODA • GASTRONOMIA' : 'CINEMA • LAZER', { bg: '#8a2a2a', fg: '#fff3dc', w: 1024, h: 300 }), s * 17.8, y + 5.6, z0 - 0.1, 12.4, 3.6, 0.2, false, 12.4, 3.6);
+    f.ao(0, cz, W, D, 2.2);
+    // letreiros
+    f.box(signMat('SHOPPING LOS VALLES', { bg: '#14202e', fg: '#ffd27a', glow: true, w: 1024, h: 128 }), 0, y + 7.6, z0 - 0.12, 17, 2.1, 0.12, false, 17, 2.1);
+    { const sw = this.sub(f, -W / 2 - 0.12, cz, -Math.PI / 2); sw.box(signMat('SHOPPING LOS VALLES', { bg: '#14202e', fg: '#ffd27a', glow: true, w: 1024, h: 128 }), 0, y + 7.2, 0, 18, 2.1, 0.12, false, 18, 2.1); }
+    // marquise da entrada
+    f.box(M.white, 0, y + 4.1, z0 - 2.6, 15, 0.4, 5.2, false); f.box(M.darkTrim, 0, y + 4.05, z0 - 5.15, 15, 0.12, 0.12, false);
+    for (const s of [-1, 1]) f.box(M.metalDark, s * 7, y, z0 - 4.8, 0.35, 4.1, 0.35, true);
+    // praça da frente: floreiras com árvores, bancos e bicicletário
+    for (const s of [-1, 1]) for (const zz of [-21, -25]) { f.box(P(0x9a948a), s * 14, y, zz, 3, 0.55, 3, true, 1); f.add(plane(2.7, 2.7, 2), M.dirt, s * 14, y + 0.56, zz); this.trees.push([F.x + s * 14, F.z + zz, rr(0.7, 0.9)]); }
+    for (const s of [-1, 1]) this.bench(f, s * 9.5, -23, 0);
+    for (let k = 0; k < 5; k++) f.box(M.metalLight, -20 + k * 0.8, y, -18.6, 0.05, 0.75, 0.9, false);
+    const [ex, ez] = f.pt(0, z0 - 6);
+    this.landmarks.push({ name: 'Shopping Los Valles', x: ex, z: ez, kind: 'mall' });
+
+    // ---- interior ----
+    const IB = new Batcher(); const r = new Frame(F.x, F.z, 0, IB, this.world);
+    const ix0 = -W / 2 + t, ix1 = W / 2 - t, iz0 = z0 + t, iz1 = z1 - t, iw = ix1 - ix0, id = iz1 - iz0;
+    const wallC = P(0xf1ede5), cream = P(0xe6e0d4);
+    r.add(plane(iw, id, 2.5), M.interiorFloor, 0, y + 0.03, cz);
+    r.add(plane(12, 34, 1.5), M.interiorWood, 0, y + 0.035, cz - 1); // passarela central de madeira clara
+    r.add(plane(iw, id, 4), M.ceiling, 0, y + H - 0.05, cz, 0, Math.PI);
+    // claraboia (luz natural) com vigas
+    r.add(box(10.4, 0.05, 30.4), M.ceilingLight, 0, y + H - 0.1, cz - 1);
+    for (let k = 0; k < 11; k++) r.box(M.metalLight, 0, y + H - 0.45, cz - 16 + k * 3, 10.8, 0.3, 0.2, false);
+    for (const s of [-1, 1]) r.box(M.metalLight, s * 5.3, y + H - 0.45, cz - 1, 0.2, 0.3, 31, false);
+    // revestimento interno das paredes
+    r.box(wallC, 0, y, iz1 - 0.02, iw, H - 0.1, 0.04, false); for (const s of [-1, 1]) r.box(wallC, s * (ix1 - 0.02), y, cz, 0.04, H - 0.1, id, false);
+    for (const s of [-1, 1]) r.box(wallC, s * (9 + (ix1 - 9) / 2), y, iz0 + 0.02, ix1 - 9, H - 0.1, 0.04, false);
+    r.box(wallC, 0, y + 7.05, iz0 + 0.02, 18, H - 7.15, 0.04, false);
+    // ---- lojas do térreo (4 de cada lado) e praça de alimentação (3 no fundo) ----
+    const SEG = 9, Z0S = -16, NSTORE = 4; // lojas de z = -16 a 20
+    const left = ['Moda Vale Roupas', 'Mega Eletrônicos', 'Joalheria Diamante', 'Livraria Saber'];
+    const right = ['Farmácia do Shopping', 'Ótica Olhar', 'Barbearia Estilo', 'Supermercado Express'];
+    const mallStore = (sf, x, seg, core, name, bulkTop) => {
+      this.storeRoom(sf, x, 0, seg, core, [name]);
+      sf.box(cream, x, y + 3.4, -0.12, seg, bulkTop - 3.4, 0.26, false);
+      sf.add(box(seg - 1.6, 0.72, 0.06, seg - 1.6, 0.72), signMat(name.toUpperCase(), { bg: pick(['#1a1a1a', '#14283b', '#3b1414', '#102b1a', '#2b1a3b']), fg: pick(['#ffd27a', '#ffffff', '#b0e0ff']), glow: true, w: 512, h: 96 }), x, y + 4.0, 0.04);
+    };
+    const coreS = { GF: 5, sd: 9.5, IB };
+    for (const s of [-1, 1]) {
+      const sf = new Frame(...r.pt(s * 15, 0), s < 0 ? Math.PI / 2 : -Math.PI / 2, IB, this.world); // +z local aponta para o corredor
+      const names = s < 0 ? left : right;
+      for (let k = 0; k < NSTORE; k++) { const wz = Z0S + SEG / 2 + k * SEG; mallStore(sf, s < 0 ? -wz : wz, SEG, coreS, names[k], 4.75); }
+    }
+    { const sf = new Frame(...r.pt(0, 17), Math.PI, IB, this.world); const core = { GF: 5, sd: 5.6, IB };
+      ['Lanchonete Grill', 'Pizzaria Forno', 'Padaria Doce Vale'].forEach((n, k) => mallStore(sf, -7 + k * 7, 7, core, n, 5.15));
+      sf.add(box(8, 0.9, 0.06, 8, 0.9), signMat('PRAÇA DE ALIMENTAÇÃO', { bg: '#7a1a1a', fg: '#fff', glow: true, w: 1024, h: 128 }), 0, y + 7.2, -5.5); }
+    for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) this.tableSet(r, -7.5 + i * 3, 13.8 + j * 2, y, pick([0xb02a2a, 0x1d3f8a, 0xd8a01a, 0x2a2a2a]));
+    // ---- mezanino (andar de cima, com lojas "em breve") ----
+    const up = ['Cinema Valles 3D', 'Academia Forma', 'Games Zone', 'Cosméticos Bela', 'Esportes Pro', 'Brinquedos Alegria', 'Perfumaria Essência', 'Calçados Passo Certo'];
+    const yM = y + 5; const STZ = [-11, -9]; // escadas chegam em z -11..-9
+    for (const s of [-1, 1]) {
+      r.box(cream, s * 13, yM - 0.4, 2, 4, 0.4, 36, true, 1);
+      r.add(plane(4, 36, 2.5), M.interiorFloor, s * 13, yM + 0.01, 2);
+      // guarda-corpo de vidro (com abertura na chegada da escada)
+      for (const [za, zb] of [[-16, STZ[0]], [STZ[1], 20]]) { const L = zb - za, zc = (za + zb) / 2;
+        r.add(box(0.05, 1.0, L), M.glass, s * 11.05, yM + 0.55, zc); r.box(M.metalLight, s * 11.05, yM + 1.05, zc, 0.08, 0.06, L, false); r.collide(s * 11.05, yM, zc, 0.2, 1.2, L); }
+      for (const zz of [-16, 20]) { r.add(box(4, 1.0, 0.05), M.glass, s * 13, yM + 0.55, zz); r.collide(s * 13, yM, zz, 4, 1.2, 0.2); }
+      // pilares
+      for (let k = 0; k < 4; k++) r.box(cream, s * 11.3, y, -15 + k * 11.5, 0.45, 4.6, 0.45, true);
+      // fachadas das lojas do andar de cima
+      for (let k = 0; k < NSTORE; k++) { const wz = Z0S + SEG / 2 + k * SEG, nm = up[k + (s > 0 ? 4 : 0)];
+        r.box(P(0x26262c), s * 15.1, yM, wz, 0.1, 3.4, SEG - 0.6, false);
+        r.add(box(0.05, 2.9, SEG - 1.2), M.glass, s * 14.98, yM + 1.45, wz);
+        r.box(cream, s * 15.05, yM + 3.4, wz, 0.24, H - 5.5, SEG, false);
+        const sg = this.sub(r, s * 14.9, wz, s < 0 ? Math.PI / 2 : -Math.PI / 2); sg.add(box(SEG - 1.8, 0.7, 0.06, SEG - 1.8, 0.7), signMat(nm.toUpperCase(), { bg: '#1a1a1a', fg: pick(['#ffd27a', '#ffffff', '#ffb0e0']), glow: true, w: 512, h: 96 }), 0, yM + 3.85, 0);
+        sg.add(box(1.6, 0.35, 0.03, 1.6, 0.35), signMat('EM BREVE', { bg: '#c41a1a', fg: '#fff', w: 256, h: 64 }), 0, yM + 1.6, 0.04); }
+      r.collide(s * 15.1, yM, 2, 0.3, 3.4, 36);
+      r.box(wallC, s * 15.25, yM, 2, 0.04, H - 5.1, 36, false);
+      for (const ez3 of [-16.05, 20.05]) r.box(wallC, s * 19.8, y, ez3, 9.6, H - 0.1, 0.1, true);
+      // escada de verdade: 20 degraus de 25 cm do térreo (|x| = 4) até o mezanino (|x| = 11)
+      const run = 7 / 20, zc = (STZ[0] + STZ[1]) / 2, sw = STZ[1] - STZ[0];
+      for (let k = 1; k <= 20; k++) { const sx = s * (4 + (k - 0.5) * run); r.box(k % 2 ? P(0xd8d4cc) : P(0xcfcac0), sx, y, zc, run + 0.01, 0.25 * k, sw, true, 1); r.box(M.metalDark, sx, y + 0.25 * k - 0.02, zc, run, 0.03, sw, false); }
+      const ang = Math.atan2(5, 7), mid = s * 7.5;
+      for (const ez2 of STZ) { r.add(box(8.6, 1.0, 0.05), M.glass, mid, y + 2.5 + 0.9, ez2, 0, 0, s < 0 ? -ang : ang); r.add(box(8.6, 0.07, 0.09), M.metalLight, mid, y + 2.5 + 1.42, ez2, 0, 0, s < 0 ? -ang : ang); }
+    }
+    // ---- chafariz central, bancos, floreiras e quiosque ----
+    const fz = 3;
+    r.add(cyl(3, 3.2, 0.55, 32), P(0xd8d4cc), 0, y + 0.28, fz); r.add(cyl(2.75, 2.75, 0.05, 32), M.water, 0, y + 0.5, fz);
+    r.add(cyl(0.35, 0.5, 1.6, 12), P(0xd8d4cc), 0, y + 0.8, fz); r.add(cyl(1.2, 0.7, 0.22, 18), P(0xd8d4cc), 0, y + 1.7, fz); r.add(cyl(1.05, 1.05, 0.04, 18), M.water, 0, y + 1.82, fz);
+    r.add(cyl(0.2, 0.3, 0.9, 10), P(0xd8d4cc), 0, y + 2.25, fz); r.add(cyl(0.05, 0.12, 1.2, 8), M.water, 0, y + 3.2, fz);
+    this.world.addCentered(F.x, 0, F.z + fz, 6.2, 0.7, 6.2);
+    for (const [bx, bz, br] of [[0, fz - 4.3, Math.PI], [0, fz + 4.3, 0], [-4.3, fz, -Math.PI / 2], [4.3, fz, Math.PI / 2]]) this.bench(r, bx, bz, br);
+    for (const s of [-1, 1]) for (const pz of [-4, 10]) { r.box(P(0x8a6a4a), s * 7.5, y, pz, 1.2, 0.6, 1.2, true, 1); r.add(new THREE.IcosahedronGeometry(0.75, 1), M.hedge, s * 7.5, y + 1.15, pz); r.add(cyl(0.06, 0.08, 0.6, 6), M.woodDark, s * 7.5, y + 0.6, pz); }
+    // quiosque de sorvete perto da entrada
+    r.box(P(0xf2c6d8), 0, y, -11, 2.4, 1.05, 1.2, true, 1); r.box(M.white, 0, y + 1.05, -11, 2.5, 0.06, 1.3, false);
+    for (const s of [-1, 1]) r.box(M.metalLight, s * 1.1, y + 1.1, -11, 0.06, 1.3, 0.06, false);
+    r.box(P(0xe85a8a), 0, y + 2.4, -11, 2.7, 0.12, 1.5, false);
+    r.add(box(2.2, 0.4, 0.05, 2.2, 0.4), signMat('SORVETES', { bg: '#e85a8a', fg: '#fff', w: 512, h: 96 }), 0, y + 2.75, -11.6);
+    // painel de informações e lixeiras
+    r.box(M.metalDark, 6, y, -13.5, 0.9, 2.0, 0.25, true, 1); r.add(box(0.8, 1.2, 0.02), M.ceilingLight, 6, y + 1.3, -13.36);
+    for (const [lx, lz] of [[-9.6, 0], [9.6, 6], [-3, -14]]) r.add(cyl(0.22, 0.2, 0.75, 10), M.metalLight, lx, y + 0.38, lz);
+    this.mallLoops = [{ cx: F.x, cz: F.z + fz, half: 6, type: 'mall' }, { cx: F.x, cz: F.z + fz, half: 9, type: 'mall' }];
+    this.mallCenter = [F.x, F.z + fz];
+    const grp = new THREE.Group(); grp.name = 'interior'; IB.flush(grp, { castShadow: false }); grp.visible = false; this.root.add(grp);
+    this.interiors.push({ group: grp, x: F.x, z: F.z + cz });
   }
 
   // ---------- ESTACIONAMENTO NA RUA ----------
@@ -1290,7 +1590,7 @@ export class City {
   // perto da câmera: árvore detalhada; longe: versão simples (bem menos triângulos)
   updateTrees(cx, cz, force = false) {
     for (const cell of this.treeCells) {
-      const d = Math.hypot(cell.x - cx, cell.z - cz); const lod = d > 300 ? 'far' : 'near';
+      const d = Math.hypot(cell.x - cx, cell.z - cz); const lod = d > 300 * (this.lodMul || 1) ? 'far' : 'near';
       if (lod === cell.lod && !force) continue; cell.lod = lod;
       for (const o of Object.values(cell.near)) o.visible = lod === 'near' && !o.empty;
       for (const o of Object.values(cell.far)) o.visible = lod === 'far' && !o.empty;

@@ -22,6 +22,7 @@ import { CustomShop } from './custom.js';
 import { PerfMeter } from './perf.js';
 import { Weapons, WEAPONS, WEAPON_ORDER, weaponIcon } from './weapons.js';
 import { Airplane } from './plane.js';
+import { UltraPost } from './post.js';
 import { itemIcon, handItem } from './products.js';
 import { shopKind } from './city.js';
 import { Vehicle, CAR_COLORS, updateSirens, MOTO_TYPES, CAR_LIST, CAR_TYPES } from './vehicle.js';
@@ -45,9 +46,13 @@ const QUALITY = {
   baixa: { label: 'Baixa', pr: 0.75, aa: false, shadows: false, size: 512, extent: 40, peds: 40, traffic: 11, far: 320, lamps: 0, soft: false, grass: 0, shadowEvery: 1 },
   media: { label: 'Média', pr: 1.0, aa: false, shadows: true, size: 2048, extent: 42, peds: 70, traffic: 18, far: 400, lamps: 4, soft: false, grass: 48, shadowEvery: 2 },
   alta: { label: 'Alta', pr: Math.min(window.devicePixelRatio || 1, 1.5), aa: true, shadows: true, size: 2048, extent: 60, peds: 95, traffic: 24, far: 480, lamps: 8, soft: true, grass: 75, shadowEvery: 1 },
+  // ULTRA: placas dedicadas (RX 580, GTX 1060 ou melhor): resolução cheia, sombras 4096 maiores, MSAA 4x + bloom,
+  // mais luzes reais, grama densa e distante, mais pessoas e carros, objetos detalhados até mais longe
+  ultra: { label: 'Ultra', pr: Math.min(window.devicePixelRatio || 1, 2), aa: false, shadows: true, size: 4096, extent: 75, peds: 115, traffic: 30, far: 650, lamps: 14, soft: true, grass: 115, shadowEvery: 1, ultra: true, lodMul: 1.8 },
 };
 const Q = QUALITY[settings.quality] || QUALITY.media;
-Humanoid.detail = { baixa: 0, media: 1, alta: 2 }[settings.quality] ?? 1;
+Humanoid.detail = { baixa: 0, media: 1, alta: 2, ultra: 2 }[settings.quality] ?? 1;
+const LODM = Q.lodMul || 1; // distâncias de detalhe (maiores no Ultra)
 
 const $ = (id) => document.getElementById(id);
 const loadingText = (t) => { const el = $('loading-text'); if (el) el.textContent = t; };
@@ -67,9 +72,11 @@ let pixelRatio = Q.pr;
 $('game').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(settings.fov, window.innerWidth / window.innerHeight, 0.1, Q.far);
+let post = null; try { if (Q.ultra) post = new UltraPost(renderer, scene, camera); } catch (e) { console.warn('Pós-processamento indisponível', e); post = null; }
+const renderFrame = () => { if (post) post.render(G.sky ? G.sky.night || 0 : 0); else renderer.render(scene, camera); };
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(window.innerWidth, window.innerHeight); if (post) post.setSize();
 });
 
 const G = {}; // estado global do jogo (exposto para testes em window.game)
@@ -79,9 +86,9 @@ G.freeWeapons = settings.freeWeapons;
 function build() {
   const t0 = performance.now();
   const world = new CollisionWorld();
-  const sky = new Sky(scene, renderer, Q.far);
+  const sky = new Sky(scene, renderer, Q.far); if (post) post.attachSky(sky);
   sky.setShadows(Q.shadows, Q.size, Q.extent);
-  const city = new City(scene, world);
+  const city = new City(scene, world); city.lodMul = LODM;
   city.build();
   const zones = new Zones(scene, world, city);
   zones.build();
@@ -122,6 +129,9 @@ function build() {
     sea.position.set(200, -0.6, 0); sea.receiveShadow = false; sea.matrixAutoUpdate = false; sea.updateMatrix(); scene.add(sea); }
   // avião no pátio do aeroporto
   const plane = new Airplane(world); scene.add(plane.group); plane.place(...zones.spots.planePark); world.dynamic.add(plane);
+  // enfermeira na recepção do hospital e policial no balcão da delegacia
+  if (city.hospitalNurse) { const [x, z, h] = city.hospitalNurse; npcs.push(new NPC(scene, world, { ...randomPedestrian(), female: true, skirt: null, hairStyle: 'bun', shirt: 0xe8f4f0, pants: 0xe8f4f0, jacket: null, longSleeve: false }, { name: 'Enfermeira', role: 'story-static', lines: ['Bem-vindo ao Hospital Los Valles.', 'Atendimento médico custa R$ 150.'], x, z, heading: h, behavior: 'stand' })); }
+  if (city.policeDesk) { const [x, z, h] = city.policeDesk; npcs.push(new NPC(scene, world, policeLook(), { name: 'Policial de plantão', role: 'police', lines: ['Delegacia de Los Valles. Em que posso ajudar?', 'Se for fazer boletim, pegue uma senha.'], x, z, heading: h, behavior: 'stand' })); }
   // penitenciária: presos nas celas (e alguns no pátio) e guardas fazendo ronda
   { const Z = zones.spots; const jump = { shirt: 0xe0701a, pants: 0xe0701a, jacket: null, hat: null, longSleeve: false };
     const guardLook = () => ({ ...policeLook(), shirt: 0x3a4048, pants: 0x2a2e34, hatColor: 0x2a2e34 });
@@ -159,6 +169,8 @@ function build() {
   const blobGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const blobs = new THREE.InstancedMesh(blobGeo, new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }), 900);
   blobs.frustumCulled = false; blobs.renderOrder = 1; scene.add(blobs);
+  // Ultra: filtragem anisotrópica máxima (texturas nítidas no chão e nas paredes vistas de lado)
+  if (Q.ultra) { const maxA = renderer.capabilities.getMaxAnisotropy(); const seen = new Set(); scene.traverse((o) => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) for (const k of ['map', 'normalMap', 'emissiveMap']) { const t = m[k]; if (t && !seen.has(t)) { seen.add(t); t.anisotropy = maxA; t.needsUpdate = true; } } }); }
   Object.assign(G, { plane, grass, blackwood, world, sky, city, zones, cars, drivers, player, npcs, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera, lampLights, glow, blobs });
   G.aiDrivers = []; G.police = [];
   G.audio = new EngineAudio();
@@ -944,6 +956,57 @@ const EVENTS = {
     } };
   },
 };
+// atendentes das lojas de rua: aparecem só quando o jogador está perto (são dezenas de lojas)
+let keeperT = 0;
+function updateStoreKeepers(dt) {
+  if ((keeperT -= dt) > 0) return; keeperT = 1;
+  const P = G.player;
+  for (const r of G.city.storeRooms) {
+    const d = Math.hypot(r.x - P.x, r.z - P.z);
+    if (!r.npc && d < 38) {
+      const n = new NPC(scene, G.world, shopkeeperLook(), { name: 'Atendente — ' + r.name, role: 'shop', lines: [pick(SHOP_LINES), pick(SHOP_LINES)], x: r.x, z: r.z, heading: r.heading, behavior: 'stand' });
+      G.npcs.push(n); G.world.dynamic.add(n); r.npc = n;
+    } else if (r.npc && d > 70) { r.npc.remove(); G.world.dynamic.delete(r.npc); G.npcs = G.npcs.filter((x) => x !== r.npc); r.npc = null; }
+  }
+}
+// clientes do shopping: andam em volta do chafariz; só existem com o jogador por perto
+const mallPeds = [];
+function updateMallShoppers() {
+  const c = G.city.mallCenter; if (!c || keeperT !== 1) return; // roda junto com os atendentes (1x por segundo)
+  const d = Math.hypot(c[0] - G.player.x, c[1] - G.player.z);
+  if (!mallPeds.length && d < 45) {
+    for (let i = 0; i < 12; i++) { const n = new NPC(scene, G.world, randomPedestrian(), { name: 'Cliente', role: 'ped', lines: [pick(PED_LINES)], behavior: 'loop', loop: G.city.mallLoops[i % 2] }); G.npcs.push(n); G.world.dynamic.add(n); mallPeds.push(n); }
+  } else if (mallPeds.length && d > 85) {
+    for (const n of mallPeds) { n.remove(); G.world.dynamic.delete(n); } G.npcs = G.npcs.filter((x) => !mallPeds.includes(x)); mallPeds.length = 0;
+  }
+}
+// VEÍCULOS DE EMERGÊNCIA: viatura, ambulância ou bombeiros passam com sirene de vez em quando
+const emergency = []; let emergT = 25 + Math.random() * 30;
+function updateEmergency(dt) {
+  if (!started) return; const P = G.player;
+  for (const e of emergency) {
+    const c = e.car; const d = Math.hypot(c.x - P.x, c.z - P.z);
+    if (d < 75 && (e.sirenCd -= dt) <= 0) { e.sirenCd = 3.2; G.sound('siren', 2.6); }
+    if (e.drv.done || d > 320 || (e.t += dt) > 120) { const i = G.aiDrivers.indexOf(e.drv); if (i >= 0) G.aiDrivers.splice(i, 1); if (c !== G.car && c.driver !== 'player') removeCar(c); e.dead = true; }
+  }
+  for (let i = emergency.length - 1; i >= 0; i--) if (emergency[i].dead) emergency.splice(i, 1);
+  if (G.mission || G.flight || emergency.length >= 2 || (emergT -= dt) > 0) return;
+  emergT = 40 + Math.random() * 60;
+  // nasce num cruzamento a 120-200 m, passa perto do jogador e segue adiante
+  const gi = (v) => Math.max(0, Math.min(N, Math.round((v - roadC(0)) / P_)));
+  const pa = gi(P.x), pb = gi(P.z); let a, b, tries = 0;
+  do { a = Math.floor(Math.random() * (N + 1)); b = Math.floor(Math.random() * (N + 1)); tries++; } while (tries < 30 && (Math.hypot(roadC(a) - P.x, roadC(b) - P.z) < 120 || Math.hypot(roadC(a) - P.x, roadC(b) - P.z) > 220));
+  if (Math.abs(P.x) > 260 || Math.abs(P.z) > 260) return; // fora de Los Valles
+  const route = []; let ca = a, cb = b;
+  while ((ca !== pa || cb !== pb) && route.length < 14) { if (ca !== pa && (cb === pb || Math.random() < 0.5)) ca += Math.sign(pa - ca); else cb += Math.sign(pb - cb); route.push([roadC(ca), roadC(cb)]); }
+  const D = [[1, 0], [-1, 0], [0, 1], [0, -1]]; for (let k = 0; k < 5; k++) { const d = pick(D.filter(([dx, dz]) => ca + dx >= 0 && ca + dx <= N && cb + dz >= 0 && cb + dz <= N)); ca += d[0]; cb += d[1]; route.push([roadC(ca), roadC(cb)]); }
+  const type = pick(['police', 'ambulancia', 'bombeiros', 'ambulancia', 'police']);
+  const car = makeCarAt(type, roadC(a), roadC(b)); car.emergency = true; car.heading = Math.atan2(route[0][0] - car.x, route[0][1] - car.z); car.syncTransform(0);
+  const drv = new RouteDriver(car, route, { speed: type === 'bombeiros' ? 19 : 23, rubber: false }); G.aiDrivers.push(drv);
+  emergency.push({ car, drv, t: 0, sirenCd: 0 });
+}
+G.spawnEmergency = () => { emergT = 0; updateEmergency(0.01); return emergency.map((e) => e.car.type); };
+G.emergency = emergency;
 function makeCarAt(type, x, z) { const c = new Vehicle(type, pick(CAR_COLORS), G.world); scene.add(c.group); G.world.dynamic.add(c); G.cars.push(c); c.place(x, z, 0); c.fuel = 1; return c; }
 function updateEvents(dt) {
   if (!started || G.mission || G.heist || G.flight) return;
@@ -1167,7 +1230,7 @@ function buildMinimap() {
   mmBase = document.createElement('canvas'); mmBase.width = MMW; mmBase.height = MM;
   const g = mmBase.getContext('2d'); const o = MM / 2;
   g.fillStyle = '#2d4224'; g.fillRect(0, 0, MMW, MM);
-  const colors = { res: '#5d7a4a', park: '#3f7a3a', down: '#8a8580', mixed: '#9a9286', shops: '#a8927a', shops2: '#a8927a', police: '#5a6a9a', gas: '#a87a6a', parking: '#6a6a6a', apart: '#8a8070', hospital: '#c8c8c8',
+  const colors = { res: '#5d7a4a', park: '#3f7a3a', down: '#8a8580', mixed: '#9a9286', shops: '#a8927a', shops2: '#a8927a', police: '#5a6a9a', gas: '#a87a6a', parking: '#6a6a6a', apart: '#8a8070', hospital: '#c8c8c8', mall: '#c9b48c',
     bwres: '#4f6a42', bwshops: '#98806a', square: '#a8a090', cemetery: '#4a5a44', bwpolice: '#5a6a9a', motel: '#8a6a5a', bwmixed: '#8a8278', bwgas: '#7a8a6a', factory: '#6a4a3a', bwforest: '#2f5a2a' };
   g.fillStyle = '#3a3a3c'; g.fillRect(o - HALF, o - HALF, HALF * 2, HALF * 2);
   for (let k = 0; k < N; k++) for (let j = 0; j < N; j++) {
@@ -1293,7 +1356,7 @@ function frame() {
   if (!G.manual) { step(wheel.open ? dt * 0.25 : dt); adaptResolution(dt); }
   // sombras recalculadas em quadros alternados na qualidade Média (o sol quase não se move)
   if (Q.shadows && Q.shadowEvery > 1) { renderer.shadowMap.autoUpdate = false; if (++shadowFrame % Q.shadowEvery === 0) renderer.shadowMap.needsUpdate = true; }
-  if (!G.noRender) renderer.render(scene, camera);
+  if (!G.noRender) renderFrame();
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 0.5) { fpsShown = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
   pressed.clear();
@@ -1327,9 +1390,9 @@ function step(dt) {
   if (active && !locked2 && hit('KeyF')) playerPunch();
   punchCd -= dt; pulsoCd -= dt;
   updateEat(dt);
-  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt);
+  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers();
   // interiores das casas: só desenha os que estão perto (o jogador ou a câmera)
-  if ((interiorT -= dt) <= 0) { interiorT = 0.25; const cx = G.camera.position.x, cz = G.camera.position.z; for (const it of G.city.interiors) { const dx = it.x - p.x, dz = it.z - p.z, ex = it.x - cx, ez = it.z - cz; it.group.visible = dx * dx + dz * dz < 1600 || ex * ex + ez * ez < 900; } }
+  if ((interiorT -= dt) <= 0) { interiorT = 0.25; const cx = G.camera.position.x, cz = G.camera.position.z; for (const it of G.city.interiors) { const dx = it.x - p.x, dz = it.z - p.z, ex = it.x - cx, ez = it.z - cz; it.group.visible = dx * dx + dz * dz < 1600 * LODM * LODM || ex * ex + ez * ez < 900 * LODM * LODM; } }
   if (active && !locked2 && hit('KeyQ') && G.campaign().tools.pulso) {
     if (pulsoCd > 0) toast('Pulso recarregando: ' + Math.ceil(pulsoCd) + 's', 1);
     else { pulsoCd = 16; let n = 0; for (const c of S.cameras) if (Math.hypot(c.x - p.x, c.z - p.z) < 26) { c.disabled = 8; n++; } toast(n ? `Pulso Eletrônico: ${n} câmera(s) desligada(s) por 8s` : 'Nenhuma câmera por perto', 2); G.sound('ping'); }
@@ -1426,7 +1489,7 @@ function step(dt) {
     // carros parados usam o modelo simplificado a partir de 18 m; em movimento, a partir de 45 m
     const still = !c.driver && Math.abs(c.speed) < 0.1 && !c.awake && !(c.doorT > 0);
     c.cheap = c.driver === 'ai' && !c.storyKey && !c.sirenL && d > 110 && !G.police.some((u) => u.car === c);
-    c.setLOD(c.driver !== 'player' && !c.sirenL && !c.storyKey && !c.jacked && (still ? d > 18 : d > 45));
+    c.setLOD(c.driver !== 'player' && !c.sirenL && !c.storyKey && !c.jacked && (still ? d > 18 * LODM : d > 45 * LODM));
   }
   // morte
   // atropelado: o jogador vira ragdoll e levanta depois de alguns segundos
@@ -1579,11 +1642,11 @@ G.exitCar = () => exitCar();
 G.nearestCar = nearestCar;
 G.step = step;
 G.punch = playerPunch;
-G.setPixelRatio = (pr) => { pixelRatio = pr; renderer.setPixelRatio(pr); renderer.setSize(window.innerWidth, window.innerHeight); };
+G.setPixelRatio = (pr) => { pixelRatio = pr; renderer.setPixelRatio(pr); renderer.setSize(window.innerWidth, window.innerHeight); if (post) post.setSize(); };
 G.sim = (seconds, fps = 60) => { const n = Math.round(seconds * fps); for (let i = 0; i < n; i++) { step(1 / fps); pressed.clear(); } };
 G.press = (code) => pressed.add(code);
 G.interactNPC = interactNPC;
 G.makeTestCar = (type, mods) => { const c = new Vehicle(type, 0x8a1a1a, G.world, mods); scene.add(c.group); G.world.dynamic.add(c); G.cars.push(c); c.fuel = 1; return c; };
 G.removeTestCar = (c) => removeCar(c);
 G.__unpause = () => { paused = false; };
-G.render = () => renderer.render(scene, camera);
+G.render = () => renderFrame();

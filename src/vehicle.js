@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries, toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { colorize } from './geo.js';
-import { envRT } from './materials.js';
+import { envRT, mats, signMat } from './materials.js';
 
 const damp = (a, b, k, dt) => a + (b - a) * (1 - Math.exp(-k * dt));
 
@@ -24,12 +24,14 @@ export const CAR_TYPES = {
   moto_custom: { L: 2.35, W: 0.85, wheelBase: 1.65, wr: 0.33, belt: 0.8, roof: 1.2, ws: [0.6, 0.3], rw: [-0.5, -0.8], maxSpeed: 52, accel: 9, brake: 11, grip: 9, drift: 1, steer: 0.45, tank: 20, moto: true, style: 'custom', sound: 'v8', name: 'Moto Custom Estrada' },
   moto_urbana: { L: 1.95, W: 0.75, wheelBase: 1.32, wr: 0.3, belt: 0.85, roof: 1.2, ws: [0.6, 0.3], rw: [-0.5, -0.8], maxSpeed: 42, accel: 8, brake: 12, grip: 9.5, drift: 1, steer: 0.55, tank: 14, moto: true, style: 'urbana', sound: 'small', name: 'Moto Urbana 160' },
   scooter: { L: 1.8, W: 0.7, wheelBase: 1.25, wr: 0.25, belt: 0.8, roof: 1.2, ws: [0.6, 0.3], rw: [-0.5, -0.8], maxSpeed: 30, accel: 6, brake: 11, grip: 9, drift: 1, steer: 0.6, tank: 8, moto: true, style: 'scooter', sound: 'small', name: 'Scooter 125' },
+  ambulancia: { L: 5.8, W: 2.1, wheelBase: 3.5, wr: 0.38, belt: 1.15, roof: 2.75, ws: [1.9, 1.45], rw: [-2.6, -2.8], maxSpeed: 46, accel: 7, brake: 12, grip: 8.5, drift: 0.8, steer: 0.55, tank: 80, shape: 'van', siren: true, sirenZ: 1.2, sound: 'heavy', name: 'Ambulância' },
+  bombeiros: { L: 8.2, W: 2.5, wheelBase: 4.6, wr: 0.52, belt: 1.45, roof: 3.1, ws: [3.6, 3.25], rw: [1.5, 1.4], maxSpeed: 38, accel: 5, brake: 10, grip: 8, drift: 0.7, steer: 0.5, tank: 200, shape: 'truck', siren: true, sirenZ: 2.6, sound: 'heavy', name: 'Caminhão de Bombeiros' },
   police: { L: 4.7, W: 1.85, wheelBase: 2.8, wr: 0.35, belt: 0.97, roof: 1.45, ws: [1.05, 0.25], rw: [-1.0, -1.8], maxSpeed: 54, accel: 9.5, brake: 15, grip: 10, drift: 1, steer: 0.6, tank: 60, police: true, sound: 'v8', name: 'Viatura' },
   taxi: { L: 4.6, W: 1.82, wheelBase: 2.75, wr: 0.34, belt: 0.95, roof: 1.43, ws: [1.05, 0.25], rw: [-1.0, -1.8], maxSpeed: 44, accel: 7.2, brake: 13, grip: 9, drift: 1, steer: 0.62, tank: 50, taxi: true, sound: 'normal', name: 'Táxi' },
 };
 export const CAR_COLORS = [0x8e1b1b, 0x1d3f72, 0xd9d9d9, 0x1a1a1a, 0x3f4a52, 0x6b6f73, 0x2e5a3a, 0x9c7a2c, 0xf2f2f2, 0x5a1f3d, 0x274b5e, 0xb25a1f, 0xd8c040, 0x3a7ab8, 0x6a8a3a];
 export const MOTO_TYPES = ['moto_esportiva', 'moto_custom', 'moto_urbana', 'scooter'];
-export const CAR_LIST = ['popular', 'hatch', 'sedan', 'suv', 'pickup', 'luxo', 'coupe', 'classico', 'besouro', 'furia', 'taxi', 'police'];
+export const CAR_LIST = ['popular', 'hatch', 'sedan', 'suv', 'pickup', 'luxo', 'coupe', 'classico', 'besouro', 'furia', 'taxi', 'police', 'ambulancia', 'bombeiros'];
 export const CIVIL_TYPES = ['sedan', 'hatch', 'popular', 'suv', 'pickup', 'luxo', 'coupe', 'classico', 'besouro', 'sedan', 'hatch', 'popular', 'taxi'];
 
 // Rodas disponíveis na oficina
@@ -61,7 +63,7 @@ const headMat = new THREE.MeshBasicMaterial({ color: 0xfff6d8 });
 const xenonMat = new THREE.MeshBasicMaterial({ color: 0xcfe4ff });
 const tailMat = new THREE.MeshBasicMaterial({ color: 0x6a0a0a });
 const tailBrakeMat = new THREE.MeshBasicMaterial({ color: 0xff2020 });
-export const sirenMats = [new THREE.MeshBasicMaterial({ color: 0x330000 }), new THREE.MeshBasicMaterial({ color: 0x000033 })];
+export const sirenMats = [new THREE.MeshBasicMaterial({ color: 0x330000 }), new THREE.MeshBasicMaterial({ color: 0x000033 }), new THREE.MeshBasicMaterial({ color: 0x333333 })];
 
 function nonIdx(g, color, m) {
   let n = g.index ? g.toNonIndexed() : g;
@@ -135,6 +137,7 @@ function shapeCar(g, o) {
 }
 function buildGeo(T, m, color) {
   if (T.moto) return buildMoto(T, m, color);
+  if (T.shape === 'van' || T.shape === 'truck') return buildService(T, m, color);
   const L = T.L, W = T.W, hl = L / 2;
   const wb = T.wheelBase / 2, wr = T.wr;
   const susp = m.suspLevel ?? 1; // 0 rebaixado, 1 médio, 2 alto
@@ -304,6 +307,76 @@ function buildGeo(T, m, color) {
   return { body, glass, head, tail, door, doorGlass, doorHole, doorHinge: [sideX + 0.005, lift, dz0], lod, wheelPos, lift, exhausts: exhausts.map(([x, y, z]) => [x, y + lift, z]),
     seat: [0.38, bottom - 0.3 + lift, 0.0], steerPos: [0.38, belt + 0.05 + lift, T.ws[0] - 0.55] };
 }
+// placa/letreiro (texto do atlas de placas) colado na lataria
+function signGeo(text, opts, w, h, mtx, mirror = false) {
+  const r = signMat(text, opts).region; const g = new THREE.PlaneGeometry(w, h); const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) { const u = mirror ? 1 - uv.getX(i) : uv.getX(i); uv.setXY(i, r.u0 + (r.u1 - r.u0) * u, r.v0 + (r.v1 - r.v0) * uv.getY(i)); }
+  g.applyMatrix4(mtx); return g;
+}
+// ---------- ambulância (furgão) e caminhão de bombeiros ----------
+function buildService(T, m, color) {
+  const L = T.L, W = T.W, hl = L / 2, wb = T.wheelBase / 2, wr = T.wr, belt = T.belt, ar = wr + 0.1, bottom = wr * 0.8;
+  const truck = T.shape === 'truck'; const P = []; const signs = [];
+  const main = truck ? 0xb01010 : 0xf4f4f4, stripe = truck ? 0xe8e8e8 : 0xd01818;
+  const cabTop = truck ? 2.75 : 2.2, boxTop = T.roof, cabBack = truck ? hl - 2.4 : T.ws[1] - 0.25;
+  // perfil lateral: cabine com para-brisa inclinado + baú/carroceria
+  const prof = [[-hl + 0.05, bottom + 0.05], [-wb - ar, bottom], { arc: [-wb, wr, ar] }, [wb - ar, bottom], { arc: [wb, wr, ar] }, [hl - 0.1, bottom],
+    [hl + 0.02, bottom + 0.25], [hl + 0.02, belt - 0.15], [hl - 0.2, belt + 0.05], [T.ws[1], cabTop], [cabBack, cabTop], [cabBack - 0.05, boxTop], [-hl + 0.05, boxTop], [-hl, boxTop - 0.1], [-hl, bottom + 0.15]];
+  const shp = { hl, W, belt, roof: T.roof, bottom, taper: 0.04, taperLen: 0.5, tumble: 0, crown: 0 };
+  const bodyG = shapeCar(extrudeProfile(prof, W, 0.08, 2), shp);
+  { const g = nonIdx(bodyG, main); const pos = g.attributes.position, col = g.attributes.color; const cs = new THREE.Color(stripe);
+    for (let i = 0; i < pos.count; i++) { const y = pos.getY(i); if (y > belt - 0.32 && y < belt - 0.05) col.setXYZ(i, cs.r, cs.g, cs.b); } P.push(g); }
+  // para-choques, grade, molduras
+  P.push(nonIdx(new THREE.BoxGeometry(W + 0.06, 0.3, 0.22), 0x2a2a2a, M(0, bottom + 0.18, hl + 0.02)));
+  P.push(nonIdx(new THREE.BoxGeometry(W + 0.06, 0.3, 0.22), 0x2a2a2a, M(0, bottom + 0.18, -hl - 0.02)));
+  P.push(nonIdx(new THREE.BoxGeometry(W * 0.55, 0.35, 0.04), truck ? 0xc8ccd2 : 0x1a1a1a, M(0, belt - 0.45, hl + 0.03)));
+  for (const sx of [-1, 1]) for (const z of truck ? [wb, -wb, -wb + 1.25] : [wb, -wb]) P.push(nonIdx(new THREE.TorusGeometry(ar + 0.02, 0.05, 4, 12, Math.PI), 0x151515, M(sx * W / 2 * 0.99, wr, z, 0, Math.PI / 2, 0)));
+  for (const s of [-1, 1]) { P.push(nonIdx(new THREE.BoxGeometry(0.2, 0.3, 0.1), 0x1a1a1a, M(s * (W / 2 + 0.12), belt + 0.3, T.ws[0] - 0.1))); }
+  if (truck) {
+    // compartimentos cromados e escada no teto
+    for (const s of [-1, 1]) for (let i = 0; i < 3; i++) P.push(nonIdx(new THREE.BoxGeometry(0.03, 1.1, 1.3), 0xc8ccd2, M(s * (W / 2 + 0.01), bottom + 0.95, cabBack - 1.0 - i * 1.5)));
+    for (const s of [-1, 1]) P.push(nonIdx(new THREE.BoxGeometry(0.08, 0.1, L - 1.2), 0xd8dade, M(s * 0.45, boxTop + 0.35, -0.3)));
+    for (let i = 0; i < 14; i++) P.push(nonIdx(new THREE.BoxGeometry(0.9, 0.05, 0.05), 0xd8dade, M(0, boxTop + 0.35, -hl + 0.8 + i * 0.5)));
+    for (const z of [-hl + 1, hl - 3]) P.push(nonIdx(new THREE.BoxGeometry(1.2, 0.3, 0.3), 0x2a2a2a, M(0, boxTop + 0.15, z)));
+    P.push(nonIdx(new THREE.CylinderGeometry(0.12, 0.12, 1.6, 10), 0xc8ccd2, M(-W / 2 + 0.25, bottom + 0.55, -hl + 0.6, 0, 0, Math.PI / 2))); // carretel de mangueira
+    signs.push(signGeo('BOMBEIROS', { bg: '#b01010', fg: '#ffffff', border: false, w: 512, h: 96 }, 2.6, 0.45, M(W / 2 + 0.02, belt + 0.45, -1.5, 0, Math.PI / 2, 0)));
+    signs.push(signGeo('BOMBEIROS', { bg: '#b01010', fg: '#ffffff', border: false, w: 512, h: 96 }, 2.6, 0.45, M(-W / 2 - 0.02, belt + 0.45, -1.5, 0, -Math.PI / 2, 0)));
+    signs.push(signGeo('193', { bg: '#b01010', fg: '#ffffff', border: false, w: 256, h: 96 }, 0.8, 0.35, M(0, cabTop - 0.2, hl + 0.05)));
+  } else {
+    // cruz vermelha e letreiro
+    for (const s of [-1, 1]) { P.push(nonIdx(new THREE.BoxGeometry(0.02, 0.7, 0.22), 0xd01818, M(s * (W / 2 + 0.01), 1.85, -1.3))); P.push(nonIdx(new THREE.BoxGeometry(0.02, 0.22, 0.7), 0xd01818, M(s * (W / 2 + 0.01), 1.85, -1.3))); }
+    P.push(nonIdx(new THREE.BoxGeometry(0.22, 0.7, 0.02), 0xd01818, M(0.5, 1.9, -hl - 0.01))); P.push(nonIdx(new THREE.BoxGeometry(0.7, 0.22, 0.02), 0xd01818, M(0.5, 1.9, -hl - 0.01)));
+    P.push(nonIdx(new THREE.BoxGeometry(0.02, 1.7, 0.9), 0x8a8e94, M(0, bottom + 1.05, -hl - 0.01))); // portas traseiras
+    signs.push(signGeo('AMBULÂNCIA', { bg: '#ffffff', fg: '#d01818', border: false, w: 512, h: 96 }, 2.2, 0.38, M(W / 2 + 0.02, belt + 0.25, -0.6, 0, Math.PI / 2, 0)));
+    signs.push(signGeo('AMBULÂNCIA', { bg: '#ffffff', fg: '#d01818', border: false, w: 512, h: 96 }, 2.2, 0.38, M(-W / 2 - 0.02, belt + 0.25, -0.6, 0, -Math.PI / 2, 0)));
+    signs.push(signGeo('AMBULÂNCIA', { bg: '#ffffff', fg: '#d01818', border: false, w: 512, h: 96 }, 1.3, 0.25, M(0, belt - 0.1, hl + 0.06), true)); // espelhado (lido no retrovisor)
+    signs.push(signGeo('SAMU 192', { bg: '#ffffff', fg: '#d01818', border: false, w: 512, h: 96 }, 1.0, 0.25, M(-0.4, 2.2, -hl - 0.02, 0, Math.PI, 0)));
+  }
+  // interior simples (bancos e painel visíveis pelo para-brisa)
+  for (const sx of [0.42, -0.42]) { P.push(nonIdx(new THREE.BoxGeometry(0.5, 0.15, 0.5), 0x2a2a2e, M(sx, bottom + 0.35, cabBack + 0.5))); P.push(nonIdx(new THREE.BoxGeometry(0.5, 0.65, 0.12), 0x2a2a2e, M(sx, bottom + 0.75, cabBack + 0.25, -0.15, 0, 0))); }
+  P.push(nonIdx(new THREE.BoxGeometry(W - 0.3, 0.25, 0.4), 0x1e1e20, M(0, belt + 0.05, T.ws[0] - 0.35)));
+  const exhausts = [[W * 0.3, bottom + 0.05, -hl - 0.05]];
+  P.push(nonIdx(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 10), 0xbfc2c6, M(W * 0.3, bottom + 0.05, -hl + 0.05, Math.PI / 2, 0, 0)));
+  const body = mergeGeometries(P);
+  // vidros: para-brisa e janelas laterais da cabine (por fora da lataria)
+  const gl = [];
+  const wsLen = Math.hypot(T.ws[1] - (hl - 0.2), cabTop - (belt + 0.05));
+  gl.push(new THREE.BoxGeometry(W - 0.3, wsLen * 0.92, 0.03).rotateX(-Math.atan2(T.ws[1] - (hl - 0.2), cabTop - belt - 0.05)).translate(0, (belt + cabTop) / 2 + 0.05, (T.ws[1] + hl - 0.2) / 2 + 0.03));
+  for (const s of [-1, 1]) gl.push(new THREE.BoxGeometry(0.03, (cabTop - belt) * 0.7, (hl - 0.4 - cabBack) * 0.75).translate(s * (W / 2 + 0.01), belt + (cabTop - belt) * 0.45, (hl - 0.4 + cabBack) / 2 - 0.1));
+  if (!truck) for (const s of [-1, 1]) gl.push(new THREE.BoxGeometry(0.03, 0.45, 0.8).translate(s * (W / 2 + 0.01), 2.0, -0.3));
+  const glass = mergeGeometries(gl.map((g) => g.toNonIndexed()));
+  const hg = [], tg = [];
+  for (const s of [-1, 1]) { hg.push(new THREE.BoxGeometry(0.4, 0.2, 0.06).translate(s * (W / 2 - 0.3), belt - 0.35, hl + 0.03)); tg.push(new THREE.BoxGeometry(0.22, 0.4, 0.06).translate(s * (W / 2 - 0.15), bottom + 0.6, -hl - 0.03)); }
+  // luzes de emergência extras nas laterais do baú (vermelhas)
+  const head = mergeGeometries(hg.map((g) => nonIdx(g, 0xffffff))), tail = mergeGeometries(tg.map((g) => nonIdx(g, 0xffffff)));
+  const wheelPos = []; for (const z of truck ? [wb, -wb, -wb + 1.25] : [wb, -wb]) for (const sx of [1, -1]) wheelPos.push({ x: sx * (W / 2 - 0.2), z, sx });
+  const lowBody = nonIdx(shapeCar(extrudeProfile(prof, W, 0), { ...shp }), main);
+  const wLow = mergeGeometries([nonIdx(new THREE.CylinderGeometry(wr, wr, 0.3, 10), 0x161616, M(0, 0, 0, 0, 0, Math.PI / 2)), nonIdx(new THREE.CylinderGeometry(wr * 0.6, wr * 0.6, 0.32, 8), 0xa9adb2, M(0, 0, 0, 0, 0, Math.PI / 2))]);
+  const lp = [lowBody, nonIdx(head.clone(), 0xfff0c0), nonIdx(glass.clone(), 0x1c2630), nonIdx(tail.clone(), 0x7a1010)];
+  for (const w of wheelPos) lp.push(wLow.clone().applyMatrix4(new THREE.Matrix4().makeTranslation(w.x, wr, w.z)));
+  return { body, glass, head, tail, door: null, lod: mergeGeometries(lp), wheelPos, lift: 0, exhausts, signs: signs.length ? mergeGeometries(signs) : null,
+    seat: [0.42, bottom - 0.05, cabBack + 0.45], steerPos: [0.42, belt + 0.15, T.ws[0] - 0.6] };
+}
 // ---------- motos ----------
 function buildMoto(T, m, color) {
   const wb = T.wheelBase / 2, wr = T.wr, P = [];
@@ -413,11 +486,14 @@ export class Vehicle {
     const glassMesh = this._add(this.body, new THREE.Mesh(C.glass, gm)); glassMesh.renderOrder = 2;
     const head = this._add(this.body, new THREE.Mesh(C.head, m.xenon ? xenonMat : headMat));
     this.tail = this._add(this.body, new THREE.Mesh(C.tail, tailMat));
-    if (T.police) {
+    if (T.police || T.siren) {
+      const z = T.sirenZ ?? -0.35, svc = !!T.siren;
       this.sirenL = this._add(this.body, new THREE.Mesh(SIREN_GEO, sirenMats[0]));
-      this.sirenR = this._add(this.body, new THREE.Mesh(SIREN_GEO, sirenMats[1]));
-      this.sirenL.position.set(0.22, T.roof + 0.14, -0.35); this.sirenR.position.set(-0.22, T.roof + 0.14, -0.35);
+      this.sirenR = this._add(this.body, new THREE.Mesh(SIREN_GEO, svc ? sirenMats[2] : sirenMats[1]));
+      this.sirenL.position.set(0.3, T.roof + 0.1, z); this.sirenR.position.set(-0.3, T.roof + 0.1, z);
+      if (svc) this.sirenL.scale.set(1.4, 1, 1), this.sirenR.scale.set(1.4, 1, 1);
     }
+    if (C.signs) this._add(this.body, new THREE.Mesh(C.signs, mats().sign));
     if (m.neon != null) {
       const nm = new THREE.MeshBasicMaterial({ color: m.neon, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
       const neon = this._add(this.group, new THREE.Mesh(new THREE.PlaneGeometry(T.W + 0.8, T.L + 0.4).rotateX(-Math.PI / 2), nm));
@@ -677,5 +753,6 @@ export function updateSirens(dt) {
   const a = Math.floor(sirenT * 4) % 2 === 0;
   sirenMats[0].color.setHex(a ? 0xff1a1a : 0x330000);
   sirenMats[1].color.setHex(a ? 0x000033 : 0x2244ff);
+  sirenMats[2].color.setHex(a ? 0x333333 : 0xffffff); // ambulância/bombeiros: vermelho e branco
 }
 export function setHeadlights(on) { headMat.color.setHex(on ? 0xfff6d8 : 0xc8c8c0); tailMat.color.setHex(on ? 0x9a1010 : 0x5a0a0a); }
