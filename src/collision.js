@@ -21,6 +21,7 @@ export class CollisionWorld {
       }
     return b;
   }
+  disableBox(b) { b.maxY = -100; b.minY = -101; }
   // caixa centrada com rotação de 0/90 graus
   addCentered(x, y0, z, w, h, d) { return this.addBox(x - w / 2, y0, z - d / 2, x + w / 2, y0 + h, z + d / 2); }
   query(minX, minZ, maxX, maxZ) {

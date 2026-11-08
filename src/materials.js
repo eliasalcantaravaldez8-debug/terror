@@ -74,6 +74,11 @@ export function mats() {
   M.glass.userData.castShadow = false;
   M.awning = [0xa83232, 0x2f6a3f, 0x2f4f8a, 0xb07a1e, 0x5a2f6a, 0x333333].map((c) => paint(flat, c));
   M.signMats = new Map();
+  const corrMat = lam({ map: TX.corrugatedTex(), ...N2(TX.corrugatedTex(), 3, 'corrugated'), vertexColors: true });
+  M.corr = (c) => paint(corrMat, c);
+  const wallMat = lam({ map: TX.concreteTex(), ...N2(TX.concreteTex(), 1.5, 'concrete'), vertexColors: true });
+  M.wall = (c) => paint(wallMat, c);
+  M.tile = lam({ map: TX.tileFloorTex(), emissive: 0x141210 }, { castShadow: false });
   M.tl = { NS: [], EW: [] };
   for (const g of ['NS', 'EW']) {
     for (const c of [0xff2a1a, 0xffb21a, 0x2aff6a]) M.tl[g].push(new THREE.MeshBasicMaterial({ color: c }));

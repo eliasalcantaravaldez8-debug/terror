@@ -1,28 +1,29 @@
 // Personagens da história e tipos de NPC (aparência). Edite aqui para ajustar a história.
 import { rand, pick, rr } from './textures.js';
 
+// Elenco da história (aparência). Os diálogos ficam nas missões (missions_ethan.js / missions_ryan.js).
+const ETHAN_SKIN = 0xd09a74, ETHAN_HAIR = 0x2a1c12;
 export const CHARACTERS = {
-  ethan: {
-    name: 'Ethan', look: { skin: 0xd09a74, hair: 0x2a1c12, shirt: 0x4a5560, jacket: 0x4a4038, pants: 0x34425e, shoes: 0x3a2a1e, hairStyle: 'short', height: 1.0, build: 1.0 },
-  },
-  ryan: {
-    name: 'Ryan Cole', look: { skin: 0xb07856, hair: 0x18120c, shirt: 0xe8e2d6, jacket: 0x5a3b26, pants: 0x1f2430, shoes: 0x141414, hairStyle: 'short', beard: true, height: 1.03, build: 1.08 },
-    dialogue: [
-      'Ethan! Até que enfim você apareceu.',
-      'Depois do que aconteceu ontem à noite, a cidade não é mais a mesma. Tem alguém nos observando.',
-      'Preciso que você vá até a Delegacia de Los Valles e descubra o que a polícia sabe.',
-      'Pegue seu carro, está na garagem. E Ethan... tome cuidado. Nem todos aqui são o que parecem.',
-    ],
-  },
-  delegado: {
-    name: 'Delegado Morales', look: { skin: 0xa8714f, hair: 0x5a5a5a, shirt: 0x2a3d6a, pants: 0x1c2638, shoes: 0x111111, hat: 'police', badge: true, hairStyle: 'short', height: 1.0, build: 1.12, longSleeve: true },
-    dialogue: [
-      'Você é o Ethan, não é? O Ryan disse que você viria.',
-      'Não posso falar muito aqui. As paredes têm ouvidos.',
-      'Volte mais tarde. Por enquanto, conheça a cidade... e mantenha os olhos abertos.',
-    ],
-  },
+  ethan: { name: 'Ethan Cross', look: { skin: ETHAN_SKIN, hair: ETHAN_HAIR, shirt: 0x4a5560, jacket: 0x4a4038, pants: 0x34425e, shoes: 0x3a2a1e, hairStyle: 'short', height: 1.0, build: 1.0 } },
+  ethanPrison: { name: 'Ethan Cross', look: { skin: ETHAN_SKIN, hair: ETHAN_HAIR, shirt: 0xd8d8d0, pants: 0x5a5a58, shoes: 0x2a2a2a, hairStyle: 'short', beard: true, height: 1.0, build: 1.02 } },
+  ethanYoung: { name: 'Ethan', look: { skin: ETHAN_SKIN, hair: ETHAN_HAIR, shirt: 0x8a2a2a, pants: 0x2a2f3a, shoes: 0xe0e0e0, hairStyle: 'short', hat: 'cap', hatColor: 0x1a1a1a, height: 1.0, build: 0.97 } },
+  ryan: { name: 'Ryan Cole', look: { skin: 0xb07856, hair: 0x18120c, shirt: 0xe8e2d6, jacket: 0x5a3b26, pants: 0x1f2430, shoes: 0x141414, hairStyle: 'short', beard: true, height: 1.03, build: 1.08 } },
+  ryanYoung: { name: 'Ryan', look: { skin: 0xb07856, hair: 0x18120c, shirt: 0x2a4a7a, pants: 0x2a2a2a, shoes: 0x141414, hairStyle: 'short', height: 1.03, build: 1.02 } },
+  victor: { name: 'Victor Kane', look: { skin: 0xc8946c, hair: 0x101010, shirt: 0xf0f0f0, jacket: 0x1a1a1e, pants: 0x1a1a1e, shoes: 0x0a0a0a, tie: 0x6a1010, hairStyle: 'short', beard: true, height: 1.04, build: 1.1, longSleeve: true } },
+  blake: { name: 'Blake Morrison', look: { skin: 0xe0b090, hair: 0x6a4a2a, shirt: 0x3a3a3a, jacket: 0x2a3a2a, pants: 0x2a2a2a, shoes: 0x1a1a1a, hairStyle: 'short', height: 1.0, build: 1.05 } },
+  lucas: { name: 'Lucas', look: { skin: 0xe8c0a0, hair: 0x3a2a1a, shirt: 0x2a3d6a, pants: 0x1c2638, shoes: 0x111111, hairStyle: 'short', height: 0.99, build: 0.98, longSleeve: true, badge: true } },
+  fernando: { name: 'Fernando del Costa', look: { skin: 0xd8a882, hair: 0x2a1a10, shirt: 0xe8e8e0, pants: 0x3a3a4a, shoes: 0x2a2a2a, hairStyle: 'short', beard: true, height: 1.0, build: 1.0 } },
+  brother: { name: '???', look: { skin: ETHAN_SKIN, hair: ETHAN_HAIR, shirt: 0x2a2a2a, jacket: 0x101012, pants: 0x1a1a1a, shoes: 0x0a0a0a, hairStyle: 'short', height: 1.01, build: 1.0 } },
+  reed: { name: 'Detective Marcus Reed', look: { skin: 0x8a5a3c, hair: 0x5a5a5a, shirt: 0xd8d4c8, jacket: 0x6a5a40, pants: 0x3a3428, shoes: 0x2a1a10, tie: 0x2a2a4a, hairStyle: 'short', beard: true, height: 1.02, build: 1.08, longSleeve: true } },
+  investigator: { name: 'Investigador', look: { skin: 0x9a6a4a, hair: 0x2a2a2a, shirt: 0xd0ccc0, jacket: 0x3a3a3a, pants: 0x2a2a2a, shoes: 0x1a1a1a, hairStyle: 'short', height: 1.0, build: 1.05, longSleeve: true } },
+  driver: { name: 'Motorista', look: { skin: 0x6a4a34, hair: 0x101010, shirt: 0xf0f0f0, jacket: 0x101010, pants: 0x101010, shoes: 0x050505, tie: 0x101010, hairStyle: 'bald', height: 1.02, build: 1.1, longSleeve: true } },
+  mystery: { name: 'Pessoa misteriosa', look: { skin: 0x7a5a44, hair: 0x101010, shirt: 0x141416, pants: 0x121214, shoes: 0x0a0a0a, hat: 'hood', hatColor: 0x121214, hairStyle: 'bald', height: 0.98, build: 0.95, longSleeve: true } },
 };
+// grupos
+export function allyGuardLook() { return { ...randomPedestrian(), shirt: 0x1a1a1a, jacket: 0x22252a, pants: 0x1a1a1a, shoes: 0x0a0a0a, hat: null, hairStyle: 'short', build: rr(1.05, 1.15), height: rr(1, 1.05), longSleeve: true }; }
+export function rivalLook() { return { ...randomPedestrian(), shirt: pick([0x7a1a1a, 0x5a1010, 0x8a2a1a]), jacket: rand() < 0.5 ? 0x1a1a1a : null, pants: pick([0x1a1a1a, 0x2a2a3a]), hat: rand() < 0.4 ? 'cap' : null, hatColor: 0x7a1010, hairStyle: 'short', build: rr(1, 1.12) }; }
+export function mansionGuardLook() { return { ...randomPedestrian(), shirt: 0xe8e8e8, jacket: 0x14161a, pants: 0x14161a, shoes: 0x050505, tie: 0x14161a, hairStyle: pick(['short', 'bald']), hat: null, build: rr(1.08, 1.18), height: rr(1, 1.06), longSleeve: true }; }
+export function corruptCopLook() { return { ...policeLook() }; }
 
 const SKINS = [0xf1c6a5, 0xe0ac86, 0xc68a64, 0xa8714f, 0x8a5a3c, 0x5e3b26, 0xd9a582];
 const HAIRS = [0x1a1410, 0x2b1d14, 0x4a3020, 0x7a5a30, 0xb08850, 0x606060, 0x1a1a1a];

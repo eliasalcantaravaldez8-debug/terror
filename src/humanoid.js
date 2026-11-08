@@ -112,6 +112,9 @@ export class Humanoid {
       add(head, new THREE.CylinderGeometry(0.13, 0.125, 0.08, 14), L.hatColor ?? 0x1b2a4a, 0, 0.225, 0);
       add(head, new THREE.CylinderGeometry(0.14, 0.14, 0.015, 14), 0x111111, 0, 0.19, 0.03, 1, 1, 1.15);
       add(head, bx(0.04, 0.035, 0.01), 0xd4af37, 0, 0.23, 0.128);
+    } else if (L.hat === 'hood') {
+      add(head, new THREE.SphereGeometry(0.15, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.62), L.hatColor ?? 0x111114, 0, 0.12, -0.02, 1, 1.1, 1.1, -0.35);
+      add(neck, new THREE.CylinderGeometry(0.12, 0.16, 0.14, 12), L.hatColor ?? 0x111114, 0, 0.0, -0.02);
     } else if (L.hat === 'cap') {
       add(head, new THREE.SphereGeometry(0.125, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), L.hatColor ?? 0xaa2222, 0, 0.14, 0);
       add(head, bx(0.16, 0.012, 0.1), L.hatColor ?? 0xaa2222, 0, 0.15, 0.13);
@@ -153,7 +156,10 @@ export class Humanoid {
     this.idleT = Math.random() * 10;
     this.landT = 0;
     this.lookYaw = 0;
+    this.punchT = 0;
+    this.root.rotation.order = 'YXZ';
   }
+  punch() { this.punchT = 0.35; }
 
   // p: {speed, grounded, vy, mode: 'foot'|'sit', talk, turn, accel}
   update(dt, p) {
@@ -163,7 +169,25 @@ export class Humanoid {
     this.idleT += dt;
     let hipY = 0, hipZ = 0;
     const blendK = 12;
-    if (p.mode === 'sit') {
+    if (p.mode === 'chair') {
+      T.thighL = [-1.5, 0, 0.08]; T.thighR = [-1.5, 0, -0.08];
+      T.kneeL = [1.5, 0, 0]; T.kneeR = [1.5, 0, 0];
+      T.shoulderL = [-0.5, 0, 0.1]; T.shoulderR = [-0.5, 0, -0.1];
+      T.elbowL = [-0.9, 0, 0]; T.elbowR = [-0.9, 0, 0];
+      T.spine = [0.1, 0, 0]; T.head = [0.15 + Math.sin(this.idleT * 0.5) * 0.04, 0, 0];
+      hipY = -0.46; hipZ = -0.05;
+    } else if (p.mode === 'lie') {
+      T.thighL = [0, 0, 0.12]; T.thighR = [0, 0, -0.12]; T.kneeL = [0.15, 0, 0]; T.kneeR = [0.25, 0, 0];
+      T.shoulderL = [0, 0, 0.35]; T.shoulderR = [0, 0, -0.35]; T.elbowL = [-0.3, 0, 0]; T.elbowR = [-0.2, 0, 0];
+      T.head = [0, 0.4, 0];
+    } else if (p.mode === 'handsup') {
+      T.shoulderL = [-2.9, 0, 0.35]; T.shoulderR = [-2.9, 0, -0.35]; T.elbowL = [-0.5, 0, 0]; T.elbowR = [-0.5, 0, 0];
+      T.spine = [0.08, 0, 0]; T.head = [0.1 + Math.sin(this.idleT * 6) * 0.03, 0, 0];
+      T.kneeL = [0.15, 0, 0]; T.kneeR = [0.15, 0, 0];
+    } else if (p.mode === 'binoculars') {
+      T.shoulderL = [-1.45, 0, -0.45]; T.shoulderR = [-1.45, 0, 0.45]; T.elbowL = [-1.9, 0, 0]; T.elbowR = [-1.9, 0, 0];
+      T.head = [-0.05, 0, 0];
+    } else if (p.mode === 'sit') {
       T.thighL = [-1.45, 0, 0.05]; T.thighR = [-1.45, 0, -0.05];
       T.kneeL = [1.2, 0, 0]; T.kneeR = [1.2, 0, 0];
       T.footL = [0.05, 0, 0]; T.footR = [0.05, 0, 0];
@@ -178,6 +202,15 @@ export class Humanoid {
       T.shoulderL = [-0.6, 0, 0.5]; T.shoulderR = [-0.3, 0, -0.5];
       T.elbowL = [-0.6, 0, 0]; T.elbowR = [-0.5, 0, 0];
       T.spine = [0.12, 0, 0]; T.head = [-0.1, 0, 0];
+    } else if (p.crouch) {
+      const move = Math.min(1, speed / 0.8);
+      this.phase += (speed / 1.1) * Math.PI * 2 * dt;
+      const sA = Math.sin(this.phase);
+      T.thighL = [-1.0 - sA * 0.3 * move, 0, 0.1]; T.thighR = [-1.0 + sA * 0.3 * move, 0, -0.1];
+      T.kneeL = [1.7, 0, 0]; T.kneeR = [1.7, 0, 0]; T.footL = [-0.5, 0, 0]; T.footR = [-0.5, 0, 0];
+      T.spine = [0.45, 0, 0]; T.head = [-0.3, 0, 0];
+      T.shoulderL = [-0.5, 0, 0.2]; T.shoulderR = [-0.5, 0, -0.2]; T.elbowL = [-1.2, 0, 0]; T.elbowR = [-1.2, 0, 0];
+      hipY = -0.42;
     } else {
       const run = THREE.MathUtils.smoothstep(speed, 2.6, 5.2);
       const move = Math.min(1, speed / 1.0);
@@ -225,9 +258,18 @@ export class Humanoid {
         T.kneeL[0] += 0.9 * k; T.kneeR[0] += 0.9 * k; T.spine[0] += 0.25 * k;
       }
     }
+    if (p.phone) { T.shoulderR = [-0.35, 0, -0.25]; T.elbowR = [-2.4, 0.2, 0]; T.head = [0.05, 0.15, 0.1]; }
+    if (this.punchT > 0) {
+      this.punchT -= dt;
+      const k = Math.sin(Math.min(1, (0.35 - this.punchT) / 0.35) * Math.PI);
+      T.shoulderR = [-1.5 * k - 0.2, 0, -0.1]; T.elbowR = [-0.2 - (1 - k) * 1.4, 0, 0];
+      T.shoulderL = [-0.6, 0, 0.2]; T.elbowL = [-1.6, 0, 0];
+      T.spine = [T.spine[0] + 0.1, -0.35 * k, 0];
+    }
+    const blendK2 = this.punchT > 0 ? 30 : blendK;
     for (const [k, b] of Object.entries(this.bones)) {
       const c = this.cur[k], t = T[k];
-      c.x = damp(c.x, t[0], blendK, dt); c.y = damp(c.y, t[1], blendK, dt); c.z = damp(c.z, t[2], blendK, dt);
+      c.x = damp(c.x, t[0], blendK2, dt); c.y = damp(c.y, t[1], blendK2, dt); c.z = damp(c.z, t[2], blendK2, dt);
       b.rotation.set(c.x, c.y, c.z);
     }
     this.hipY = damp(this.hipY, hipY, 14, dt);

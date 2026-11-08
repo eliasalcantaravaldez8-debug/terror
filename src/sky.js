@@ -6,6 +6,7 @@ import { setHeadlights } from './vehicle.js';
 export const TIMES = {
   dia: { cloud: 0xffffff, cloudShade: 0x9aa6b8, cover: 0.42, label: 'Dia', top: 0x3f7fd0, horizon: 0xbcd6ee, bottom: 0x8aa0b0, sun: [0.35, 0.8, 0.45], sunColor: 0xfff3dd, sunI: 2.8, hemiSky: 0xbfd8ff, hemiGround: 0x6a6050, hemiI: 1.4, fog: 0xb9cfe0, fogD: 0.0032, night: 0, exposure: 1.0 },
   entardecer: { cloud: 0xffb890, cloudShade: 0x5a4058, cover: 0.5, label: 'Entardecer', top: 0x2a3a6a, horizon: 0xf09a5a, bottom: 0x5a4a50, sun: [-0.7, 0.16, 0.45], sunColor: 0xffb878, sunI: 2.6, hemiSky: 0xa8b0d8, hemiGround: 0x6a5848, hemiI: 1.45, fog: 0xb09080, fogD: 0.0036, night: 0.5, exposure: 1.15 },
+  amanhecer: { cloud: 0xffd0b0, cloudShade: 0x6a6070, cover: 0.45, label: 'Amanhecer', top: 0x3a5a90, horizon: 0xf0b890, bottom: 0x6a6060, sun: [0.75, 0.15, -0.3], sunColor: 0xffc898, sunI: 2.2, hemiSky: 0xa8b8d8, hemiGround: 0x6a5a4a, hemiI: 1.3, fog: 0xc0a898, fogD: 0.0036, night: 0.35, exposure: 1.1 },
   noite: { cloud: 0x3a4058, cloudShade: 0x0c0e16, cover: 0.45, label: 'Noite', top: 0x050812, horizon: 0x1a2440, bottom: 0x0a0c14, sun: [0.3, 0.6, -0.5], sunColor: 0x8aa0d8, sunI: 0.6, hemiSky: 0x40508a, hemiGround: 0x2a2420, hemiI: 0.8, fog: 0x161c2c, fogD: 0.0055, night: 1, exposure: 1.25 },
 };
 
@@ -77,26 +78,38 @@ export class Sky {
       this.extent = extent; this.size = size;
     }
   }
-  apply(name) {
-    const t = TIMES[name]; this.current = name;
-    this.uniforms.top.value.setHex(t.top); this.uniforms.horizon.value.setHex(t.horizon); this.uniforms.bottom.value.setHex(t.bottom);
-    this.sunDir.set(...t.sun).normalize();
+  apply(name) { this.setHour({ dia: 12, entardecer: 18.6, noite: 23 }[name] ?? 12, true); }
+  // horário contínuo (0-24h): interpola entre os presets
+  setHour(h, forceEnv = false) {
+    h = ((h % 24) + 24) % 24; this.hour = h;
+    const K = [[0, 'noite'], [5, 'noite'], [6.4, 'amanhecer'], [8, 'dia'], [17, 'dia'], [18.6, 'entardecer'], [20.2, 'noite'], [24, 'noite']];
+    let i = 0; while (i < K.length - 2 && h > K[i + 1][0]) i++;
+    const [h0, n0] = K[i], [h1, n1] = K[i + 1];
+    const f = h1 > h0 ? THREE.MathUtils.smoothstep(h, h0, h1) : 0;
+    const A = TIMES[n0], B = TIMES[n1];
+    const lc = (k) => this._c1.setHex(A[k]).lerp(this._c2.setHex(B[k]), f);
+    const ln = (k) => A[k] + (B[k] - A[k]) * f;
+    this._c1 = this._c1 || new THREE.Color(); this._c2 = this._c2 || new THREE.Color();
+    this.uniforms.top.value.copy(lc('top')); this.uniforms.horizon.value.copy(lc('horizon')); this.uniforms.bottom.value.copy(lc('bottom'));
+    this.sunDir.set(A.sun[0] + (B.sun[0] - A.sun[0]) * f, A.sun[1] + (B.sun[1] - A.sun[1]) * f, A.sun[2] + (B.sun[2] - A.sun[2]) * f).normalize();
     this.uniforms.sunDir.value.copy(this.sunDir);
-    this.uniforms.sunCol.value.setHex(t.sunColor).multiplyScalar(t.night > 0.9 ? 0.6 : 1);
-    this.uniforms.cloudCol.value.setHex(t.cloud); this.uniforms.cloudShade.value.setHex(t.cloudShade); this.uniforms.cover.value = t.cover;
-    this.sun.color.setHex(t.sunColor); this.sun.intensity = t.sunI;
-    this.hemi.color.setHex(t.hemiSky); this.hemi.groundColor.setHex(t.hemiGround); this.hemi.intensity = t.hemiI;
-    this.scene.fog.color.setHex(t.fog); this.scene.fog.density = t.fogD;
-    this.renderer.toneMappingExposure = t.exposure;
-    this.stars.material.opacity = t.night > 0.9 ? 0.9 : t.night > 0.4 ? 0.2 : 0;
-    this.night = t.night;
+    const night = ln('night');
+    this.uniforms.sunCol.value.copy(lc('sunColor')).multiplyScalar(night > 0.9 ? 0.6 : 1);
+    this.uniforms.cloudCol.value.copy(lc('cloud')); this.uniforms.cloudShade.value.copy(lc('cloudShade')); this.uniforms.cover.value = ln('cover') + (this.rain || 0) * 0.4;
+    this.sun.color.copy(lc('sunColor')); this.sun.intensity = ln('sunI') * (1 - (this.rain || 0) * 0.5);
+    this.hemi.color.copy(lc('hemiSky')); this.hemi.groundColor.copy(lc('hemiGround')); this.hemi.intensity = ln('hemiI');
+    this.scene.fog.color.copy(lc('fog')); this.scene.fog.density = ln('fogD') * (1 + (this.rain || 0) * 0.8);
+    this.renderer.toneMappingExposure = ln('exposure');
+    this.stars.material.opacity = night > 0.9 ? 0.9 : night > 0.4 ? 0.2 : 0;
+    this.night = night;
+    this.current = night > 0.8 ? 'noite' : night > 0.3 ? 'entardecer' : 'dia';
     for (const n of nightMats) {
-      const v = n.base + (n.night - n.base) * t.night;
-      if (n.opacity) n.mat.opacity = v;
-      else n.mat.emissiveIntensity = v;
+      const v = n.base + (n.night - n.base) * night;
+      if (n.opacity) n.mat.opacity = v; else n.mat.emissiveIntensity = v;
     }
-    setHeadlights(t.night > 0.4);
-    this.updateEnv();
+    setHeadlights(night > 0.4);
+    const now = performance.now();
+    if (forceEnv || !this._envT || now - this._envT > 2500) { this._envT = now; this.updateEnv(); }
   }
   follow(x, z) {
     this.dome.position.set(x, 0, z); this.stars.position.set(x, 0, z);

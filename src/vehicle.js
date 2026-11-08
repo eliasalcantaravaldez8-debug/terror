@@ -94,6 +94,8 @@ export class Vehicle {
     this.driver = null; // 'player' | 'ai' | null
     this.braking = false; this.lastHit = 0;
     this.engineOn = false;
+    this.tank = { sedan: 50, hatch: 45, suv: 70, pickup: 80, police: 60, taxi: 50 }[type] || 50;
+    this.fuel = 0.35 + Math.random() * 0.65; this.health = 1;
   }
 
   build(color) {
@@ -327,9 +329,16 @@ export class Vehicle {
     const fwd = this.speed;
     // motor / freio
     let acc = 0;
-    if (inp.throttle > 0) {
-      if (fwd < -0.5) acc = 14 * inp.throttle; // freando da ré
-      else acc = T.accel * inp.throttle * (1 - Math.min(1, Math.max(0, fwd) / T.maxSpeed) ** 2);
+    let thr = inp.throttle || 0;
+    if (this.driver === 'player') {
+      // combustível e danos (só no carro do jogador)
+      this.fuel = Math.max(0, this.fuel - Math.abs(this.speed) * dt / (9000 * this.tank / 55));
+      if (this.fuel <= 0) thr = Math.min(thr, 0.12);
+    }
+    const hp = 0.45 + 0.55 * this.health;
+    if (thr > 0) {
+      if (fwd < -0.5) acc = 14 * thr; // freando da ré
+      else acc = T.accel * hp * thr * (1 - Math.min(1, Math.max(0, fwd) / (T.maxSpeed * hp)) ** 2);
     }
     if (inp.brake > 0) {
       if (fwd > 0.5) acc -= 14 * inp.brake;

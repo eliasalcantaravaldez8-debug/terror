@@ -24,10 +24,19 @@ export class Player {
     this.grounded = true; this.speed = 0; this.turn = 0; this.accel = 0;
     this.mode = 'foot'; // 'foot' | 'car'
     this.jumpBuffer = 0; this.coyote = 0;
+    this.scene = scene; this.crouch = false; this.hp = 100; this.pose = null;
   }
-  place(x, z, heading = 0) {
+  setLook(look) {
+    const parent = this.model.root.parent;
+    if (parent) parent.remove(this.model.root);
+    this.model = new Humanoid(look);
+    (parent || this.scene).add(this.model.root);
+    this.sync();
+  }
+  place(x, z, heading = 0, y = null) {
     this.x = x; this.z = z; this.heading = heading;
-    this.y = this.world.groundAt(x, z, PLAYER.radius, 10);
+    // procura o chão a partir do nível do terreno (não sobe em telhados ao entrar em construções)
+    this.y = this.world.groundAt(x, z, PLAYER.radius, y ?? this.world.groundFn(x, z) + 0.3);
     this.vx = this.vz = this.vy = 0;
     this.sync();
   }
@@ -41,7 +50,8 @@ export class Player {
     const ml = Math.hypot(mx, mz);
     if (ml > 1) { mx /= ml; mz /= ml; }
     const want = ml > 0.05;
-    const top = input.run ? P.runSpeed : P.walkSpeed;
+    this.crouch = !!input.crouch && this.grounded;
+    const top = this.crouch ? 1.3 : input.run ? P.runSpeed : P.walkSpeed;
     const tvx = mx * top, tvz = mz * top;
     const control = this.grounded ? 1 : P.airControl;
     const k = (want ? (input.run ? P.runAccel : P.accel) : P.decel) * control;
@@ -92,11 +102,12 @@ export class Player {
     } else this.grounded = false;
     this.y = ny;
     this.speed = Math.hypot(this.vx, this.vz);
-    this.model.update(dt, { speed: this.speed, grounded: this.grounded, vy: this.vy, mode: 'foot', turn: this.turn, accel: this.accel });
+    this.model.update(dt, { speed: this.speed, grounded: this.grounded, vy: this.vy, mode: this.pose || 'foot', turn: this.turn, accel: this.accel, crouch: this.crouch, phone: this.phone });
     this.sync();
   }
   sync() {
     this.model.root.position.set(this.x, this.y, this.z);
-    this.model.root.rotation.y = this.heading;
+    this.model.root.rotation.set(this.lying || 0, this.heading, 0);
+    if (this.lying) this.model.root.position.y += 0.15;
   }
 }

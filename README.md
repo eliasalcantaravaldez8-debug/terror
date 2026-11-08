@@ -11,6 +11,16 @@ Jogo 3D de mundo aberto em terceira pessoa feito com **Three.js (WebGL)**. Roda 
 
 > Não precisa de internet, servidor nem instalação: tudo (modelos, texturas, sons) é gerado pelo próprio jogo.
 
+## História (o que já dá para jogar)
+
+Siga o documento oficial — veja **[HISTORIA.md](HISTORIA.md)** para o mapa completo do que foi implementado e do que ainda depende das suas decisões.
+
+**Campanha de Ethan:** Prólogo (esconderijo, fuga, batida e prisão) → Sete Anos Depois (saída da penitenciária, carro blindado, reencontro com Ryan) → Os Nomes do Livro (casa abandonada, território rival, Blake se rende, Victor foge, livro recuperado) → O Primeiro Suspeito (Lucas, ligação misteriosa, fotografia) → O Irmão (binóculos na colina) → A Fotografia (12/08/2027) → A Mansão (furtividade com alerta 0–100, confronto, perseguição) → O Galpão (luta, interrogatório, disparo, pessoa misteriosa, Ryan desaparece) → Culpado?? (o investigador).
+
+**Campanha de Ryan:** ligação com contrato (aceitar ou recusar) → A Casa das Câmeras (Pulso Eletrônico, Fernando del Costa: eliminar ou interrogar e fugir).
+
+Missões com marcador azul começam quando você chega nele e aperta **E**. Missões em sequência começam sozinhas. Se falhar, a missão volta ao último checkpoint.
+
 ## Controles
 
 | Ação | Tecla |
@@ -20,12 +30,18 @@ Jogo 3D de mundo aberto em terceira pessoa feito com **Three.js (WebGL)**. Roda 
 | Pular | Espaço |
 | Girar a câmera | Mouse |
 | Aproximar/afastar a câmera | Roda do mouse |
-| Entrar/sair do carro, falar com pessoas | E |
+| Entrar/sair do carro, falar, comprar, interagir | E |
+| Golpear / nocautear por trás (em silêncio) | F |
+| Agachar (furtividade) | C |
+| Celular (mapa, mensagens, banco, VIBE...) | T |
+| Pulso Eletrônico (Ryan) | Q |
+| Abastecer no posto / consertar na oficina (dentro do carro) | G |
+| Escolhas nos diálogos | 1, 2, 3 ou clique |
 | Acelerar / frear / ré | W / S (segure S parado para dar ré) |
 | Virar o carro | A / D |
 | Freio de mão | Espaço |
-| Dia / Entardecer / Noite | N |
-| Opções (sensibilidade, qualidade, etc.) | Esc |
+| Avançar 3 horas (fora de missão) | N |
+| Opções, salvar, carregar, trocar de personagem | Esc |
 | Ajuda na tela | H |
 
 ## O que tem no jogo
@@ -38,6 +54,17 @@ Jogo 3D de mundo aberto em terceira pessoa feito com **Three.js (WebGL)**. Roda 
 - **Personagens**: Ethan, Ryan Cole, Delegado Morales, pedestres (roupas, cabelos e tons de pele variados), funcionários das lojas e policiais. Os pedestres saem da frente dos carros.
 - **História inicial**: fale com Ryan Cole → vá até a delegacia → fale com o delegado. As falas ficam em `src/characters.js` e são fáceis de editar.
 - **Minimapa** que gira com a câmera e mostra o objetivo (amarelo) e o seu carro (azul).
+
+## Sistemas do mundo
+
+- **Relógio**: 1 segundo = 1 minuto do jogo; dia e noite contínuos.
+- **Sobrevivência**: vida, fome, sede, sono e dor. Coma e beba nas lojas (fale com o atendente), durma na porta da casa (8 horas, salva o jogo), trate-se no Hospital Los Valles.
+- **Carros**: combustível (cada modelo tem um tanque), danos por batida, abastecer no Posto Valles, consertar na Oficina Mecânica.
+- **Procurado (até 6 estrelas)**: agredir pessoas, atropelar ou bater em viaturas com testemunhas por perto. A polícia persegue; fique longe das viaturas para despistar; se ficar parado perto delas a pé, é preso (multa). **2 estrelas desbloqueiam a estrada para Blackwood.**
+- **Celular**: Mapa, Mensagens, Ligações, Banco, Câmera (tira fotos de verdade), Garagem (chamar o carro), Missões, Notícias, VIBE e Status. Ryan tem também Arquivos, Casos, Contratos, Ferramentas e Anotações.
+- **VIBE**: rede social fictícia que reage aos acontecimentos (alguns posts são rumores não confirmados).
+- **Salvamento**: automático a cada 5 minutos, ao concluir missões, em cada checkpoint e após compras importantes; 5 espaços manuais (Esc → Salvar). Ao morrer, volta ao último salvamento.
+- **Duas campanhas** com dinheiro e progresso separados (Esc → Jogar como Ryan/Ethan).
 
 ## Gráficos
 
@@ -72,7 +99,13 @@ npm run dev       # recompila automaticamente ao salvar
 
 | Arquivo | Conteúdo |
 |---|---|
-| `src/main.js` | Junta tudo: laço do jogo, HUD, menu, carro, diálogos, missões |
+| `src/main.js` | Junta tudo: laço do jogo, HUD, menus, carro, combate, polícia, sobrevivência, salvamento |
+| `src/story.js` | Motor da história: etapas/checkpoints, cutscenes, diálogos, escolhas, alerta 0–100, binóculos, fotos |
+| `src/missions_ethan.js` / `src/missions_ryan.js` | As missões das duas campanhas (diálogos editáveis aqui) |
+| `src/zones.js` / `src/places.js` | Favela, penitenciária, zona industrial, galpão, mansão, colina, casa de Fernando, sala do investigador, portão de Blackwood |
+| `src/drivers.js` | Motoristas com IA (fugas, polícia, escolta) |
+| `src/phone.js` | Celular, VIBE, notícias, mensagens |
+| `src/save.js` | Salvamento automático e manual |
 | `src/camera.js` | Câmera em terceira pessoa |
 | `src/player.js` | Movimentação do Ethan |
 | `src/humanoid.js` | Modelo dos personagens (esqueleto) e animações |

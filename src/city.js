@@ -7,6 +7,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import * as TX from './textures.js';
 import { mats, signMat } from './materials.js';
 import { rand, rr, pick, setSeed } from './textures.js';
+import { inKeepOut, hillHeight } from './places.js';
 
 export const N = 6;            // quarteirões por lado
 export const ROAD = 12;        // largura da rua
@@ -29,7 +30,7 @@ export const LAYOUT = [
   ['res', 'park', 'mixed', 'gas', 'mixed', 'res'],
   ['res', 'shops', 'down', 'down', 'apart', 'res'],
   ['res', 'police', 'down', 'down', 'parking', 'res'],
-  ['res', 'apart', 'mixed', 'shops2', 'park', 'res'],
+  ['res', 'hospital', 'mixed', 'shops2', 'park', 'res'],
   ['res', 'res', 'res', 'res', 'res', 'res'],
 ];
 
@@ -39,12 +40,12 @@ export function onRoadAxis(v) {
   return (u % P) < ROAD;
 }
 export function groundHeight(x, z) {
-  if (Math.abs(x) <= HALF && Math.abs(z) <= HALF && (onRoadAxis(x) || onRoadAxis(z))) return 0;
-  return CURB;
+  if (Math.abs(x) <= HALF && Math.abs(z) <= HALF) return (onRoadAxis(x) || onRoadAxis(z)) ? 0 : CURB;
+  return CURB + hillHeight(x, z);
 }
 
 // Quadro de referência local (rotação em múltiplos de 90°)
-class Frame {
+export class Frame {
   constructor(x, z, ry, B, world) { this.x = x; this.z = z; this.ry = ry; this.c = Math.cos(ry); this.s = Math.sin(ry); this.B = B; this.world = world; }
   pt(lx, lz) { return [this.x + lx * this.c + lz * this.s, this.z - lx * this.s + lz * this.c]; }
   m(lx, ly, lz, ry = 0, rx = 0, rz = 0, sx = 1, sy = 1, sz = 1) { const [x, z] = this.pt(lx, lz); return mat(x, ly, z, this.ry + ry, rx, rz, sx, sy, sz); }
@@ -90,7 +91,7 @@ export class City {
     this.buildRoads();
     for (let k = 0; k < N; k++) for (let j = 0; j < N; j++) this.buildBlock(j, k, LAYOUT[k][j]);
     this.buildOutskirts();
-    this.buildTrees();
+    // árvores são criadas depois dos locais da história (main.js)
     this.buildStreetParking();
     for (const B of this.chunks.values()) B.flush(this.root);
     this.chunks.clear();
@@ -177,7 +178,7 @@ export class City {
       shops: () => this.shopsBlock(F, ['Mercado Los Valles', 'Farmácia São Lucas', 'Lanchonete do Joe', 'Ferragens Ramírez']),
       shops2: () => this.shopsBlock(F, ['Loja de Roupas Vega', 'Padaria Aurora', 'Conveniência 24h', 'Eletrônicos Sombra']),
       police: () => this.policeBlock(F), gas: () => this.gasBlock(F), parking: () => this.parkingBlock(F),
-      apart: () => this.apartBlock(F), park: () => this.parkBlock(F),
+      apart: () => this.apartBlock(F), park: () => this.parkBlock(F), hospital: () => this.hospitalBlock(F),
     };
     builders[type]();
     // calçada para pedestres
@@ -603,6 +604,12 @@ export class City {
     f.box(M.red, inner - 3, CURB + 2.6, 0, 3.4, 0.2, 2.9, false);
     f.box(signMat('ESTACIONAMENTO', { bg: '#1b3d6e', glow: true }), inner - 3, CURB + 3.2, 1.3, 3, 0.6, 0.05, false, 3, 0.6);
     this.landmarks.push({ name: 'Estacionamento Central', x: F.x, z: F.z, kind: 'parking' });
+    // oficina mecânica
+    f.box(M.metal, -inner + 6, CURB, 0, 10, 5, 8, true, 2);
+    f.ao(-inner + 6, 0, 10, 8, 1.4);
+    f.box(M.darkTrim, -inner + 11.05, CURB, 0, 0.1, 3.6, 5, false);
+    f.box(signMat('OFICINA MECÂNICA', { bg: '#202020', fg: '#ffcc33', glow: true }), -inner + 11.1, CURB + 4.2, 0, 0.08, 0.7, 6, false, 6, 0.7);
+    { const [ox, oz] = f.pt(-inner + 15, 0); this.landmarks.push({ name: 'Oficina Mecânica', x: ox, z: oz, kind: 'oficina' }); }
   }
 
   apartBlock(F) {
@@ -614,6 +621,27 @@ export class City {
     const f = new Frame(F.x, F.z, 0, F.B, this.world);
     for (let i = 0; i < 3; i++) this.trees.push([F.x + 1, F.z - 16 + i * 16, rr(0.9, 1.2)]);
     for (let i = 0; i < 2; i++) this.bench(f, -2.5, -8 + i * 16, Math.PI / 2);
+  }
+
+  hospitalBlock(F) {
+    const M = this.M; const inner = (BLOCK - SW * 2) / 2;
+    const f = new Frame(F.x, F.z, 0, F.B, this.world);
+    const w = 40, d = 22, H = 4 * 3.2, bz = -inner + d / 2 + 4;
+    f.box(M.facade.plaster, 0, CURB, bz, w, H, d, true, 24, 25.6);
+    f.ao(0, bz, w, d, 1.8);
+    f.box(M.white, 0, CURB + H, bz, w + 0.6, 0.6, d + 0.6, false);
+    // entrada com marquise (voltada para -z)
+    f.box(M.white, 0, CURB + 3.4, bz - d / 2 - 2.5, 12, 0.35, 5, false);
+    for (const s of [-5.5, 5.5]) f.box(M.white, s, CURB, bz - d / 2 - 4.6, 0.4, 3.4, 0.4, true);
+    f.box(M.glass, 0, CURB, bz - d / 2 - 0.05, 5, 3, 0.06, false);
+    f.box(signMat('HOSPITAL LOS VALLES', { bg: '#ffffff', fg: '#b01818', glow: true, w: 1024, h: 128 }), 0, CURB + H - 1.6, bz - d / 2 - 0.08, 14, 1.4, 0.08, false, 14, 1.4);
+    // cruz vermelha
+    f.box(M.red, 0, CURB + H + 1.2, bz - d / 2 + 0.3, 3, 0.8, 0.3, false); f.box(M.red, 0, CURB + H + 0.4, bz - d / 2 + 0.3, 0.8, 2.4, 0.3, false);
+    // ambulância estacionada e área verde
+    this.parkingLot(F, 0, 14, inner * 2 - 2, 20, 0);
+    const [ex, ez] = f.pt(0, bz - d / 2 - 6);
+    this.landmarks.push({ name: 'Hospital Los Valles', x: ex, z: ez, kind: 'hospital' });
+    for (let i = 0; i < 4; i++) this.trees.push([F.x - inner + 4 + i * 16, F.z - 2, rr(0.8, 1.1)]);
   }
 
   bench(f, lx, lz, ry) {
@@ -685,25 +713,29 @@ export class City {
   // ---------- ARREDORES ----------
   buildOutskirts() {
     const M = this.M; const B = new Batcher();
-    const E = HALF, R = 420;
+    const E = HALF, R = 560;
     for (const [x, z, w, d] of [[0, (E + R) / 2, 2 * R, R - E], [0, -(E + R) / 2, 2 * R, R - E], [(E + R) / 2, 0, R - E, 2 * E], [-(E + R) / 2, 0, R - E, 2 * E]])
       B.add(plane(w, d, 4), M.grass, mat(x, CURB, z));
     // colinas ao longe (baixo custo, sombreamento plano)
     const hillMat = new THREE.MeshLambertMaterial({ color: 0x3e5a2c, flatShading: true });
     hillMat.userData.castShadow = false;
     for (let i = 0; i < 26; i++) {
-      const a = (i / 26) * Math.PI * 2 + rr(-0.1, 0.1), r = rr(255, 300);
-      const g = new THREE.ConeGeometry(rr(40, 80), rr(25, 70), 7, 1);
+      const a = (i / 26) * Math.PI * 2 + rr(-0.1, 0.1), r = rr(470, 520);
+      const g = new THREE.ConeGeometry(rr(60, 110), rr(40, 90), 7, 1);
       B.add(g, hillMat, mat(Math.cos(a) * r, 0, Math.sin(a) * r));
     }
     B.flush(this.root);
     // floresta ao redor da cidade
-    for (let i = 0; i < 260; i++) {
-      const a = rand() * Math.PI * 2, r = rr(E + 12, E + 90);
-      this.trees.push([Math.cos(a) * r, Math.sin(a) * r, rr(1.0, 1.8), rand() < 0.45]);
+    for (let i = 0; i < 420; i++) {
+      const a = rand() * Math.PI * 2, r = rr(E + 12, E + 200);
+      const x = Math.cos(a) * r, z = Math.sin(a) * r;
+      if (Math.abs(x) > 440 || Math.abs(z) > 440 || inKeepOut(x, z, 6)) continue;
+      // estradas de acesso aos locais
+      if (Math.abs(x) < 10 || Math.abs(z) < 10 || Math.abs(z - 76) < 10 || Math.abs(x - 152) < 10 || Math.abs(x + 76) < 10 || Math.abs(x + 152) < 10) continue;
+      this.trees.push([x, z, rr(1.0, 1.8), rand() < 0.45]);
     }
     // limites invisíveis
-    const L = E + 60;
+    const L = 448;
     this.world.addBox(-L - 2, 0, -L, -L, 50, L); this.world.addBox(L, 0, -L, L + 2, 50, L);
     this.world.addBox(-L, 0, -L - 2, L, 50, -L); this.world.addBox(-L, 0, L, L, 50, L + 2);
   }

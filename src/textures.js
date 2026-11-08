@@ -535,3 +535,17 @@ export function signAtlas() {
     };
   });
 }
+
+export function corrugatedTex() {
+  return cached('corrugated', () => {
+    const [c, g] = canvas(256, 256);
+    for (let x = 0; x < 256; x += 16) {
+      const gr = g.createLinearGradient(x, 0, x + 16, 0);
+      gr.addColorStop(0, '#9a9a9a'); gr.addColorStop(0.5, '#f2f2f2'); gr.addColorStop(1, '#9a9a9a');
+      g.fillStyle = gr; g.fillRect(x, 0, 16, 256);
+    }
+    for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(110,60,30,${rr(0.05, 0.2)})`; g.fillRect(rand() * 256, rand() * 256, rr(3, 14), rr(10, 80)); }
+    noise(g, 256, 256, 16);
+    return toTex(c);
+  });
+}
