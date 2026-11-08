@@ -55,6 +55,25 @@ Missões com marcador azul começam quando você chega nele e aperta **E**. Miss
 - **História inicial**: fale com Ryan Cole → vá até a delegacia → fale com o delegado. As falas ficam em `src/characters.js` e são fáceis de editar.
 - **Minimapa** que gira com a câmera e mostra o objetivo (amarelo) e o seu carro (azul).
 
+## Novidades: veículos, oficina, armas e desempenho
+
+**Carros (todos dirigíveis, cada um com direção, aceleração, frenagem, aderência e som de motor próprios):**
+Popular 1.0, Hatch Pulse, Sedan Aurora, SUV Montana, Picape Bravo, Imperial Luxo, Coupé GT Sombra, Clássico 1965, **Besouro 1300** (clássico inspirado no Fusca), **Fúria V12** (superesportivo inspirado em Lamborghini), Táxi e Viatura. Os nomes são fictícios porque as marcas reais são registradas. Um Fúria, um Besouro e um Coupé ficam estacionados na rua em frente à casa.
+
+**Freio de mão:** trava as rodas traseiras, reduz a velocidade de forma firme e permite derrapagem controlada; ao soltar, o carro recupera a aderência.
+
+**Los Valles Custom (oficina):** no Estacionamento Central. Entre com o carro e aperte **G**. Pintura (16 cores), 6 tipos de rodas, aerofólio, saias laterais, película, neon, faróis xenon, motor (3 níveis), freios (3), suspensão (3), turbo e reparo. O carro gira na tela enquanto você escolhe; as mudanças aparecem na hora e só são cobradas ao comprar. O carro customizado vira o **seu carro** e fica salvo.
+
+**Armas:** pistola e escopeta (compre na Ferragens Ramírez; Ryan já começa com pistola). **1/2/3** troca, **botão direito** ou **V** mira, **botão esquerdo** atira, **R** recarrega. Quem é atingido cai, sem sangue. Atirar em público assusta as pessoas e dá estrelas; com 3 estrelas ou mais, policiais descem armados. Alguns inimigos das missões também atiram.
+
+**Cutscenes:** **X** pula a cena; opção "Diálogos avançam sozinhos" no menu.
+
+**Medidor de desempenho real (F3):** FPS e milissegundos por quadro medidos do intervalo real entre quadros, gráfico, memória JavaScript (no Chrome/Edge; em outros navegadores aparece "indisponível"), chamadas de desenho e triângulos. **F4** inicia/para uma medição e mostra FPS mínimo, médio, máximo e 1% mais baixo.
+
+**Minimapa:** a seta e a rotação do mapa foram corrigidas (a seta aponta para onde você anda ou dirige).
+
+**Trânsito:** a IA cede passagem nos cruzamentos, espera para virar à esquerda, prevê colisões e ultrapassa obstáculos parados.
+
 ## Sistemas do mundo
 
 - **Relógio**: 1 segundo = 1 minuto do jogo; dia e noite contínuos.
@@ -106,6 +125,9 @@ npm run dev       # recompila automaticamente ao salvar
 | `src/drivers.js` | Motoristas com IA (fugas, polícia, escolta) |
 | `src/phone.js` | Celular, VIBE, notícias, mensagens |
 | `src/save.js` | Salvamento automático e manual |
+| `src/custom.js` | Oficina Los Valles Custom |
+| `src/weapons.js` | Armas |
+| `src/perf.js` | Medidor de desempenho real |
 | `src/camera.js` | Câmera em terceira pessoa |
 | `src/player.js` | Movimentação do Ethan |
 | `src/humanoid.js` | Modelo dos personagens (esqueleto) e animações |

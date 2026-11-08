@@ -1,6 +1,6 @@
 // Medidor de desempenho REAL: usa o intervalo medido entre quadros (performance.now), sem números fixos.
 const CSS = `
-#perf{position:fixed;top:96px;right:12px;z-index:26;background:rgba(8,9,12,.82);border:1px solid #2a2b33;border-radius:6px;padding:8px 11px;font:12px/1.5 Consolas,'Courier New',monospace;color:#d8d8d8;display:none;min-width:190px;pointer-events:none;font-variant-numeric:tabular-nums}
+#perf{position:fixed;top:150px;right:12px;z-index:26;background:rgba(8,9,12,.82);border:1px solid #2a2b33;border-radius:6px;padding:8px 11px;font:12px/1.5 Consolas,'Courier New',monospace;color:#d8d8d8;display:none;min-width:190px;pointer-events:none;font-variant-numeric:tabular-nums}
 #perf b{color:#fff;font-size:20px}
 #perf .g{color:#7ad87a}#perf .y{color:#e8c84a}#perf .r{color:#e85a4a}
 #perf canvas{display:block;margin-top:4px;width:180px;height:36px}
@@ -25,19 +25,20 @@ export class PerfMeter {
     if (this.acc >= 500) { // atualiza 2x por segundo
       this.ms = this.acc / this.n; this.fps = 1000 / this.ms;
       this.hist[this.hi++ % this.hist.length] = this.fps;
+      if (this.session) this.session.windows.push(this.fps);
       this.acc = 0; this.n = 0;
       if (this.visible) this.render();
     }
   }
   toggle(v = !this.visible) { this.visible = v; this.el.style.display = v ? 'block' : 'none'; if (v) this.render(); }
-  startSession() { this.session = { start: performance.now(), samples: [] }; }
-  stopSession() { const s = this.session; this.session = null; this.result = s ? summarize(s.samples, (performance.now() - s.start) / 1000) : null; return this.result; }
+  startSession() { this.session = { start: performance.now(), samples: [], windows: [] }; }
+  stopSession() { const s = this.session; this.session = null; this.result = s ? summarize(s.samples, (performance.now() - s.start) / 1000, s.windows) : null; return this.result; }
   render() {
     const cls = this.fps >= 50 ? 'g' : this.fps >= 30 ? 'y' : 'r';
     const mem = performance.memory ? `${(performance.memory.usedJSHeapSize / 1048576).toFixed(0)} / ${(performance.memory.jsHeapSizeLimit / 1048576).toFixed(0)} MB (memória JS)` : 'memória: indisponível neste navegador';
     const info = this.renderer.info;
     let sess = '';
-    if (this.session) { const r = summarize(this.session.samples, (performance.now() - this.session.start) / 1000); sess = `<div class="t">MEDINDO ${r.dur.toFixed(0)}s — mín ${r.min.toFixed(0)} · méd ${r.avg.toFixed(0)} · máx ${r.max.toFixed(0)} · 1% ${r.low1.toFixed(0)}</div>`; }
+    if (this.session) { const r = summarize(this.session.samples, (performance.now() - this.session.start) / 1000, this.session.windows); sess = `<div class="t">MEDINDO ${r.dur.toFixed(0)}s — mín ${r.min.toFixed(0)} · méd ${r.avg.toFixed(0)} · máx ${r.max.toFixed(0)} · 1% ${r.low1.toFixed(0)}</div>`; }
     else if (this.result) { const r = this.result; sess = `<div class="t">Última medição (${r.dur.toFixed(0)}s, ${r.frames} quadros): mín ${r.min.toFixed(0)} · méd ${r.avg.toFixed(0)} · máx ${r.max.toFixed(0)} · 1% baixo ${r.low1.toFixed(0)} FPS</div>`; }
     this.el.innerHTML = `<b class="${cls}">${this.fps.toFixed(0)}</b> FPS · ${this.ms.toFixed(1)} ms/quadro<br>${mem}<br>GPU: ${info.memory.geometries} geometrias · ${info.memory.textures} texturas<br>${info.render.calls} chamadas · ${(info.render.triangles / 1000).toFixed(0)}k triângulos<br>Resolução: ${Math.round(this.renderer.getPixelRatio() * 100)}%${sess}`;
     const g = this.cv.getContext('2d'); g.clearRect(0, 0, 180, 36); g.fillStyle = 'rgba(255,255,255,.08)'; g.fillRect(0, 0, 180, 36);
@@ -48,10 +49,13 @@ export class PerfMeter {
   }
 }
 // estatísticas de uma sessão a partir dos tempos de quadro reais (ms)
-export function summarize(samples, dur) {
+// estatísticas de uma sessão: média = quadros / tempo real; mín/máx = janelas de 0,5 s; 1% baixo = pior 1% dos quadros
+export function summarize(samples, dur, windows = []) {
   if (!samples.length) return { min: 0, avg: 0, max: 0, low1: 0, dur, frames: 0 };
-  const fps = samples.map((ms) => 1000 / ms).sort((a, b) => a - b);
   const total = samples.reduce((a, b) => a + b, 0);
-  const low = fps.slice(0, Math.max(1, Math.floor(fps.length * 0.01)));
-  return { min: fps[0], max: fps[fps.length - 1], avg: samples.length / (total / 1000), low1: low.reduce((a, b) => a + b, 0) / low.length, dur, frames: samples.length };
+  const avg = samples.length / (total / 1000);
+  const worst = [...samples].sort((a, b) => b - a).slice(0, Math.max(1, Math.floor(samples.length * 0.01)));
+  const low1 = 1000 / (worst.reduce((a, b) => a + b, 0) / worst.length);
+  const w = windows.length ? windows : [avg];
+  return { min: Math.min(...w), max: Math.max(...w), avg, low1, dur, frames: samples.length };
 }

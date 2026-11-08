@@ -82,7 +82,7 @@ export class ThirdPersonCamera {
     let dx = Math.sin(yaw) * cp, dy = sp, dz = Math.cos(yaw) * cp;
     // deslocamento lateral leve (ombro) só a pé
     const t = this.smoothTarget;
-    this.shoulderS = (this.shoulderS ?? 0.35) + ((this.aim && this.mode === 'foot' ? 0.6 : 0.35) - (this.shoulderS ?? 0.35)) * Math.min(1, 0.15);
+    this.shoulderS = (this.shoulderS ?? 0.35) + ((this.aim && this.mode === 'foot' ? 0.85 : 0.35) - (this.shoulderS ?? 0.35)) * Math.min(1, 0.15);
     let shoulder = this.mode === 'foot' ? this.shoulderS * Math.min(1, Math.max(this.curDist, 1.9) / 3) : 0;
     if (shoulder > 0) {
       this.world.rayIgnore = null;
