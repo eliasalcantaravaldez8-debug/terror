@@ -32,6 +32,7 @@ export const DEFAULT_LOOK = {
 };
 
 export class Humanoid {
+  static detail = 1;
   constructor(look = {}) {
     this.look = { ...DEFAULT_LOOK, ...look };
     const L = this.look;
@@ -73,8 +74,10 @@ export class Humanoid {
       parts.push(prep(geo, color, M(p.x + x, p.y + y, p.z + z, sx, sy, sz, rx, ry, rz), idx(bone)));
     };
     const top = L.jacket ?? L.shirt;
-    const cap = (r, l) => new THREE.CapsuleGeometry(r, l, 4, 12);
-    const sph = (r) => new THREE.SphereGeometry(r, 16, 12);
+    // detalhe conforme a qualidade gráfica (0 baixa, 1 média, 2 alta): menos polígonos = mais FPS
+    const D = Humanoid.detail;
+    const cap = (r, l) => new THREE.CapsuleGeometry(r, l, [2, 3, 4][D], [7, 9, 12][D]);
+    const sph = (r) => new THREE.SphereGeometry(r, [9, 12, 16][D], [7, 9, 12][D]);
     const bx = (w, h, d) => new THREE.BoxGeometry(w, h, d);
     // quadril / pelve
     add(hips, cap(0.15 * s, 0.08), L.pants, 0, -0.02, 0, 1.15, 1, 0.75, 0, 0, Math.PI / 2);

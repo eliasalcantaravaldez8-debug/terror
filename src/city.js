@@ -91,9 +91,10 @@ export class City {
     this.root = new THREE.Group(); this.root.name = 'LosValles';
     scene.add(this.root);
     this.parkedCars = []; this.npcs = []; this.trees = []; this.shopkeepers = []; this.landmarks = [];
-    this.pedLoops = []; this.lamps = []; this.interiors = [];
+    this.pedLoops = []; this.lamps = []; this.interiors = []; this.grassRects = [];
     world.groundFn = groundHeight;
     this.M = mats();
+    Batcher.soft.add(this.M.grass); Batcher.soft.add(this.M.ao);
     this.chunks = new Map();
   }
   chunk(j, k) {
@@ -188,6 +189,7 @@ export class City {
       // tipos de quarteirão de outras cidades (Blackwood)
       const g2 = this.extraGround && this.extraGround[type];
       B.add(plane(inner, inner, 4), g2 || M.grass, mat(cx, CURB + 0.005, cz));
+      if (!g2 || g2 === M.grass) this.grassRects.push([cx, cz, inner / 2]);
       if (!(this.noFurniture && this.noFurniture[type])) this.streetFurniture(F, j, k, type);
       this.extraBuilders[type](F, j, k);
       this.pedLoops.push({ cx, cz, half: BLOCK / 2 - 2.0, type });
@@ -196,6 +198,7 @@ export class City {
     const ground = { res: M.grass, park: M.grass, apart: M.grass, parking: M.parking, gas: M.concreteFlat }[type] || M.concreteFlat;
     if (type === 'parking') B.add(plane(inner, inner, 3, 5.5), M.parking, mat(cx, CURB + 0.005, cz, Math.PI / 2));
     else B.add(plane(inner, inner, type === 'res' || type === 'park' || type === 'apart' ? 4 : 3), ground, mat(cx, CURB + 0.005, cz));
+    if (ground === M.grass) this.grassRects.push([cx, cz, inner / 2]);
     this.streetFurniture(F, j, k, type);
     const builders = {
       res: () => this.residential(F, j, k), down: () => this.downtown(F), mixed: () => this.mixed(F),
@@ -1174,52 +1177,71 @@ export class City {
   }
 
   buildTrees() {
-    // duas espécies: copa arredondada (folhas texturizadas) e pinheiro
-    const round = this.trees.filter((t) => !t[3]), pines = this.trees.filter((t) => t[3]);
-    const trunkG = new THREE.CylinderGeometry(0.12, 0.24, 3.2, 7); trunkG.translate(0, 1.6, 0);
-    const trunk = new THREE.InstancedMesh(trunkG, this.M.bark, this.trees.length);
+    // duas espécies: copa arredondada (folhas texturizadas) e pinheiro.
+    // Divididas em regiões de 300 m (o motor descarta as regiões fora da tela) e com versão simplificada para longe.
     const leafTex = TX.leavesTex();
     const leafMat = new THREE.MeshLambertMaterial({ map: leafTex, normalMap: TX.normalOf(leafTex, 3, 'leaves') });
-    const leafG = new THREE.IcosahedronGeometry(1, 2);
-    // deforma levemente para não parecer esfera perfeita
-    const pa = leafG.attributes.position;
-    for (let i = 0; i < pa.count; i++) {
-      const v = new THREE.Vector3().fromBufferAttribute(pa, i);
-      const k = 1 + Math.sin(v.x * 5.1) * 0.07 + Math.cos(v.y * 4.3 + v.z * 3.7) * 0.07;
-      pa.setXYZ(i, v.x * k, v.y * k, v.z * k);
-    }
-    leafG.computeVertexNormals();
-    const leaves = new THREE.InstancedMesh(leafG, leafMat, Math.max(1, round.length * 3));
-    const pineParts = [];
-    for (let i = 0; i < 4; i++) { const g = new THREE.ConeGeometry(1.5 - i * 0.3, 2.2, 9); g.translate(0, 2.4 + i * 1.25, 0); pineParts.push(g); }
-    const pineG = mergeGeometries(pineParts);
-    const pine = new THREE.InstancedMesh(pineG, leafMat, Math.max(1, pines.length));
-    const m = new THREE.Matrix4(); const c = new THREE.Color(); const q = new THREE.Quaternion();
-    let li = 0, ti = 0, pi = 0;
-    for (const [x, z, s, isPine] of this.trees) {
-      const y = groundHeight(x, z);
-      m.compose(new THREE.Vector3(x, y, z), q.identity(), new THREE.Vector3(s, s * rr(0.9, 1.3), s));
-      trunk.setMatrixAt(ti++, m);
-      if (isPine) {
-        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rand() * 6);
-        m.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(s, s * rr(1.0, 1.4), s));
-        pine.setMatrixAt(pi, m);
-        c.setHSL(rr(0.28, 0.36), rr(0.3, 0.45), rr(0.2, 0.28)); pine.setColorAt(pi++, c);
-      } else {
-        const hue = rr(0.2, 0.3);
-        for (let b = 0; b < 3; b++) {
-          const ox = rr(-0.8, 0.8) * s, oz = rr(-0.8, 0.8) * s, oy = (2.9 + b * 0.9 + rr(-0.3, 0.3)) * s;
-          const ls = s * rr(1.3, 2.0) * (b === 2 ? 0.75 : 1);
-          q.setFromEuler(new THREE.Euler(rand(), rand(), rand()));
-          m.compose(new THREE.Vector3(x + ox, y + oy, z + oz), q, new THREE.Vector3(ls, ls * 0.85, ls));
-          leaves.setMatrixAt(li, m);
-          c.setHSL(hue + rr(-0.02, 0.02), rr(0.4, 0.6), rr(0.32, 0.45) - b * 0.03 * -1);
-          leaves.setColorAt(li++, c);
-        }
+    const blob = (detail) => {
+      const g = new THREE.IcosahedronGeometry(1, detail); const pa = g.attributes.position;
+      for (let i = 0; i < pa.count; i++) { // deforma levemente para não parecer esfera perfeita
+        const v = new THREE.Vector3().fromBufferAttribute(pa, i);
+        const k = 1 + Math.sin(v.x * 5.1) * 0.07 + Math.cos(v.y * 4.3 + v.z * 3.7) * 0.07;
+        pa.setXYZ(i, v.x * k, v.y * k, v.z * k);
       }
-      this.world.addCentered(x, 0, z, 0.5 * s, 3, 0.5 * s);
+      g.computeVertexNormals(); return g;
+    };
+    const pineGeo = (seg) => { const parts = []; for (let i = 0; i < 4; i++) { const g = new THREE.ConeGeometry(1.5 - i * 0.3, 2.2, seg); g.translate(0, 2.4 + i * 1.25, 0); parts.push(g); } return mergeGeometries(parts); };
+    const trunkG = new THREE.CylinderGeometry(0.12, 0.24, 3.2, 7); trunkG.translate(0, 1.6, 0);
+    const trunkFarG = new THREE.CylinderGeometry(0.12, 0.24, 3.2, 4); trunkFarG.translate(0, 1.6, 0);
+    const G = { leaf: blob(2), leafFar: blob(1), pine: pineGeo(9), pineFar: pineGeo(5) };
+    const CELL = 300; const cells = new Map();
+    for (const t of this.trees) { const k = Math.floor(t[0] / CELL) + ',' + Math.floor(t[1] / CELL); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(t); }
+    this.treeCells = [];
+    const m = new THREE.Matrix4(); const c = new THREE.Color(); const q = new THREE.Quaternion();
+    for (const list of cells.values()) {
+      const round = list.filter((t) => !t[3]).length, pines = list.length - round;
+      const mk = (geo, mat, n, shadow) => { const o = new THREE.InstancedMesh(geo, mat, Math.max(1, n)); o.castShadow = shadow; o.receiveShadow = true; return o; };
+      const near = { trunk: mk(trunkG, this.M.bark, list.length, true), leaves: mk(G.leaf, leafMat, round * 3, true), pine: mk(G.pine, leafMat, pines, true) };
+      const far = { trunk: mk(trunkFarG, this.M.bark, list.length, false), leaves: mk(G.leafFar, leafMat, round * 3, false), pine: mk(G.pineFar, leafMat, pines, false) };
+      let li = 0, ti = 0, pi = 0; let sx = 0, sz = 0;
+      for (const [x, z, s, isPine] of list) {
+        sx += x; sz += z;
+        const y = groundHeight(x, z);
+        m.compose(new THREE.Vector3(x, y, z), q.identity(), new THREE.Vector3(s, s * rr(0.9, 1.3), s));
+        near.trunk.setMatrixAt(ti, m); far.trunk.setMatrixAt(ti++, m);
+        if (isPine) {
+          q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rand() * 6);
+          m.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(s, s * rr(1.0, 1.4), s));
+          c.setHSL(rr(0.28, 0.36), rr(0.3, 0.45), rr(0.2, 0.28));
+          for (const o of [near.pine, far.pine]) { o.setMatrixAt(pi, m); o.setColorAt(pi, c); } pi++;
+        } else {
+          const hue = rr(0.2, 0.3);
+          for (let b = 0; b < 3; b++) {
+            const ox = rr(-0.8, 0.8) * s, oz = rr(-0.8, 0.8) * s, oy = (2.9 + b * 0.9 + rr(-0.3, 0.3)) * s;
+            const ls = s * rr(1.3, 2.0) * (b === 2 ? 0.75 : 1);
+            q.setFromEuler(new THREE.Euler(rand(), rand(), rand()));
+            m.compose(new THREE.Vector3(x + ox, y + oy, z + oz), q, new THREE.Vector3(ls, ls * 0.85, ls));
+            c.setHSL(hue + rr(-0.02, 0.02), rr(0.4, 0.6), rr(0.32, 0.45) - b * 0.03 * -1);
+            for (const o of [near.leaves, far.leaves]) { o.setMatrixAt(li, m); o.setColorAt(li, c); } li++;
+          }
+        }
+        this.world.addCentered(x, 0, z, 0.5 * s, 3, 0.5 * s);
+      }
+      for (const set of [near, far]) {
+        set.leaves.count = li; set.pine.count = pi;
+        for (const o of Object.values(set)) { if (!o.count) { o.visible = false; o.empty = true; continue; } o.computeBoundingSphere(); this.scene.add(o); }
+      }
+      this.treeCells.push({ x: sx / list.length, z: sz / list.length, near, far, lod: null });
     }
-    leaves.count = li; pine.count = pi;
-    for (const o of [trunk, leaves, pine]) { o.castShadow = true; o.receiveShadow = true; this.scene.add(o); }
+    this.updateTrees(0, 0, true);
+  }
+  // perto da câmera: árvore detalhada; longe: versão simples (bem menos triângulos)
+  updateTrees(cx, cz, force = false) {
+    for (const cell of this.treeCells) {
+      const d = Math.hypot(cell.x - cx, cell.z - cz); const lod = d > 300 ? 'far' : 'near';
+      if (lod === cell.lod && !force) continue; cell.lod = lod;
+      for (const o of Object.values(cell.near)) o.visible = lod === 'near' && !o.empty;
+      for (const o of Object.values(cell.far)) o.visible = lod === 'far' && !o.empty;
+    }
   }
 }

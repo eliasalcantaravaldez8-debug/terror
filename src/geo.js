@@ -85,6 +85,14 @@ export function colorize(g, color) {
 
 // Junta muitas geometrias por material => poucas chamadas de desenho
 export class Batcher {
+  // áreas de piso duro/construções junto ao chão (usadas para não nascer grama em cima)
+  static hardGrid = new Map(); static HARD_CELL = 8; static soft = new Set(); static recordHard = true;
+  static addHard(x0, z0, x1, z1) {
+    const C = Batcher.HARD_CELL; const r = [x0, z0, x1, z1];
+    for (let i = Math.floor(x0 / C); i <= Math.floor(x1 / C); i++) for (let j = Math.floor(z0 / C); j <= Math.floor(z1 / C); j++) {
+      const k = i + ',' + j; let l = Batcher.hardGrid.get(k); if (!l) { l = []; Batcher.hardGrid.set(k, l); } l.push(r);
+    }
+  }
   constructor() { this.groups = new Map(); }
   add(geometry, material, matrix, color) {
     if (material.isPaint) { color = material.color; material = material.mat; }
@@ -100,6 +108,10 @@ export class Batcher {
       material = material.mat;
     }
     if (matrix) g.applyMatrix4(matrix);
+    if (Batcher.recordHard && !Batcher.soft.has(material)) {
+      g.computeBoundingBox(); const b = g.boundingBox;
+      if (b.min.y < 0.4 && b.max.y > 0.158) Batcher.addHard(b.min.x, b.min.z, b.max.x, b.max.z); // acima do nível do gramado
+    }
     if (material.vertexColors) colorize(g, color ?? 0xffffff);
     else if (g.attributes.color) g.deleteAttribute('color');
     if (!this.groups.has(material)) this.groups.set(material, []);

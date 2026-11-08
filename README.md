@@ -161,6 +161,16 @@ Popular 1.0, Hatch Pulse, Sedan Aurora, SUV Montana, Picape Bravo, Imperial Luxo
 - **Comer e beber de verdade**: depois da compra, o personagem segura o item (hambúrguer, lata, copo de café, garrafa de água, pão ou caixa de remédio) e leva à boca por alguns segundos.
 - Tudo fica em **uma única textura** (atlas 2048×2048), por isso o desempenho continua igual: medi as mesmas chamadas de desenho e triângulos de antes.
 
+## Visual e otimização (última atualização)
+
+- **Correção de cor:** cores mais vivas, contraste suave, sombras levemente frias e luzes quentes. É feita dentro do tone mapping de cada material, sem passe extra, então não custa FPS.
+- **Grama 3D:** tufos de grama balançando com o vento nos gramados perto da câmera. Ela evita ruas, calçadas, caminhos, garagens e casas, e some suavemente na distância. Não aparece na qualidade Baixa; na Alta é mais densa e vai mais longe.
+- **Luz do dia** mais nítida (sol mais forte, menos luz ambiente "lavada") e **pôr do sol** menos saturado.
+- **Árvores otimizadas:** antes todas as árvores do mapa eram desenhadas o tempo todo. Agora ficam divididas em regiões de 300 m: o motor descarta as que estão fora da tela, e as distantes usam uma versão simplificada (4 vezes menos polígonos).
+- **Personagens** com menos polígonos na qualidade Média (cerca de 40% menos) e Baixa. A Alta mantém o detalhe máximo. Pedestres a mais de 150 m não são desenhados.
+- **Sombras** recalculadas em quadros alternados na qualidade Média (o sol quase não se move).
+- **Resultado medido:** de 25% a 42% menos triângulos por quadro, conforme o lugar (no centro, de 611 mil para 435 mil), com cerca de 20 chamadas de desenho a mais (regiões de árvores e grama).
+
 ## Desempenho (PC fraco)
 
 **Recomendado para Intel UHD 630 (i5-8500):** qualidade **Média** com **Resolução automática** ligada (já vem assim). A resolução automática diminui um pouco a resolução quando o FPS cai abaixo de ~42 e volta a aumentar quando sobra desempenho. No menu (Esc) aparece o nome da sua placa de vídeo e a resolução atual.
@@ -197,6 +207,8 @@ npm run dev       # recompila automaticamente ao salvar
 | `src/custom.js` | Oficina Los Valles Custom |
 | `src/weapons.js` | Armas e menu de armas (ícones) |
 | `src/ragdoll.js` | Física de corpo mole (ragdoll) |
+| `src/grass.js` | Grama 3D com vento |
+| `src/grade.js` | Correção de cor no tone mapping |
 | `src/perf.js` | Medidor de desempenho real |
 | `src/camera.js` | Câmera em terceira pessoa |
 | `src/player.js` | Movimentação do Ethan |

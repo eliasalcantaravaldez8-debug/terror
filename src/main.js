@@ -1,5 +1,8 @@
 // ENTRE SOMBRAS — jogo de mundo aberto 3D (Three.js / WebGL).
 import * as THREE from 'three';
+import { GRADED_TONEMAPPING } from './grade.js';
+import { Grass } from './grass.js';
+import { Batcher } from './geo.js';
 import { CollisionWorld } from './collision.js';
 import { City, LAYOUT, N, P, ROAD, HALF, roadC, blockC, BLOCK } from './city.js';
 import { Zones } from './zones.js';
@@ -37,11 +40,12 @@ function loadSettings() {
 function saveSettings() { try { localStorage.setItem('entreSombras.settings', JSON.stringify(settings)); } catch (e) { /* ignora */ } }
 const settings = loadSettings();
 const QUALITY = {
-  baixa: { label: 'Baixa', pr: 0.75, aa: false, shadows: false, size: 512, extent: 40, peds: 40, traffic: 11, far: 320, lamps: 0, soft: false },
-  media: { label: 'Média', pr: 1.0, aa: false, shadows: true, size: 2048, extent: 42, peds: 70, traffic: 18, far: 400, lamps: 4, soft: false },
-  alta: { label: 'Alta', pr: Math.min(window.devicePixelRatio || 1, 1.5), aa: true, shadows: true, size: 2048, extent: 60, peds: 95, traffic: 24, far: 480, lamps: 8, soft: true },
+  baixa: { label: 'Baixa', pr: 0.75, aa: false, shadows: false, size: 512, extent: 40, peds: 40, traffic: 11, far: 320, lamps: 0, soft: false, grass: 0, shadowEvery: 1 },
+  media: { label: 'Média', pr: 1.0, aa: false, shadows: true, size: 2048, extent: 42, peds: 70, traffic: 18, far: 400, lamps: 4, soft: false, grass: 48, shadowEvery: 2 },
+  alta: { label: 'Alta', pr: Math.min(window.devicePixelRatio || 1, 1.5), aa: true, shadows: true, size: 2048, extent: 60, peds: 95, traffic: 24, far: 480, lamps: 8, soft: true, grass: 75, shadowEvery: 1 },
 };
 const Q = QUALITY[settings.quality] || QUALITY.media;
+Humanoid.detail = { baixa: 0, media: 1, alta: 2 }[settings.quality] ?? 1;
 
 const $ = (id) => document.getElementById(id);
 const loadingText = (t) => { const el = $('loading-text'); if (el) el.textContent = t; };
@@ -51,7 +55,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: Q.aa, powerPreference: 'hi
 renderer.setPixelRatio(Q.pr);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMapping = GRADED_TONEMAPPING; // ACES + correção de cor (grade.js), sem custo extra
 renderer.shadowMap.enabled = Q.shadows;
 renderer.shadowMap.type = Q.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
 // identifica a placa de vídeo (mostrado no menu de opções)
@@ -82,6 +86,9 @@ function build() {
   const blackwood = new Blackwood(scene, world, city);
   blackwood.build();
   city.buildTrees();
+  // grama 3D (não na qualidade Baixa)
+  const grass = Q.grass ? new Grass(scene, city.grassRects, (x, z) => world.groundFn(x, z), { radius: Q.grass, spacing: Q.grass > 60 ? 1.05 : 1.25 }) : null;
+  Batcher.recordHard = false; Batcher.hardGrid.clear();
   setSeed(777);
   const cars = []; const drivers = [];
   const makeCar = (type, color) => {
@@ -123,7 +130,7 @@ function build() {
   const blobGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const blobs = new THREE.InstancedMesh(blobGeo, new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }), 900);
   blobs.frustumCulled = false; blobs.renderOrder = 1; scene.add(blobs);
-  Object.assign(G, { blackwood, world, sky, city, zones, cars, drivers, player, npcs, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera, lampLights, glow, blobs });
+  Object.assign(G, { grass, blackwood, world, sky, city, zones, cars, drivers, player, npcs, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera, lampLights, glow, blobs });
   G.aiDrivers = []; G.police = [];
   G.audio = new EngineAudio();
   G.state = SAVE.newState();
@@ -929,6 +936,7 @@ G.storyPhotoTexture = (key) => {
 
 // ---------------- LAÇO PRINCIPAL ----------------
 const clock = new THREE.Clock();
+let shadowFrame = 0;
 let fpsAcc = 0, fpsN = 0, fpsShown = 0, lastAutosave = performance.now(), hourAcc = 0, pulsoCd = 0, vibeT = 120;
 const tmpV = new THREE.Vector3();
 function frame() {
@@ -936,12 +944,14 @@ function frame() {
   const dt = Math.min(clock.getDelta(), 1 / 20);
   G.perf.tick();
   if (!G.manual) { step(wheel.open ? dt * 0.25 : dt); adaptResolution(dt); }
+  // sombras recalculadas em quadros alternados na qualidade Média (o sol quase não se move)
+  if (Q.shadows && Q.shadowEvery > 1) { renderer.shadowMap.autoUpdate = false; if (++shadowFrame % Q.shadowEvery === 0) renderer.shadowMap.needsUpdate = true; }
   if (!G.noRender) renderer.render(scene, camera);
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 0.5) { fpsShown = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
   pressed.clear();
 }
-let interiorT = 0;
+let interiorT = 0, treeT = 0;
 function step(dt) {
   const p = G.player; const S = G.story;
   G.lights.update(dt); updateSirens(dt);
@@ -1088,6 +1098,8 @@ function step(dt) {
   updateSwitchAnim(dt);
   if (shakeT > 0) { shakeT -= dt; camera.position.x += (Math.random() - 0.5) * shakeT * 0.6; camera.position.y += (Math.random() - 0.5) * shakeT * 0.6; }
   G.sky.follow(p.x, p.z); G.sky.tick(dt);
+  if ((treeT -= dt) <= 0) { treeT = 0.5; G.city.updateTrees(camera.position.x, camera.position.z); }
+  if (G.grass) G.grass.update(dt, camera.position);
   // Blackwood é mais enevoada
   const fogT = p.x > 440 ? Math.min(1, (p.x - 440) / 50) : 0;
   G.sky.fogMul = (G.sky.fogMul || 1) + ((1 + fogT * 1.6) - (G.sky.fogMul || 1)) * Math.min(1, dt * 2);

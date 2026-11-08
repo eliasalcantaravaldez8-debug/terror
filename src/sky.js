@@ -4,8 +4,8 @@ import { nightMats, envRT } from './materials.js';
 import { setHeadlights } from './vehicle.js';
 
 export const TIMES = {
-  dia: { cloud: 0xffffff, cloudShade: 0x9aa6b8, cover: 0.42, label: 'Dia', top: 0x3f7fd0, horizon: 0xbcd6ee, bottom: 0x8aa0b0, sun: [0.35, 0.8, 0.45], sunColor: 0xfff3dd, sunI: 2.8, hemiSky: 0xbfd8ff, hemiGround: 0x6a6050, hemiI: 1.4, fog: 0xb9cfe0, fogD: 0.0032, night: 0, exposure: 1.0 },
-  entardecer: { cloud: 0xffb890, cloudShade: 0x5a4058, cover: 0.5, label: 'Entardecer', top: 0x2a3a6a, horizon: 0xf09a5a, bottom: 0x5a4a50, sun: [-0.7, 0.16, 0.45], sunColor: 0xffb878, sunI: 2.6, hemiSky: 0xa8b0d8, hemiGround: 0x6a5848, hemiI: 1.45, fog: 0xb09080, fogD: 0.0036, night: 0.5, exposure: 1.15 },
+  dia: { cloud: 0xffffff, cloudShade: 0x9aa6b8, cover: 0.42, label: 'Dia', top: 0x3f7fd0, horizon: 0xbcd6ee, bottom: 0x8aa0b0, sun: [0.35, 0.8, 0.45], sunColor: 0xfff1d8, sunI: 3.05, hemiSky: 0xbcd6ff, hemiGround: 0x6a5e4c, hemiI: 1.2, fog: 0xb9cfe0, fogD: 0.0032, night: 0, exposure: 1.0 },
+  entardecer: { cloud: 0xf2c0a0, cloudShade: 0x5a4a62, cover: 0.5, label: 'Entardecer', top: 0x2e4274, horizon: 0xe8a878, bottom: 0x5a4a50, sun: [-0.7, 0.16, 0.45], sunColor: 0xffc290, sunI: 2.6, hemiSky: 0xa8b0d8, hemiGround: 0x6a5848, hemiI: 1.45, fog: 0xb09888, fogD: 0.0036, night: 0.5, exposure: 1.05 },
   amanhecer: { cloud: 0xffd0b0, cloudShade: 0x6a6070, cover: 0.45, label: 'Amanhecer', top: 0x3a5a90, horizon: 0xf0b890, bottom: 0x6a6060, sun: [0.75, 0.15, -0.3], sunColor: 0xffc898, sunI: 2.2, hemiSky: 0xa8b8d8, hemiGround: 0x6a5a4a, hemiI: 1.3, fog: 0xc0a898, fogD: 0.0036, night: 0.35, exposure: 1.1 },
   noite: { cloud: 0x3a4058, cloudShade: 0x0c0e16, cover: 0.45, label: 'Noite', top: 0x050812, horizon: 0x1a2440, bottom: 0x0a0c14, sun: [0.3, 0.6, -0.5], sunColor: 0x8aa0d8, sunI: 0.6, hemiSky: 0x40508a, hemiGround: 0x2a2420, hemiI: 0.8, fog: 0x161c2c, fogD: 0.0055, night: 1, exposure: 1.25 },
 };

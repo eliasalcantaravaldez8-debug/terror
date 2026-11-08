@@ -240,6 +240,8 @@ export class NPC {
     this.heading = angDamp(this.heading, wantHeading, 7, dt);
     this.speed = damp(this.speed, moveSpeed, 8, dt);
     if (this.behavior !== 'sleep' && this.behavior !== 'chair' && !this.fixedY) this.y = damp(this.y, this.world.groundAt(this.x, this.z, 0.2, this.y), 20, dt);
+    // pedestres muito longe não são desenhados (a neblina já os esconderia)
+    if (this.role === 'ped') this.model.mesh.visible = pd < 150;
     this.animSkip += dt;
     const stepT = pd > 45 ? 0.1 : 0;
     if (this.animSkip >= stepT) {
