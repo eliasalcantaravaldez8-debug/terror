@@ -332,7 +332,7 @@ export class City {
         if (isEthan) {
           this.ethanHouse = { door: h.frame.pt(h.doorX, depth / 2 + 3.5), driveway: h.driveway, heading: h.drivewayHeading };
         } else if (rand() < 0.45) {
-          this.parkedCars.push({ x: h.driveway[0], z: h.driveway[1], heading: ry + (rand() < 0.5 ? 0 : Math.PI), type: pick(['sedan', 'hatch', 'suv', 'pickup']) });
+          this.parkedCars.push({ x: h.driveway[0], z: h.driveway[1], heading: ry + (rand() < 0.5 ? 0 : Math.PI), type: pick(['sedan', 'hatch', 'suv', 'pickup', 'popular', 'classico', 'besouro', 'luxo']) });
         }
         // cerca baixa da frente com aberturas no caminho e na entrada de carros
         const fz = side * (inner - 0.3);
@@ -456,7 +456,7 @@ export class City {
         if (rand() < 0.62) continue;
         const x = -w / 2 + 1.5 + i * 3;
         const [wx, wz] = f.pt(x, row * (d / 2 - 2.9));
-        this.parkedCars.push({ x: wx, z: wz, heading: ry + (row > 0 ? Math.PI : 0) + (rand() < 0.15 ? Math.PI : 0), type: pick(['sedan', 'hatch', 'suv', 'pickup', 'sedan', 'hatch', 'taxi']) });
+        this.parkedCars.push({ x: wx, z: wz, heading: ry + (row > 0 ? Math.PI : 0) + (rand() < 0.15 ? Math.PI : 0), type: pick(['sedan', 'hatch', 'suv', 'pickup', 'popular', 'luxo', 'coupe', 'taxi', 'besouro', 'classico', rand() < 0.15 ? 'furia' : 'sedan']) });
       }
     }
     // postes do estacionamento
@@ -604,12 +604,23 @@ export class City {
     f.box(M.red, inner - 3, CURB + 2.6, 0, 3.4, 0.2, 2.9, false);
     f.box(signMat('ESTACIONAMENTO', { bg: '#1b3d6e', glow: true }), inner - 3, CURB + 3.2, 1.3, 3, 0.6, 0.05, false, 3, 0.6);
     this.landmarks.push({ name: 'Estacionamento Central', x: F.x, z: F.z, kind: 'parking' });
-    // oficina mecânica
-    f.box(M.metal, -inner + 6, CURB, 0, 10, 5, 8, true, 2);
-    f.ao(-inner + 6, 0, 10, 8, 1.4);
-    f.box(M.darkTrim, -inner + 11.05, CURB, 0, 0.1, 3.6, 5, false);
-    f.box(signMat('OFICINA MECÂNICA', { bg: '#202020', fg: '#ffcc33', glow: true }), -inner + 11.1, CURB + 4.2, 0, 0.08, 0.7, 6, false, 6, 0.7);
-    { const [ox, oz] = f.pt(-inner + 15, 0); this.landmarks.push({ name: 'Oficina Mecânica', x: ox, z: oz, kind: 'oficina' }); }
+    // LOS VALLES CUSTOM: oficina de customização (garagem aberta para leste)
+    const gx = -inner + 7, gw = 14, gd = 13, gh = 5.2;
+    f.box(M.metal, gx - gw / 2 + 0.15, CURB, 0, 0.3, gh, gd, true, 2);
+    f.box(M.metal, gx, CURB, -gd / 2, gw, gh, 0.3, true, 2); f.box(M.metal, gx, CURB, gd / 2, gw, gh, 0.3, true, 2);
+    f.box(M.metalDark, gx, CURB + gh, 0, gw + 0.6, 0.35, gd + 0.6, true, 2);
+    f.box(M.darkTrim, gx + gw / 2, CURB + gh - 1, 0, 0.3, 1, gd, false);
+    f.add(plane(gw - 0.6, gd - 0.6, 2), M.tile, gx, CURB + 0.02, 0);
+    for (const z of [-3.5, 3.5]) f.add(box(gw * 0.7, 0.06, 0.5), M.ceilingLight, gx, CURB + gh - 0.08, z);
+    f.box(M.yellow, gx, CURB + 0.03, 0, 6, 0.04, 3.2, false); f.box(M.darkTrim, gx, CURB + 0.05, 0, 5.6, 0.04, 2.8, false);
+    for (let i = 0; i < 4; i++) f.box(M.red, gx - gw / 2 + 1, CURB, -gd / 2 + 1.2 + i * 1.1, 0.8, 1.1, 0.9, false);
+    for (let i = 0; i < 3; i++) f.add(cyl(0.38, 0.38, 0.9, 12), M.metalDark, gx + 4.5, CURB + 0.45, gd / 2 - 1 - i * 0.9);
+    f.box(signMat('LOS VALLES CUSTOM', { bg: '#14141a', fg: '#ff7a2a', glow: true, w: 1024, h: 128 }), gx + gw / 2 + 0.2, CURB + gh + 0.6, 0, 0.12, 1.1, 9, false, 9, 1.1);
+    f.ao(gx, 0, gw, gd, 1.6);
+    { const [lx, lz] = f.pt(gx, 0); this.lamps.push([lx, CURB + gh - 0.3, lz]); }
+    { const [ox, oz] = f.pt(gx, 0); this.landmarks.push({ name: 'Los Valles Custom', x: ox, z: oz, kind: 'oficina' }); this.customBay = { x: ox, z: oz, outX: ox + gw / 2 + 6, outZ: oz }; }
+    // tira carros estacionados de dentro da garagem
+    { const [ox, oz] = f.pt(gx, 0); this.parkedCars = this.parkedCars.filter((pc) => Math.abs(pc.x - ox) > gw / 2 + 3 || Math.abs(pc.z - oz) > gd / 2 + 3); }
   }
 
   apartBlock(F) {
@@ -699,12 +710,12 @@ export class City {
           // rua ao longo de Z: estacionado no lado direito do sentido de tráfego
           // sentido +z (h=0) tem direita em -x
           const hz = s < 0 ? 0 : Math.PI;
-          if (a > 0 && a < N || (a === 0 && s > 0) || (a === N && s < 0)) this.parkedCars.push({ x: roadC(a) + s * PARK_OFF, z: t, heading: hz, type: pick(['sedan', 'hatch', 'suv', 'sedan', 'pickup', 'taxi']) });
+          if (a > 0 && a < N || (a === 0 && s > 0) || (a === N && s < 0)) this.parkedCars.push({ x: roadC(a) + s * PARK_OFF, z: t, heading: hz, type: pick(['sedan', 'hatch', 'suv', 'popular', 'pickup', 'taxi', 'besouro', 'classico', 'luxo', 'coupe']) });
         }
         for (const s of [-1, 1]) {
           if (rand() < 0.84) continue;
           const hx = s > 0 ? Math.PI / 2 : -Math.PI / 2; // sentido +x tem direita em +z
-          if (a > 0 && a < N || (a === 0 && s > 0) || (a === N && s < 0)) this.parkedCars.push({ x: t, z: roadC(a) + s * PARK_OFF, heading: hx, type: pick(['sedan', 'hatch', 'suv', 'sedan', 'pickup']) });
+          if (a > 0 && a < N || (a === 0 && s > 0) || (a === N && s < 0)) this.parkedCars.push({ x: t, z: roadC(a) + s * PARK_OFF, heading: hx, type: pick(['sedan', 'hatch', 'suv', 'popular', 'pickup', 'besouro', 'coupe', 'luxo']) });
         }
       }
     }
@@ -730,6 +741,7 @@ export class City {
       const a = rand() * Math.PI * 2, r = rr(E + 12, E + 200);
       const x = Math.cos(a) * r, z = Math.sin(a) * r;
       if (Math.abs(x) > 440 || Math.abs(z) > 440 || inKeepOut(x, z, 6)) continue;
+      if (Math.abs(x) < HALF + 8 && Math.abs(z) < HALF + 8) continue; // nunca dentro da cidade/ruas
       // estradas de acesso aos locais
       if (Math.abs(x) < 10 || Math.abs(z) < 10 || Math.abs(z - 76) < 10 || Math.abs(x - 152) < 10 || Math.abs(x + 76) < 10 || Math.abs(x + 152) < 10) continue;
       this.trees.push([x, z, rr(1.0, 1.8), rand() < 0.45]);

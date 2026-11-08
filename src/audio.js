@@ -16,18 +16,34 @@ export class EngineAudio {
       this.o1.start(); this.o2.start();
     } catch (e) { this.ctx = null; }
   }
-  update(on, speed, throttle) {
+  // perfis de som por motor
+  setProfile(p) {
+    if (!this.ctx || p === this.profile) return; this.profile = p;
+    const P = ENGINE_PROFILES[p] || ENGINE_PROFILES.normal;
+    this.o1.type = P.w1; this.o2.type = P.w2; this.P = P;
+  }
+  update(on, speed, throttle, profile = 'normal') {
     if (!this.ctx) return;
+    this.setProfile(profile);
+    const P = this.P || ENGINE_PROFILES.normal;
     const t = this.ctx.currentTime;
-    const gear = Math.min(4, Math.floor(Math.abs(speed) / 9));
-    const rpm = 0.25 + ((Math.abs(speed) - gear * 9) / 9) * 0.6 + throttle * 0.15;
-    const f = 38 + rpm * 70 + gear * 6;
+    const gear = Math.min(P.gears, Math.floor(Math.abs(speed) / P.gearSpan));
+    const rpm = 0.25 + ((Math.abs(speed) - gear * P.gearSpan) / P.gearSpan) * 0.6 + throttle * 0.15;
+    const f = P.base + rpm * P.range + gear * 6;
     this.o1.frequency.setTargetAtTime(f, t, 0.05);
-    this.o2.frequency.setTargetAtTime(f * 0.5, t, 0.05);
-    this.filter.frequency.setTargetAtTime(400 + throttle * 900 + rpm * 400, t, 0.08);
-    this.gain.gain.setTargetAtTime(on && this.enabled ? 0.05 + throttle * 0.05 : 0, t, 0.15);
+    this.o2.frequency.setTargetAtTime(f * P.ratio, t, 0.05);
+    this.filter.frequency.setTargetAtTime(P.cut + throttle * P.cutT + rpm * 400, t, 0.08);
+    this.gain.gain.setTargetAtTime(on && this.enabled ? (0.05 + throttle * 0.05) * P.vol : 0, t, 0.15);
   }
 }
+const ENGINE_PROFILES = {
+  normal: { w1: 'sawtooth', w2: 'square', base: 38, range: 70, ratio: 0.5, gears: 4, gearSpan: 9, cut: 400, cutT: 900, vol: 1 },
+  small: { w1: 'sawtooth', w2: 'square', base: 48, range: 85, ratio: 0.5, gears: 4, gearSpan: 8, cut: 500, cutT: 800, vol: 0.85 },
+  heavy: { w1: 'sawtooth', w2: 'sawtooth', base: 30, range: 55, ratio: 0.5, gears: 4, gearSpan: 9, cut: 320, cutT: 700, vol: 1.1 },
+  boxer: { w1: 'square', w2: 'square', base: 26, range: 45, ratio: 0.75, gears: 3, gearSpan: 9, cut: 280, cutT: 500, vol: 1 },
+  v8: { w1: 'sawtooth', w2: 'sawtooth', base: 32, range: 75, ratio: 0.5, gears: 5, gearSpan: 11, cut: 380, cutT: 1100, vol: 1.15 },
+  v12: { w1: 'sawtooth', w2: 'triangle', base: 55, range: 140, ratio: 2, gears: 6, gearSpan: 15, cut: 900, cutT: 2200, vol: 1.1 },
+};
 
 // efeitos sonoros simples sintetizados (sem arquivos)
 export function sfx(ctx, name, dur = 1) {
@@ -40,6 +56,9 @@ export function sfx(ctx, name, dur = 1) {
     for (let i = 0; i < dur * 2; i++) { o.frequency.setValueAtTime(650, t + i * 0.5); o.frequency.linearRampToValueAtTime(950, t + i * 0.5 + 0.25); o.frequency.linearRampToValueAtTime(650, t + i * 0.5 + 0.5); }
     out.gain.setValueAtTime(0.05, t + dur - 0.3); out.gain.linearRampToValueAtTime(0, t + dur);
     o.start(t); o.stop(t + dur);
+  } else if (name === 'shotgun') {
+    const n = noise(0.6); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1400; n.connect(f); f.connect(out);
+    out.gain.setValueAtTime(0.7, t); out.gain.exponentialRampToValueAtTime(0.001, t + 0.55); n.start(t); n.stop(t + 0.55);
   } else if (name === 'crash' || name === 'shot' || name === 'punch') {
     const n = noise(name === 'crash' ? 1.2 : 0.4); const f = ctx.createBiquadFilter(); f.type = 'lowpass';
     f.frequency.value = name === 'shot' ? 3000 : name === 'punch' ? 500 : 900; n.connect(f); f.connect(out);

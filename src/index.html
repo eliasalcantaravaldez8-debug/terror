@@ -75,6 +75,10 @@
   #stars { position: fixed; top: 60px; right: 16px; font-size: 20px; letter-spacing: 2px; color: #fff; text-shadow: 0 2px 6px #000; }
   #stars.flash { animation: blink .6s infinite; }
   @keyframes blink { 50% { opacity: .3; } }
+  #weapon { position: fixed; right: 24px; bottom: 120px; font-size: 15px; text-shadow: 0 2px 6px #000; letter-spacing: .05em; }
+  #skiphint { position: fixed; right: 24px; top: calc(11vh + 12px); font-size: 12px; opacity: .65; z-index: 19; display: none; }
+  body.cine #banner { opacity: 0 !important; }
+  body.aiming .crosshair { width: 18px; height: 18px; margin: -9px; background: none; border: 2px solid rgba(255,255,255,.75); }
   #fuel { font-size: 12px; opacity: .85; margin-top: 2px; }
   #banner { position: fixed; top: 30%; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; opacity: 0; transition: opacity .6s; z-index: 15; }
   #banner .t { font-size: clamp(26px, 4vw, 44px); letter-spacing: .2em; color: var(--accent); text-shadow: 0 2px 10px #000; }
@@ -116,7 +120,7 @@
     <b>A pé:</b> WASD mover · Shift correr · Espaço pular<br>
     <b>Carro:</b> W acelerar · S frear/ré · A/D virar · Espaço freio de mão<br>
     <b>Câmera:</b> Mouse girar · Roda zoom<br>
-    <b>E</b> interagir · <b>F</b> golpear · <b>C</b> agachar · <b>T</b> celular<br><b>Q</b> Pulso Eletrônico (Ryan) · <b>N</b> horário · <b>Esc</b> opções/salvar
+    <b>E</b> interagir · <b>F</b> golpear · <b>C</b> agachar · <b>T</b> celular<br><b>1/2/3</b> mãos/pistola/escopeta · <b>botão direito</b> ou <b>V</b> mirar · <b>botão esquerdo</b> atirar · <b>R</b> recarregar<br><b>F3</b> desempenho · <b>F4</b> medir FPS · <b>X</b> pular cena<br><b>Q</b> Pulso Eletrônico (Ryan) · <b>N</b> horário · <b>Esc</b> opções/salvar
   </div>
   <div id="toast"></div>
   <div id="prompt"></div>
@@ -124,6 +128,8 @@
   <div id="speedo"><span id="speed">0</span> <small>km/h</small><span id="gear">N</span><div id="fuel"></div></div>
   <div id="fps"></div>
   <div class="crosshair"></div>
+  <div id="weapon"></div>
+  <div id="skiphint">[X] Pular cena</div>
   <div id="dialog"><div id="dialog-name"></div><div id="dialog-text"></div><div id="dialog-choices"></div><div class="hint" id="dialog-hint">[E] / clique para continuar</div></div>
   <div id="alert"><div id="alert-label"></div><div id="alert-bar"><div id="alert-fill"></div></div></div>
   <div id="stats"></div>
@@ -149,7 +155,8 @@
     <div id="quality-note"></div>
     <div class="row"><label for="opt-sound">Som do motor</label><input id="opt-sound" type="checkbox"></div>
     <div class="row"><label for="opt-adaptive">Resolução automática (mantém o FPS)</label><input id="opt-adaptive" type="checkbox"></div>
-    <div class="row"><label for="opt-fps">Mostrar FPS</label><input id="opt-fps" type="checkbox"></div>
+    <div class="row"><label for="opt-fps">Painel de desempenho (F3) · medição (F4)</label><input id="opt-fps" type="checkbox"></div>
+    <div class="row"><label for="opt-auto">Diálogos avançam sozinhos</label><input id="opt-auto" type="checkbox"></div>
     <div id="gpu-info" style="font-size:11px;opacity:.6;max-width:340px"></div>
     <div class="row-btns"><button id="btn-resume">CONTINUAR</button><button id="btn-save">SALVAR</button><button id="btn-load2">CARREGAR</button><button id="btn-switch">TROCAR PERSONAGEM</button></div>
   </div>

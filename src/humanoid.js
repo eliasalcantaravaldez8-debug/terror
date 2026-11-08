@@ -258,6 +258,7 @@ export class Humanoid {
         T.kneeL[0] += 0.9 * k; T.kneeR[0] += 0.9 * k; T.spine[0] += 0.25 * k;
       }
     }
+    if (p.aim) { T.shoulderR = [-1.55, 0, 0.05]; T.elbowR = [-0.05, 0, 0]; T.shoulderL = [-1.35, 0, -0.55]; T.elbowL = [-0.55, 0, 0]; T.chest = [0, 0.1, 0]; T.head = [0, -0.1, 0]; }
     if (p.phone) { T.shoulderR = [-0.35, 0, -0.25]; T.elbowR = [-2.4, 0.2, 0]; T.head = [0.05, 0.15, 0.1]; }
     if (this.punchT > 0) {
       this.punchT -= dt;

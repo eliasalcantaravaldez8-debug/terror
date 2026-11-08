@@ -53,7 +53,6 @@ export class TrafficDriver {
     const car = this.car;
     let L = this.lane(this.a, this.b, this.d);
     let p = (car.x - L.ox) * L.fx + (car.z - L.oz) * L.fz;
-    // troca de segmento ao entrar no cruzamento
     if (p > P - ROAD / 2 - 0.5) {
       const [fx, fz] = DIRS[this.d];
       this.a += fx; this.b += fz; this.d = this.next; this.next = this.chooseNext();
@@ -61,51 +60,95 @@ export class TrafficDriver {
       p = (car.x - L.ox) * L.fx + (car.z - L.oz) * L.fz;
     }
     const turning = this.next !== this.d;
+    const leftTurn = this.next === (this.d + 1) % 4;
+    // ultrapassagem de obstáculo parado (ex.: carro largado na faixa)
+    this.overtakeT = Math.max(0, (this.overtakeT || 0) - dt);
+    const off = this.overtakeT > 0 ? -3.4 : 0;
     const look = 4.5 + Math.abs(car.speed) * 0.45;
     const tp = Math.max(p, -6) + look;
-    const tx = L.ox + L.fx * tp, tz = L.oz + L.fz * tp;
-    // perseguição pura
+    const tx = L.ox + L.fx * tp - L.fz * off, tz = L.oz + L.fz * tp + L.fx * off;
     const s = Math.sin(car.heading), c = Math.cos(car.heading);
     const dx = tx - car.x, dz = tz - car.z;
     const lzT = dx * s + dz * c, lxT = dx * c - dz * s;
     const ld2 = Math.max(4, lxT * lxT + lzT * lzT);
     const angle = Math.atan(2 * car.T.wheelBase * lxT / ld2);
-    const maxSteer = 0.62 / (1 + Math.abs(car.speed) * 0.07);
+    const maxSteer = (car.T.steer || 0.62) / (1 + Math.abs(car.speed) * 0.07);
     const steer = Math.max(-1, Math.min(1, angle / maxSteer));
     // velocidade alvo
     let target = this.cruise;
     const toIntersection = P - ROAD / 2 - p;
-    if (turning && toIntersection < 18) target = Math.min(target, 5.5);
-    if (p < 0) target = Math.min(target, 6); // ainda fazendo a curva
+    if (toIntersection < 22) target = Math.min(target, turning ? 5 : 8.5);
+    if (p < 0) target = Math.min(target, 6);
     const stopP = P - ROAD / 2 - 3.8 - car.T.L / 2;
     const distStop = stopP - p;
+    const stopAt = (d) => { target = Math.min(target, Math.sqrt(2 * 3.5 * Math.max(0, d - 0.3))); };
     const light = ctx.lights.state(AXIS[this.d]);
     if (light !== 'G' && distStop > -0.5 && distStop < 35) {
-      if (!(light === 'Y' && distStop < 5)) target = Math.min(target, Math.sqrt(2 * 3.5 * Math.max(0, distStop - 0.3)));
+      if (!(light === 'Y' && distStop < 4)) stopAt(distStop);
     }
-    // obstáculos à frente (carros, jogador, pedestres)
-    let blockedByPlayer = false;
-    const checkObs = (ox, oz, halfLen, width) => {
-      const ddx = ox - car.x, ddz = oz - car.z;
-      if (ddx * ddx + ddz * ddz > 900) return;
-      const fwd = ddx * s + ddz * c, side = ddx * c - ddz * s;
-      if (fwd > 0 && fwd < 26 && Math.abs(side - steer * fwd * 0.08) < width) {
-        const gap = fwd - car.T.L / 2 - halfLen;
-        target = Math.min(target, Math.max(0, gap - 2.2) * 0.8);
-        return true;
+    // cruzamento ocupado / conversão à esquerda cede passagem
+    const [fx0, fz0] = DIRS[this.d];
+    const ix = roadC(this.a + fx0), iz = roadC(this.b + fz0);
+    const approaching = distStop > -0.5 && distStop < 14;
+    const inside = Math.abs(car.x - ix) < 7 && Math.abs(car.z - iz) < 7;
+    if (approaching || (leftTurn && inside)) {
+      for (const o of ctx.cars) {
+        if (o === car || o.removed) continue;
+        const ox = o.x - ix, oz = o.z - iz;
+        if (Math.abs(ox) > 40 || Math.abs(oz) > 40) continue;
+        const dot = Math.sin(o.heading) * s + Math.cos(o.heading) * c;
+        const oInside = Math.abs(ox) < 7 && Math.abs(oz) < 7;
+        // alguém atravessando dentro do cruzamento
+        if (approaching && oInside && dot < 0.8 && Math.abs(o.speed) > 0.3) stopAt(distStop);
+        // conversão à esquerda: espera quem vem no sentido contrário
+        if (leftTurn && dot < -0.7 && Math.abs(o.speed) > 1) {
+          const toI = -(ox * Math.sin(o.heading) + oz * Math.cos(o.heading));
+          if (toI > -4 && toI < 32) { if (approaching) stopAt(distStop); else if (inside) target = Math.min(target, 0); }
+        }
       }
-      return false;
+    }
+    // obstáculos: previsão de colisão pelo tempo até a aproximação máxima
+    const vx = car.velX, vz = car.velZ;
+    let blockedBy = null;
+    const checkObs = (o, ox, oz, ovx, ovz, halfLen, width) => {
+      const rx = ox - car.x, rz = oz - car.z;
+      if (rx * rx + rz * rz > 1200) return;
+      const fwd = rx * s + rz * c, side = rx * c - rz * s;
+      // à frente na mesma faixa
+      if (fwd > 0 && fwd < 28 && Math.abs(side - steer * fwd * 0.08) < width) {
+        const gap = fwd - car.T.L / 2 - halfLen;
+        target = Math.min(target, Math.max(0, gap - 2.5) * 0.75);
+        if (gap < 6) blockedBy = o;
+      }
+      // trajetórias que se cruzam nos próximos 2,5 s
+      const wx = ovx - vx, wz = ovz - vz; const w2 = wx * wx + wz * wz;
+      if (w2 > 1 && fwd > -2) {
+        const tca = -(rx * wx + rz * wz) / w2;
+        if (tca > 0 && tca < 2.5) {
+          const mx = rx + wx * tca, mz = rz + wz * tca;
+          if (mx * mx + mz * mz < (halfLen + car.T.L / 2) ** 2 * 0.55 + 2) target = Math.min(target, Math.max(0, Math.abs(car.speed) * (tca / 2.5) - 2));
+        }
+      }
     };
-    for (const o of ctx.cars) if (o !== car) checkObs(o.x, o.z, o.T.L / 2, 1.9);
-    if (ctx.player.mode === 'foot') blockedByPlayer = checkObs(ctx.player.x, ctx.player.z, 0.3, 1.6);
-    for (const n of ctx.npcs) if (n.dodge > 0) checkObs(n.x, n.z, 0.3, 1.5);
-    if (blockedByPlayer && car.speed < 0.5) this.honk += dt; else this.honk = 0;
+    for (const o of ctx.cars) if (o !== car && !o.removed) checkObs(o, o.x, o.z, o.velX, o.velZ, o.T.L / 2, 2.0);
+    if (ctx.player.mode === 'foot') checkObs(ctx.player, ctx.player.x, ctx.player.z, 0, 0, 0.4, 1.7);
+    for (const n of ctx.npcs) if (n.dodge > 0 || n.behavior === 'panic' || (n.alive && !n.inCar && Math.abs(n.x - car.x) < 12 && Math.abs(n.z - car.z) < 12 && Math.abs(car.x - n.x) + Math.abs(car.z - n.z) < 12 && ctxRoad(n))) checkObs(n, n.x, n.z, 0, 0, 0.3, 1.5);
+    // preso atrás de algo parado (sem semáforo) => ultrapassa quando a contramão está livre
+    if (blockedBy && Math.abs(blockedBy.speed || 0) < 0.3 && blockedBy.driver !== 'ai' && light === 'G' && car.speed < 0.5) this.blockT = (this.blockT || 0) + dt; else this.blockT = 0;
+    if (this.blockT > 5 && !this.overtakeT) {
+      const free = !ctx.cars.some((o) => o !== car && Math.abs(o.speed) > 1 && (Math.sin(o.heading) * s + Math.cos(o.heading) * c) < -0.7 && Math.hypot(o.x - car.x, o.z - car.z) < 45);
+      if (free) { this.overtakeT = 4.5; this.blockT = 0; }
+    }
+    if (this.overtakeT > 0) target = Math.max(target, 4);
+    if (blockedBy === ctx.player && car.speed < 0.5) this.honk += dt; else this.honk = 0;
     const err = target - car.speed;
-    const input = { throttle: Math.max(0, Math.min(1, err * 0.45)), brake: Math.max(0, Math.min(1, -err * 0.7)), steer, handbrake: 0 };
+    const input = { throttle: Math.max(0, Math.min(1, err * 0.45)), brake: Math.max(0, Math.min(1, -err * 0.8)), steer, handbrake: 0 };
     if (target < 0.3 && car.speed < 0.6) { input.brake = 1; input.throttle = 0; }
     car.update(dt, input, ctx.cars);
   }
 }
+// pedestre na pista? (fora das calçadas)
+function ctxRoad(n) { const u = (v) => { const k = ((v + 228 + 6) % P + P) % P; return k < ROAD; }; return u(n.x) || u(n.z); }
 
 export function spawnTraffic(count, makeCar, avoid) {
   const drivers = [];
@@ -117,8 +160,11 @@ export function spawnTraffic(count, makeCar, avoid) {
     const x = roadC(a) + fx * P / 2, z = roadC(b) + fz * P / 2;
     if (Math.hypot(x - avoid.x, z - avoid.z) < 40) continue;
     if (drivers.some((dr) => dr.a === a && dr.b === b && dr.d === d)) continue;
-    const car = makeCar(pick(['sedan', 'hatch', 'suv', 'pickup', 'taxi', 'sedan', 'police']));
-    drivers.push(new TrafficDriver(car, a, b, d));
+    const car = makeCar(pick(['sedan', 'hatch', 'popular', 'suv', 'pickup', 'taxi', 'sedan', 'police', 'luxo', 'coupe', 'classico', 'besouro']));
+    const drv = new TrafficDriver(car, a, b, d);
+    // não nasce em cima de outro carro
+    if (drivers.some((dr) => Math.hypot(dr.car.x - car.x, dr.car.z - car.z) < 12)) { car.place(car.x + DIRS[d][0] * 14, car.z + DIRS[d][1] * 14, car.heading); }
+    drivers.push(drv);
   }
   return drivers;
 }

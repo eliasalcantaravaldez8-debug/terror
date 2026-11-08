@@ -58,7 +58,7 @@ export class Story {
     if (this.alert) this.updateAlert(dt);
     this.updateCameras(dt);
   }
-  wait(sec) { const end = this.t + sec; return this.until(() => this.t >= end); }
+  wait(sec) { const end = this.t + sec; return this.until(() => this.t >= end || (this.cut && this.skipCut)); }
   until(pred) { return new Promise((res, rej) => this.waiters.push({ pred, res, rej })); }
   fail(msg) { const e = new Fail(msg); const ws = this.waiters; this.waiters = []; ws.forEach((w) => w.rej(e)); }
   abort() { const e = new Abort(); const ws = this.waiters; this.waiters = []; ws.forEach((w) => w.rej(e)); }
@@ -66,25 +66,30 @@ export class Story {
   task(fn) { fn().catch((e) => { if (!e.fail && !e.abort) console.error(e); }); }
   resolve(t) { if (!t) return null; if (typeof t === 'function') return t(); if (Array.isArray(t)) return t; return [t.x, t.z]; }
   // ---------- tela ----------
-  async fadeOut(sec = 0.8) { this.fadeCalls = (this.fadeCalls || 0) + 1; this.fadeTarget = 1; this.fadeSpeed = 1 / sec; await this.until(() => this.fade >= 1); }
-  async fadeIn(sec = 0.8) { this.fadeCalls = (this.fadeCalls || 0) + 1; this.fadeTarget = 0; this.fadeSpeed = 1 / sec; await this.until(() => this.fade <= 0); }
+  async fadeOut(sec = 0.8) { this.fadeCalls = (this.fadeCalls || 0) + 1; this.fadeTarget = 1; this.fadeSpeed = this.skipCut ? 8 : 1 / sec; await this.until(() => this.fade >= 1); }
+  async fadeIn(sec = 0.8) { this.fadeCalls = (this.fadeCalls || 0) + 1; this.fadeTarget = 0; this.fadeSpeed = this.skipCut ? 8 : 1 / sec; await this.until(() => this.fade <= 0); }
   async card(title, sub = '', sec = 3) {
     $('card-title').textContent = title; $('card-sub').textContent = sub; $('card').style.opacity = 1;
-    await this.wait(sec); $('card').style.opacity = 0; await this.wait(0.6);
+    await this.wait(this.skipCut ? 0.4 : sec); $('card').style.opacity = 0; await this.wait(0.3);
   }
   letterbox(v) { document.body.classList.toggle('cine', v); }
   // ---------- cutscene ----------
   async cutscene(fn) {
-    this.cut = true; this.G.inputLocked = true; this.letterbox(true);
+    this.cut = true; this.skipCut = false; this.G.inputLocked = true; this.letterbox(true);
     try { await fn(); } finally { this.endCut(); }
   }
   endCut() {
-    this.cut = false; this.G.inputLocked = false; this.letterbox(false); this.shotState = null; this.G.camOverride = false;
+    this.cut = false; this.skipCut = false; this.G.inputLocked = false; this.letterbox(false); this.shotState = null; this.G.camOverride = false;
     this.hideDialog();
     const p = this.G.player; const yaw = (p.mode === 'car' && this.G.car ? this.G.car.heading : p.heading) + Math.PI;
     this.G.cam.yaw = yaw; this.G.cam.pitch = 0.22; this.G.cam.initialized = false;
   }
-  shot(from, look, dur = 0, from2 = from, look2 = look) { this.G.camOverride = true; this.shotState = { from, look, from2, look2, dur, t: 0 }; }
+  shot(from, look, dur = 0, from2 = from, look2 = look) {
+    // corte suave: se já havia uma câmera de cena, desliza até o novo enquadramento
+    const cam = this.G.camera;
+    if (dur === 0 && this.shotState && from === from2) { const d = new THREE.Vector3(); cam.getWorldDirection(d); const p = cam.position.toArray(); this.shotState = { from: p, look: [p[0] + d.x * 4, p[1] + d.y * 4, p[2] + d.z * 4], from2: from, look2: look, dur: 0.55, t: 0 }; this.G.camOverride = true; return; }
+    this.G.camOverride = true; this.shotState = { from, look, from2, look2, dur, t: 0 };
+  }
   // aproxima a câmera do alvo se houver parede no caminho (evita tela preta dentro de construções)
   safe(from, look) {
     const dx = from[0] - look[0], dy = from[1] - look[1], dz = from[2] - look[2]; const L = Math.hypot(dx, dy, dz) || 1;
@@ -123,7 +128,8 @@ export class Story {
     }
     this.showDialog(name, text);
     this.advance = false; const t0 = this.t;
-    await this.until(() => this.advance && this.t - t0 > 0.35);
+    const autoT = Math.min(7, 2.2 + text.length * 0.05);
+    await this.until(() => (this.advance && this.t - t0 > 0.35) || (this.cut && this.skipCut) || (this.G.settings.autoDialog && this.t - t0 > autoT));
     this.advance = false; if (speaker) speaker.talking = false;
   }
   async choose(options, title = 'Ethan') {

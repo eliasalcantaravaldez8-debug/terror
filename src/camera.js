@@ -70,18 +70,20 @@ export class ThirdPersonCamera {
       const fov = this.fovBase + Math.min(14, Math.abs(car.speed) * 0.35);
       if (Math.abs(this.cam.fov - fov) > 0.05) { this.cam.fov = damp(this.cam.fov, fov, 3, dt); this.cam.updateProjectionMatrix(); }
     } else {
-      yaw = this.yaw; pitch = this.pitch; dist = this.footDist;
+      yaw = this.yaw; pitch = this.pitch; dist = this.aim ? 1.9 : this.footDist;
       // acompanha em XZ de forma firme e em Y mais suave (amortece pulos e degraus)
       this.smoothTarget.x = damp(this.smoothTarget.x, target.x, 16, dt);
       this.smoothTarget.z = damp(this.smoothTarget.z, target.z, 16, dt);
       this.smoothTarget.y = damp(this.smoothTarget.y, target.y, 9, dt);
-      if (Math.abs(this.cam.fov - this.fovBase) > 0.05) { this.cam.fov = damp(this.cam.fov, this.fovBase, 4, dt); this.cam.updateProjectionMatrix(); }
+      const tf = this.aim ? this.fovBase - 14 : this.fovBase;
+      if (Math.abs(this.cam.fov - tf) > 0.05) { this.cam.fov = damp(this.cam.fov, tf, 8, dt); this.cam.updateProjectionMatrix(); }
     }
     const cp = Math.cos(pitch), sp = Math.sin(pitch);
     let dx = Math.sin(yaw) * cp, dy = sp, dz = Math.cos(yaw) * cp;
     // deslocamento lateral leve (ombro) só a pé
     const t = this.smoothTarget;
-    let shoulder = this.mode === 'foot' ? 0.35 * Math.min(1, this.curDist / 3) : 0;
+    this.shoulderS = (this.shoulderS ?? 0.35) + ((this.aim && this.mode === 'foot' ? 0.6 : 0.35) - (this.shoulderS ?? 0.35)) * Math.min(1, 0.15);
+    let shoulder = this.mode === 'foot' ? this.shoulderS * Math.min(1, Math.max(this.curDist, 1.9) / 3) : 0;
     if (shoulder > 0) {
       this.world.rayIgnore = null;
       const hs = this.world.raycast(t.x, t.y, t.z, Math.cos(yaw), 0, -Math.sin(yaw), shoulder + 0.25);

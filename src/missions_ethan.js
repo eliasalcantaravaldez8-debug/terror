@@ -23,7 +23,7 @@ function guards(S, n, x, z, prefix = 'g') {
 }
 function hostile(S, key, look, x, z, tag, opts = {}) {
   const n = S.npc(key, look, { x, z, name: opts.name || 'Capanga', role: 'enemy', team: 'enemy', behavior: 'hostile', hp: opts.hp ?? 70, damage: opts.damage ?? 6, interactable: false, run: 4.2, ...opts });
-  n.team = 'enemy'; n.tag = tag; return n;
+  n.team = 'enemy'; n.tag = tag; n.gun = !!opts.gun; n.gunDmg = opts.gunDmg || 5; return n;
 }
 function ensureCar(S, G, key, type, color, x, z, h) { return S.car(key, type, color, x, z, h); }
 function bookPage(G) {
@@ -224,7 +224,7 @@ export const ETHAN_MISSIONS = [
         if (S.resumed) S.placePlayer(T[0] - 30, T[1] + 25, Math.PI * 0.75);
         const ryan = ryanNPC(S, G.player.x + 2, G.player.z + 1); S.follow(ryan, true);
         const gs = guards(S, 5, G.player.x - 3, G.player.z + 2); gs.forEach((g) => S.follow(g, true));
-        for (let i = 0; i < 8; i++) hostile(S, 'rival' + i, rivalLook(), T[0] + (i % 4) * 4 - 6, T[1] - 4 + Math.floor(i / 4) * 6, 'rival', { hp: 60, damage: 5 });
+        for (let i = 0; i < 8; i++) hostile(S, 'rival' + i, rivalLook(), T[0] + (i % 4) * 4 - 6, T[1] - 4 + Math.floor(i / 4) * 6, 'rival', { hp: 60, damage: 5, gun: i < 2 });
         const blake = hostile(S, 'blake', 'blake', T[0] + 6, T[1] - 8, 'blake', { name: 'Blake Morrison', hp: 9999, damage: 7 });
         S.failChecks = [() => G.player.hp <= 0 ? 'Ethan foi derrotado' : null];
         S.objective('Enfrente o grupo rival (F para golpear)', T);
@@ -444,7 +444,7 @@ export const ETHAN_MISSIONS = [
         const lucas = S.npc('lucas', 'lucas', { x: Z.lucasHall[0], z: Z.lucasHall[1] - 1, role: 'story', heading: 0, behavior: 'scripted', interactable: false });
         lucas.faceTo = [G.player.x, G.player.z];
         const hg = [];
-        for (let i = 0; i < 3; i++) hg.push(hostile(S, 'hallSeg' + i, mansionGuardLook(), Z.lucasHall[0] - 4 + i * 4, Z.lucasHall[1] + 0.5, 'hall', { name: 'Segurança', hp: 70, damage: 7 }));
+        for (let i = 0; i < 3; i++) hg.push(hostile(S, 'hallSeg' + i, mansionGuardLook(), Z.lucasHall[0] - 4 + i * 4, Z.lucasHall[1] + 0.5, 'hall', { name: 'Segurança', hp: 70, damage: 7, gun: i === 0 }));
         hg.forEach((n) => { n.behavior = 'scripted'; n.faceTo = [G.player.x, G.player.z]; });
         await S.cutscene(async () => {
           S.frame(G.player, lucas, 1, 3.6, 1.7);
@@ -510,7 +510,7 @@ export const ETHAN_MISSIONS = [
         G.aiDrivers = G.aiDrivers.filter((d) => d.car !== lcar);
         const [ix, iz] = Z.galpaoInside;
         for (let i = 0; i < 6; i++) hostile(S, 'gs' + i, mansionGuardLook(), ix + (i % 3) * 3 - 1, iz + (Math.floor(i / 3) * 6 - 3), 'galpao', { name: 'Capanga', hp: 55, damage: 5 });
-        for (let i = 0; i < 3; i++) hostile(S, 'cp' + i, policeLook(), ix + 8, iz - 3 + i * 3, 'galpao', { name: 'Policial corrupto', hp: 65, damage: 6 });
+        for (let i = 0; i < 3; i++) hostile(S, 'cp' + i, policeLook(), ix + 8, iz - 3 + i * 3, 'galpao', { name: 'Policial corrupto', hp: 65, damage: 6, gun: true });
         S.failChecks = [() => G.player.hp <= 0 ? 'Ethan foi derrotado' : null];
         S.objective('Entre no galpão e enfrente o grupo (F para golpear)', Z.galpaoDoor);
         await S.until(() => enemiesAlive(G, 'galpao').length === 0);

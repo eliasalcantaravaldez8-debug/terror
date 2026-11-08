@@ -174,7 +174,7 @@ export class NPC {
       }
       case 'hostile': {
         const tgt = ctx.nearestFoe ? ctx.nearestFoe(this, 40) : null;
-        if (tgt) { moveSpeed = this.fight(tgt, dt, ctx); wantHeading = Math.atan2(tgt.x - this.x, tgt.z - this.z); }
+        if (tgt) { moveSpeed = this.fight(tgt, dt, ctx); wantHeading = Math.atan2(tgt.x - this.x, tgt.z - this.z); } else this.aimPose = false;
         break;
       }
       case 'scripted': {
@@ -218,7 +218,7 @@ export class NPC {
     this.animSkip += dt;
     const stepT = pd > 45 ? 0.1 : 0;
     if (this.animSkip >= stepT) {
-      this.model.update(this.animSkip, { speed: this.speed, grounded: true, mode, talk: this.talking && mode === 'foot', crouch, phone: this.phone });
+      this.model.update(this.animSkip, { speed: this.speed, grounded: true, mode, talk: this.talking && mode === 'foot', crouch, phone: this.phone, aim: this.aimPose && this.behavior === 'hostile' });
       this.animSkip = 0;
     }
     this.sync();
@@ -233,6 +233,14 @@ export class NPC {
       if (ctx.tokens.has(this) || ctx.tokens.size < 2) { if (d < 3) ctx.tokens.add(this); }
       else { if (d < 2.8) return 0; const r = this.moveTo(tgt.x, tgt.z, 2.2, dt, 2.8); return r.speed; }
     }
+    // armados: param e atiram de longe
+    if (this.gun && d > 2 && d < 26 && ctx.npcShoot) {
+      this.aimPose = true;
+      if (this.attackCd <= 0) { this.attackCd = 1.3 + Math.random() * 0.9; ctx.npcShoot(this, tgt); }
+      if (d > 14) { const r = this.moveTo(tgt.x, tgt.z, 2.2, dt, 12); return r.speed; }
+      return 0;
+    }
+    this.aimPose = false;
     if (d > 1.25) { const r = this.moveTo(tgt.x, tgt.z, d > 4 ? this.runSpeed : 2.4, dt, 1.1); return r.speed; }
     if (this.attackCd <= 0) { this.attackCd = rr(1.1, 1.8); this.model.punch(); ctx.hit && ctx.hit(this, tgt, this.damage); }
     return 0;

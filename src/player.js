@@ -51,7 +51,7 @@ export class Player {
     if (ml > 1) { mx /= ml; mz /= ml; }
     const want = ml > 0.05;
     this.crouch = !!input.crouch && this.grounded;
-    const top = this.crouch ? 1.3 : input.run ? P.runSpeed : P.walkSpeed;
+    const top = this.crouch ? 1.3 : this.aiming ? 2.2 : input.run ? P.runSpeed : P.walkSpeed;
     const tvx = mx * top, tvz = mz * top;
     const control = this.grounded ? 1 : P.airControl;
     const k = (want ? (input.run ? P.runAccel : P.accel) : P.decel) * control;
@@ -68,7 +68,7 @@ export class Player {
     // rotação suave para a direção do movimento
     const prevHeading = this.heading;
     const sp = Math.hypot(this.vx, this.vz);
-    if (want && sp > 0.15) this.heading = angDamp(this.heading, Math.atan2(mx, mz), P.turnSpeed * (this.grounded ? 1 : 0.3), dt);
+    if (want && sp > 0.15 && !this.aiming) this.heading = angDamp(this.heading, Math.atan2(mx, mz), P.turnSpeed * (this.grounded ? 1 : 0.3), dt);
     let dh = this.heading - prevHeading;
     while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2;
     this.turn = damp(this.turn, dt > 0 ? dh / dt * 0.3 : 0, 8, dt);
@@ -102,7 +102,7 @@ export class Player {
     } else this.grounded = false;
     this.y = ny;
     this.speed = Math.hypot(this.vx, this.vz);
-    this.model.update(dt, { speed: this.speed, grounded: this.grounded, vy: this.vy, mode: this.pose || 'foot', turn: this.turn, accel: this.accel, crouch: this.crouch, phone: this.phone });
+    this.model.update(dt, { speed: this.speed, grounded: this.grounded, vy: this.vy, mode: this.pose || 'foot', turn: this.turn, accel: this.accel, crouch: this.crouch, phone: this.phone, aim: this.aiming });
     this.sync();
   }
   sync() {
