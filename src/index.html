@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entre Sombras</title>
+<style>
+  :root { --fg: #f1ece2; --accent: #e0a050; --panel: rgba(12, 12, 16, 0.82); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: var(--fg); font-family: 'Segoe UI', Arial, sans-serif; }
+  #game canvas { display: block; }
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+  #title { background: radial-gradient(ellipse at center, rgba(20,16,24,0.55), rgba(0,0,0,0.92)); z-index: 10; text-align: center; }
+  #title h1 { font-size: clamp(42px, 8vw, 96px); letter-spacing: 0.18em; margin: 0; font-weight: 300; text-shadow: 0 0 30px rgba(224,160,80,0.35); }
+  #title h2 { font-weight: 300; letter-spacing: 0.4em; color: var(--accent); margin: 8px 0 32px; font-size: 16px; }
+  button { background: transparent; color: var(--fg); border: 1px solid var(--accent); padding: 12px 42px; font-size: 18px; letter-spacing: 0.2em; cursor: pointer; }
+  button:hover:not(:disabled) { background: var(--accent); color: #111; }
+  button:disabled { opacity: 0.5; cursor: wait; }
+  .controls { margin-top: 28px; font-size: 14px; line-height: 1.8; opacity: 0.85; max-width: 560px; padding: 0 16px; }
+  kbd { border: 1px solid #888; border-radius: 3px; padding: 0 6px; font-size: 12px; background: rgba(255,255,255,0.08); }
+  #loading { margin-top: 16px; font-size: 13px; opacity: 0.7; }
+  #hud { display: none; pointer-events: none; }
+  #objective { position: fixed; top: 16px; left: 16px; background: var(--panel); padding: 10px 14px; border-left: 3px solid var(--accent); font-size: 14px; max-width: 46vw; }
+  #prompt { position: fixed; bottom: 22%; left: 50%; transform: translateX(-50%); background: var(--panel); padding: 8px 16px; border-radius: 4px; font-size: 16px; display: none; }
+  #toast { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); font-size: 26px; letter-spacing: 0.15em; text-shadow: 0 2px 8px #000; transition: opacity 0.8s; opacity: 0; text-align: center; }
+  #minimap { position: fixed; bottom: 16px; left: 16px; width: 190px; height: 190px; }
+  #speedo { position: fixed; bottom: 20px; right: 24px; text-align: right; display: none; text-shadow: 0 2px 6px #000; }
+  #speed { font-size: 54px; font-weight: 300; }
+  #speedo small { font-size: 14px; opacity: 0.8; }
+  #gear { display: inline-block; margin-left: 10px; color: var(--accent); font-size: 22px; }
+  #fps { position: fixed; top: 16px; right: 16px; font-size: 12px; opacity: 0.7; }
+  #help { position: fixed; top: 70px; left: 16px; background: var(--panel); padding: 10px 14px; font-size: 13px; line-height: 1.7; }
+  #dialog { position: fixed; bottom: 6%; left: 50%; transform: translateX(-50%); width: min(720px, 90vw); background: var(--panel); border-top: 2px solid var(--accent); padding: 16px 22px; display: none; pointer-events: auto; }
+  #dialog-name { color: var(--accent); font-weight: bold; margin-bottom: 6px; letter-spacing: 0.08em; }
+  #dialog-text { font-size: 18px; line-height: 1.5; }
+  #dialog .hint { text-align: right; font-size: 12px; opacity: 0.6; margin-top: 8px; }
+  #pause { background: rgba(0,0,0,0.7); display: none; z-index: 20; }
+  .panel { background: #15151b; border: 1px solid #333; padding: 24px 32px; min-width: 320px; max-width: 92vw; }
+  .panel h3 { margin: 0 0 16px; letter-spacing: 0.25em; font-weight: 300; color: var(--accent); }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 10px 0; font-size: 14px; }
+  .row input[type=range] { width: 160px; }
+  select { background: #222; color: var(--fg); border: 1px solid #444; padding: 4px; }
+  #quality-note { font-size: 12px; opacity: 0.7; min-height: 16px; }
+  .crosshair { position: fixed; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: rgba(255,255,255,0.5); }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="title" class="overlay">
+  <h1>ENTRE SOMBRAS</h1>
+  <h2>LOS VALLES</h2>
+  <button id="btn-play" disabled>CARREGANDO...</button>
+  <div id="loading"><span id="loading-text">Carregando...</span></div>
+  <div class="controls">
+    <kbd>W A S D</kbd> mover &nbsp; <kbd>Shift</kbd> correr &nbsp; <kbd>Espaço</kbd> pular / freio de mão<br>
+    <kbd>Mouse</kbd> girar a câmera &nbsp; <kbd>Roda</kbd> distância da câmera<br>
+    <kbd>E</kbd> entrar/sair do carro, falar &nbsp; <kbd>N</kbd> dia/entardecer/noite &nbsp; <kbd>Esc</kbd> opções &nbsp; <kbd>H</kbd> ajuda
+  </div>
+</div>
+<div id="hud">
+  <div id="objective"></div>
+  <div id="help" style="display:none">
+    <b>A pé:</b> WASD mover · Shift correr · Espaço pular<br>
+    <b>Carro:</b> W acelerar · S frear/ré · A/D virar · Espaço freio de mão<br>
+    <b>Câmera:</b> Mouse girar · Roda zoom<br>
+    <b>E</b> interagir · <b>N</b> horário · <b>Esc</b> opções
+  </div>
+  <div id="toast"></div>
+  <div id="prompt"></div>
+  <canvas id="minimap" width="190" height="190"></canvas>
+  <div id="speedo"><span id="speed">0</span> <small>km/h</small><span id="gear">N</span></div>
+  <div id="fps"></div>
+  <div class="crosshair"></div>
+  <div id="dialog"><div id="dialog-name"></div><div id="dialog-text"></div><div class="hint">[E] / clique para continuar</div></div>
+</div>
+<div id="pause" class="overlay">
+  <div class="panel">
+    <h3>OPÇÕES</h3>
+    <div class="row"><label for="opt-sens">Sensibilidade do mouse</label><span><input id="opt-sens" type="range" min="0.2" max="3" step="0.05"> <span id="opt-sens-v"></span></span></div>
+    <div class="row"><label for="opt-invert">Inverter eixo Y</label><input id="opt-invert" type="checkbox"></div>
+    <div class="row"><label for="opt-dist">Distância da câmera</label><span><input id="opt-dist" type="range" min="1.6" max="9" step="0.1"> <span id="opt-dist-v"></span></span></div>
+    <div class="row"><label for="opt-fov">Campo de visão</label><span><input id="opt-fov" type="range" min="55" max="90" step="1"> <span id="opt-fov-v"></span></span></div>
+    <div class="row"><label for="opt-follow">Câmera volta para trás do carro</label><input id="opt-follow" type="checkbox"></div>
+    <div class="row"><label for="opt-time">Horário</label><select id="opt-time"><option value="dia">Dia</option><option value="entardecer">Entardecer</option><option value="noite">Noite</option></select></div>
+    <div class="row"><label for="opt-quality">Qualidade gráfica</label><select id="opt-quality"><option value="baixa">Baixa (PC fraco)</option><option value="media">Média</option><option value="alta">Alta</option></select></div>
+    <div id="quality-note"></div>
+    <div class="row"><label for="opt-sound">Som do motor</label><input id="opt-sound" type="checkbox"></div>
+    <div class="row"><label for="opt-fps">Mostrar FPS</label><input id="opt-fps" type="checkbox"></div>
+    <div class="row" style="justify-content:center;margin-top:20px"><button id="btn-resume">CONTINUAR</button></div>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
