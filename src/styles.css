@@ -1,0 +1,140 @@
+:root {
+  --hud: rgba(235, 232, 220, 0.92);
+  --hud-dim: rgba(235, 232, 220, 0.55);
+  --accent: #d9b15a;
+  --red: #c8352b;
+  --panel: rgba(12, 14, 13, 0.55);
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: var(--hud); user-select: none; }
+#app, #game-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 5; }
+
+/* ---------------- loading */
+#loading { position: fixed; inset: 0; background: #050606; display: flex; align-items: center; justify-content: center; z-index: 50; transition: opacity .7s; }
+#loading.done { opacity: 0; }
+.loading-inner { width: min(520px, 80vw); text-align: center; }
+.loading-track { height: 3px; background: #222; margin: 34px 0 12px; }
+#loading-bar { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+#loading-label { font-size: 13px; letter-spacing: 2px; color: var(--hud-dim); text-transform: uppercase; }
+
+/* ---------------- logo */
+.logo { text-align: center; }
+.logo-top { font-size: 18px; letter-spacing: 14px; color: var(--hud-dim); padding-left: 14px; }
+.logo-main { font-size: 64px; font-weight: 800; letter-spacing: 10px; color: #ece6d6; text-shadow: 0 4px 30px rgba(0,0,0,.8); padding-left: 10px; }
+.logo-sub { margin-top: 8px; font-size: 14px; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; }
+.logo.small .logo-main { font-size: 40px; }
+
+/* ---------------- menus */
+#menus { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 20; background: radial-gradient(ellipse at center, rgba(0,0,0,.35), rgba(0,0,0,.85)); }
+.menu { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 40px; max-width: 760px; width: 100%; }
+.menu.main-menu { align-items: flex-start; margin-left: 8vw; align-self: center; }
+.menu.main-menu .logo { text-align: left; }
+.menu h2 { margin: 0; letter-spacing: 8px; font-weight: 700; font-size: 30px; }
+.menu h2.red { color: var(--red); }
+.menu-buttons { display: flex; flex-direction: column; gap: 6px; min-width: 340px; }
+.menu button { background: rgba(20,22,20,.6); color: var(--hud); border: 1px solid rgba(255,255,255,.08); border-left: 3px solid transparent; padding: 13px 20px; font-size: 15px; letter-spacing: 3px; text-transform: uppercase; text-align: left; cursor: pointer; transition: all .12s; font-family: inherit; }
+.menu button:hover { background: rgba(217,177,90,.16); border-left-color: var(--accent); padding-left: 26px; }
+.menu button.primary { border-left-color: var(--accent); }
+.menu button small { display: block; font-size: 11px; letter-spacing: 1px; color: var(--hud-dim); text-transform: none; margin-top: 3px; }
+.menu-foot { font-size: 11px; color: var(--hud-dim); letter-spacing: 1px; margin-top: 30px; }
+.menu .hint { max-width: 520px; text-align: center; color: var(--hud-dim); line-height: 1.6; }
+.settings { display: grid; gap: 12px; min-width: 460px; background: var(--panel); padding: 20px 24px; }
+.settings label { display: grid; grid-template-columns: 220px 1fr 50px; align-items: center; gap: 10px; font-size: 14px; letter-spacing: 1px; }
+.settings label.chk { grid-template-columns: 22px 1fr; }
+.settings select, .settings input[type=range] { width: 100%; accent-color: var(--accent); }
+.settings select { background: #111; color: var(--hud); border: 1px solid #333; padding: 6px; }
+table.controls { border-collapse: collapse; min-width: 420px; background: var(--panel); }
+table.controls td { padding: 9px 18px; border-bottom: 1px solid rgba(255,255,255,.05); font-size: 14px; }
+table.controls td.k { color: var(--accent); letter-spacing: 1px; width: 45%; }
+
+/* ---------------- HUD */
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
+#hud > * { position: absolute; }
+#vignette-damage { inset: 0; background: radial-gradient(ellipse at center, rgba(120,0,0,0) 40%, rgba(110,0,0,.75) 100%); opacity: 0; }
+#fps { top: 8px; right: 12px; font-size: 12px; color: #8f8; }
+
+#compass { top: 18px; left: 50%; width: 300px; height: 26px; margin-left: -150px; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); opacity: 0; transition: opacity .5s; }
+#hud.combat #compass { opacity: 1; }
+#compass-strip { position: absolute; top: 0; left: 0; height: 100%; width: 1440px; }
+#compass-strip .cd { position: absolute; top: 2px; transform: translateX(-50%); font-size: 14px; font-weight: 700; letter-spacing: 1px; text-shadow: 0 1px 3px #000; }
+#compass-strip .cd.minor { font-size: 11px; color: var(--hud-dim); top: 4px; }
+#compass-strip .tick { position: absolute; top: 8px; width: 1px; height: 8px; background: var(--hud-dim); }
+#compass-needle { position: absolute; left: 50%; bottom: 0; width: 2px; height: 6px; background: var(--accent); margin-left: -1px; }
+
+#objective { top: 70px; left: 34px; max-width: 380px; opacity: 0; transition: opacity .6s; }
+#objective.visible { opacity: 1; }
+#objective .obj-label { font-size: 11px; letter-spacing: 3px; color: var(--accent); }
+#objective #obj-text { font-size: 16px; margin-top: 4px; text-shadow: 0 1px 4px #000; line-height: 1.35; }
+#objective.flash #obj-text { animation: objflash 1.6s ease-out; }
+@keyframes objflash { 0% { color: var(--accent); transform: translateX(-8px); } 100% { color: var(--hud); transform: none; } }
+
+#obj-marker { top: 0; left: 0; display: none; text-align: center; transform-origin: 0 0; }
+#obj-marker .diamond { width: 14px; height: 14px; border: 2px solid var(--accent); transform: translate(-50%,-50%) rotate(45deg); margin-left: 0; box-shadow: 0 0 6px rgba(0,0,0,.6); position: relative; left: 0; }
+#obj-dist { font-size: 11px; transform: translateX(-50%); margin-top: 4px; color: var(--accent); text-shadow: 0 1px 3px #000; position: relative; left: 0; white-space: nowrap; }
+
+#crosshair { left: 50%; top: 50%; --gap: 10px; opacity: 0; }
+#crosshair i { position: absolute; background: var(--hud); box-shadow: 0 0 2px #000; }
+#crosshair .t, #crosshair .b { width: 2px; height: 9px; left: -1px; }
+#crosshair .l, #crosshair .r { height: 2px; width: 9px; top: -1px; }
+#crosshair .t { top: calc(-1 * var(--gap) - 9px); }
+#crosshair .b { top: var(--gap); }
+#crosshair .l { left: calc(-1 * var(--gap) - 9px); }
+#crosshair .r { left: var(--gap); }
+#crosshair b { position: absolute; width: 2px; height: 2px; left: -1px; top: -1px; background: var(--hud); }
+
+#hitmarker { left: 50%; top: 50%; opacity: 0; }
+#hitmarker i { position: absolute; width: 2px; height: 9px; background: #fff; box-shadow: 0 0 2px #000; }
+#hitmarker i:nth-child(1) { transform: translate(-8px,-14px) rotate(-45deg); }
+#hitmarker i:nth-child(2) { transform: translate(6px,-14px) rotate(45deg); }
+#hitmarker i:nth-child(3) { transform: translate(-8px,4px) rotate(45deg); }
+#hitmarker i:nth-child(4) { transform: translate(6px,4px) rotate(-45deg); }
+#hitmarker.kill i { background: #e23a2a; }
+
+#dmg-indicators { left: 50%; top: 50%; }
+.dmg-ind { position: absolute; left: 0; top: 0; width: 90px; height: 26px; background: radial-gradient(ellipse at center bottom, rgba(200,30,20,.85), rgba(200,30,20,0) 70%); border-top: 3px solid rgba(220,40,30,.8); border-radius: 50% 50% 0 0; }
+
+#prompt { left: 50%; top: 62%; transform: translateX(-50%); font-size: 15px; letter-spacing: 1px; opacity: 0; transition: opacity .2s; text-shadow: 0 1px 3px #000; }
+#prompt.visible { opacity: 1; }
+#prompt .key { display: inline-block; border: 1px solid var(--hud); padding: 1px 7px; margin-right: 6px; font-weight: 700; background: rgba(0,0,0,.4); }
+
+#subtitles { left: 50%; bottom: 13%; transform: translateX(-50%); width: min(900px, 80vw); text-align: center; font-size: 19px; line-height: 1.45; text-shadow: 0 0 6px #000, 0 2px 3px #000; opacity: 0; transition: opacity .2s; }
+#subtitles.visible { opacity: 1; }
+#subtitles .speaker { color: var(--accent); font-weight: 700; letter-spacing: 1px; }
+#subtitles.radio .speaker { color: #8fc0d8; }
+
+#ammo { right: 40px; bottom: 34px; text-align: right; transition: opacity .3s; }
+#ammo.hidden { opacity: 0; }
+#weapon-name { font-size: 12px; letter-spacing: 3px; color: var(--hud-dim); }
+.ammo-row { font-weight: 700; text-shadow: 0 2px 5px rgba(0,0,0,.8); }
+#ammo-mag { font-size: 44px; }
+#ammo-mag.low { color: var(--red); }
+.ammo-row .sep { font-size: 22px; color: var(--hud-dim); margin: 0 4px; }
+#ammo-res { font-size: 22px; color: var(--hud-dim); }
+#grenades { margin-top: 4px; }
+#grenades .gr { display: inline-block; width: 10px; height: 13px; border-radius: 5px 5px 4px 4px; background: var(--hud); margin-left: 5px; }
+#reload-hint { font-size: 12px; letter-spacing: 2px; color: var(--accent); opacity: 0; transition: opacity .2s; margin-top: 6px; }
+#reload-hint.visible { opacity: 1; }
+
+#health { left: 40px; bottom: 40px; width: 230px; height: 5px; background: rgba(255,255,255,.12); opacity: 0; transition: opacity .5s; }
+#hud.combat #health { opacity: 1; }
+#health-fill { height: 100%; width: 100%; background: var(--hud); transition: width .15s; }
+#health.low #health-fill { background: var(--red); }
+
+#toast { left: 50%; top: 22%; transform: translateX(-50%); font-size: 14px; letter-spacing: 4px; text-transform: uppercase; background: rgba(0,0,0,.45); padding: 8px 20px; opacity: 0; transition: opacity .4s; white-space: nowrap; }
+#toast.visible { opacity: 1; }
+
+#titlecard { left: 6vw; bottom: 22%; opacity: 0; transition: opacity 1.6s; }
+#titlecard.visible { opacity: 1; }
+#titlecard .tl { text-shadow: 0 2px 8px #000; }
+#titlecard .tl0 { font-size: 13px; letter-spacing: 8px; color: var(--hud-dim); }
+#titlecard .tl1 { font-size: 34px; font-weight: 800; letter-spacing: 6px; margin: 6px 0; }
+#titlecard .tl2 { font-size: 15px; letter-spacing: 2px; color: var(--accent); }
+#titlecard .tl3 { font-size: 13px; letter-spacing: 2px; color: var(--hud-dim); margin-top: 6px; }
+
+#nametags { inset: 0; }
+.nametag { position: absolute; left: 0; top: 0; font-size: 11px; letter-spacing: 2px; color: #9fd08a; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+#killfeed { right: 40px; top: 40%; text-align: right; font-size: 13px; letter-spacing: 2px; color: var(--hud); }
+#killfeed div { animation: kf 2.2s forwards; text-shadow: 0 1px 3px #000; margin-bottom: 4px; }
+@keyframes kf { 0% { opacity: 0; transform: translateX(10px); } 10% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
