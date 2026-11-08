@@ -107,6 +107,20 @@ Popular 1.0, Hatch Pulse, Sedan Aurora, SUV Montana, Picape Bravo, Imperial Luxo
 - **Sombras** suaves, sombra de contato embaixo de carros e pessoas e escurecimento na base das casas e prédios.
 - Árvores com folhagem texturizada e pinheiros, meio-fio de pedra, tampas de bueiro e vinheta de cinema.
 
+## Casas com interior
+
+- **Todas as 162 casas** de Los Valles e de Blackwood podem ser visitadas: a porta da frente fica aberta, é só subir a varanda e entrar.
+- O térreo de cada casa tem:
+  - **sala**: sofá, almofadas, mesa de centro, tapete, TV ligada com rack e som, estante de livros, abajur de chão, planta, quadro e foto de família;
+  - **cozinha**: geladeira com ímãs e bilhetes, armários, bancada, pia com torneira, fogão de 4 bocas com forno, coifa, micro-ondas e azulejos;
+  - **jantar**: mesa com 4 cadeiras e fruteira;
+  - **quarto**: cama de casal com colcha, travesseiros e cabeceira, criado-mudo com abajur e porta-retrato, guarda-roupa, tapete e quadro;
+  - **banheiro**: vaso sanitário, pia com espelho, box com vidro e tapetinho.
+- Janelas com cortinas iluminadas pela luz de fora. Piso de madeira (porcelanato no banheiro), rodapé, forro com luminárias.
+- Cada casa tem cores próprias nas paredes, nos tecidos e nos armários, e um tapete, quadros e colcha próprios.
+- Na casa do Ryan dá para **dormir na cama** ([E] Dormir) além da porta.
+- Desempenho: o interior de cada casa só é desenhado quando você está a menos de 40 m dela. Na rua, perto das casas, a diferença medida foi de cerca de 10 chamadas de desenho. O carregamento ficou 1 a 2 segundos mais lento.
+
 ## Lojas, comidas e bebidas
 
 - **Produtos desenhados**: cada loja tem prateleiras com embalagens de verdade (marcas fictícias): cereais, leite, sucos, café, arroz, feijão, latas de conserva, salgadinhos, chocolates, produtos de limpeza, refrigerantes em lata e garrafa PET, água, cerveja, remédios, xaropes, shampoos, pães, sonhos, bolos, croissants, hambúrgueres, cachorro-quente, pizza, batata frita, ferramentas, latas de tinta, eletrônicos, roupas dobradas e antiguidades.

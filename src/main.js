@@ -89,7 +89,7 @@ function build() {
   };
   const eh = city.ethanHouse;
   // vitrine: Fúria V12, Besouro e Coupé estacionados na rua em frente à casa
-  const sz = roadC(3) - 4.75; const showcase = [['furia', 0xd8a010, eh.door[0] + 9, sz], ['besouro', 0x6aa8c8, eh.door[0] - 6, sz], ['coupe', 0xb01818, eh.door[0] + 22, sz]];
+  const sz = roadC(3) - 4.75; const showcase = [['furia', 0xd8a010, eh.door[0] + 9, sz], ['besouro', 0x6aa8c8, eh.door[0] - 6, sz], ['coupe', 0xb01818, eh.door[0] - 13, sz]];
   const cleared = city.parkedCars.filter((pc) => !showcase.some((sc) => Math.hypot(pc.x - sc[2], pc.z - sc[3]) < 7));
   for (const pc of cleared) { const c = makeCar(pc.type); c.place(pc.x, pc.z, pc.heading); c.parked = true; }
   for (const [type, color, x, z] of showcase) { const c = makeCar(type, color); c.place(x, z, -Math.PI / 2); c.parked = true; c.fuel = 1; }
@@ -847,6 +847,7 @@ function frame() {
   if (fpsAcc > 0.5) { fpsShown = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
   pressed.clear();
 }
+let interiorT = 0;
 function step(dt) {
   const p = G.player; const S = G.story;
   G.lights.update(dt); updateSirens(dt);
@@ -872,6 +873,8 @@ function step(dt) {
   if (active && !locked2 && hit('KeyF')) playerPunch();
   punchCd -= dt; pulsoCd -= dt;
   updateEat(dt);
+  // interiores das casas: só desenha os que estão perto (o jogador ou a câmera)
+  if ((interiorT -= dt) <= 0) { interiorT = 0.25; const cx = G.camera.position.x, cz = G.camera.position.z; for (const it of G.city.interiors) { const dx = it.x - p.x, dz = it.z - p.z, ex = it.x - cx, ez = it.z - cz; it.group.visible = dx * dx + dz * dz < 1600 || ex * ex + ez * ez < 900; } }
   if (active && !locked2 && hit('KeyQ') && G.campaign().tools.pulso) {
     if (pulsoCd > 0) toast('Pulso recarregando: ' + Math.ceil(pulsoCd) + 's', 1);
     else { pulsoCd = 16; let n = 0; for (const c of S.cameras) if (Math.hypot(c.x - p.x, c.z - p.z) < 26) { c.disabled = 8; n++; } toast(n ? `Pulso Eletrônico: ${n} câmera(s) desligada(s) por 8s` : 'Nenhuma câmera por perto', 2); G.sound('ping'); }
@@ -885,7 +888,7 @@ function step(dt) {
     const car = G.carsLocked ? null : nearestCar();
     const H = G.city.ethanHouse; const lm = G.city.landmarks;
     const nearHosp = lm.find((l) => l.kind === 'hospital' && Math.hypot(l.x - p.x, l.z - p.z) < 5);
-    const nearDoor = !G.mission && Math.hypot(H.door[0] - p.x, H.door[1] - p.z) < 1.8;
+    const nearDoor = !G.mission && (Math.hypot(H.door[0] - p.x, H.door[1] - p.z) < 1.8 || (H.bed && Math.hypot(H.bed[0] - p.x, H.bed[1] - p.z) < 2.0));
     const free = active && !locked2 && !S.cut;
     if (G.storyPrompt) prompt = G.storyPrompt;
     else if (startM) { prompt = `[E] Iniciar missão: ${startM.title}`; if (free && G.consumeInteract()) runMission(startM, 0, false); }

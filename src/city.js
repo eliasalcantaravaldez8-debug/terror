@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { Batcher, box, plane, gableRoof, cyl, mat } from './geo.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import * as TX from './textures.js';
-import { mats, signMat, prodMat, paint } from './materials.js';
+import { mats, signMat, prodMat, homeMat, paint } from './materials.js';
 import { rand, rr, pick, setSeed } from './textures.js';
 import { inKeepOut, hillHeight, inBlackwood, bwOnRoad } from './places.js';
 
@@ -91,7 +91,7 @@ export class City {
     this.root = new THREE.Group(); this.root.name = 'LosValles';
     scene.add(this.root);
     this.parkedCars = []; this.npcs = []; this.trees = []; this.shopkeepers = []; this.landmarks = [];
-    this.pedLoops = []; this.lamps = [];
+    this.pedLoops = []; this.lamps = []; this.interiors = [];
     world.groundFn = groundHeight;
     this.M = mats();
     this.chunks = new Map();
@@ -265,8 +265,8 @@ export class City {
     // fundação
     f.box(M.concrete, 0, y0, 0, w + 0.3, 0.45, d + 0.3, false);
     f.ao(0, 0, w + 0.3, d + 0.3, 1.3);
-    f.box(sid, 0, y0 + 0.45, 0, w, wallH, d, false, 3, 3);
-    f.collide(0, 0, 0, w + 0.3, wallH + 2, d + 0.3);
+    const wy = y0 + 0.45, t = 0.2; // piso interno e espessura das paredes
+    f.collide(0, 0, 0, w + 0.3, wy, d + 0.3); // piso (sobe-se pela varanda)
     // rodapé e cantoneiras
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) f.box(M.trim, sx * (w / 2), y0 + 0.45, sz * (d / 2), 0.18, wallH, 0.18, false);
     f.box(M.trim, 0, y0 + 0.45 + wallH - 0.15, 0, w + 0.1, 0.18, d + 0.1, false);
@@ -279,9 +279,20 @@ export class City {
     if (rand() < 0.45) f.box(M.facade.brick, w * 0.3, y0 + wallH - 0.5, -d * 0.15, 0.7, rh + 1.6, 0.7, false, 3, 3);
     // porta, varanda
     const doorX = opts.doorX ?? rr(-w * 0.25, w * 0.25);
-    f.box(M.woodDark, doorX, y0 + 0.45, d / 2 + 0.02, 1.0, 2.1, 0.08, false, 1);
-    f.box(M.trim, doorX, y0 + 0.45 + 2.1, d / 2 + 0.03, 1.25, 0.12, 0.1, false);
-    f.box(M.metalLight, doorX + 0.35, y0 + 1.45, d / 2 + 0.08, 0.06, 0.06, 0.06, false);
+    // paredes ocas: dá para entrar pela porta da frente (aberta para dentro)
+    const wallBox = (lx, lz, bw, bh, bd, by = wy) => { f.box(sid, lx, by, lz, bw, bh, bd, false, 3, 3); f.collide(lx, by === wy ? 0 : by, lz, bw, by === wy ? wy + bh : bh, bd); };
+    wallBox(0, -d / 2 + t / 2, w, wallH, t);
+    for (const sx of [-1, 1]) wallBox(sx * (w / 2 - t / 2), 0, t, wallH, d - 2 * t);
+    const dl = doorX - 0.55 + w / 2, dr = w / 2 - doorX - 0.55;
+    wallBox(-w / 2 + dl / 2, d / 2 - t / 2, dl, wallH, t);
+    wallBox(w / 2 - dr / 2, d / 2 - t / 2, dr, wallH, t);
+    wallBox(doorX, d / 2 - t / 2, 1.1, wallH - 2.2, t, wy + 2.2);
+    f.box(M.woodDark, doorX - 0.5 + 0.04, wy, d / 2 - t - 0.5, 0.08, 2.1, 1.0, false, 1); // folha da porta aberta
+    f.box(M.metalLight, doorX - 0.5 + 0.1, wy + 1.0, d / 2 - t - 0.9, 0.05, 0.05, 0.05, false);
+    f.box(M.trim, doorX, wy + 2.2, d / 2 + 0.03, 1.4, 0.12, 0.1, false);
+    for (const s2 of [-1, 1]) f.box(M.trim, doorX + s2 * 0.62, wy, d / 2 + 0.03, 0.1, 2.25, 0.1, false);
+    f.box(M.concrete, doorX, y0, d / 2 + 2.0, 1.6, 0.2, 0.45, true); // degrau
+    f.collide(doorX, 0, d / 2 + 0.9, 2.6, y0 + 0.4, 1.8); // varanda
     f.box(M.concrete, doorX, y0, d / 2 + 0.9, 2.6, 0.3, 1.8, false);
     f.box(M.wood, doorX, y0 + 0.3, d / 2 + 0.9, 2.8, 0.1, 1.8, false, 2);
     f.box(M.trim, doorX, y0 + 2.9, d / 2 + 1.0, 3.0, 0.12, 2.0, false);
@@ -290,11 +301,12 @@ export class City {
       f.collide(doorX + s * 1.3, 0, d / 2 + 1.7, 0.25, 2.8, 0.25);
     }
     // janelas
+    const wins = [];
     const winRow = (y, n, face) => {
       for (let i = 0; i < n; i++) {
         const along = face === 'front' || face === 'back' ? w : d;
         const t = -along / 2 + (i + 0.5) * (along / n);
-        if (face === 'front' && y < 2 && Math.abs(t - doorX) < 1.6) continue;
+        if (face === 'front' && y < 2.5 && Math.abs(t - doorX) < 1.6) { rand(); rand(); continue; } // (mantém a sequência aleatória do mundo)
         const lit = rand() < 0.5;
         const g = lit ? M.winLit : M.winDark;
         const place = (ax, az, rot) => {
@@ -309,6 +321,7 @@ export class City {
             f.add(box(0.4, 1.35, 0.05), M.darkTrim, ax + ox, y0 + y, az + oz, rot);
           }
         };
+        if (y < 2.5) wins.push([face, t]);
         if (face === 'front') place(t, d / 2 + 0.03, 0);
         else if (face === 'back') place(t, -d / 2 - 0.03, 0);
         else if (face === 'left') place(-w / 2 - 0.03, t, Math.PI / 2);
@@ -338,7 +351,204 @@ export class City {
       f.add(new THREE.IcosahedronGeometry(rr(0.45, 0.7), 0), M.hedge, bx, y0 + 0.4, d / 2 + 0.6);
     }
     const [wx, wz] = f.pt(dx, d / 2 + front - 1.5);
-    return { frame: f, driveway: [wx, wz], drivewayHeading: ry + Math.PI, w, d, doorX, front };
+    const bed = this.houseInterior(f, w, d, wy, fh, t, doorX, wins, opts.owner);
+    return { frame: f, driveway: [wx, wz], drivewayHeading: ry + Math.PI, w, d, doorX, front, bed };
+  }
+
+  // ---------- INTERIOR DAS CASAS ----------
+  // Térreo com sala de estar, cozinha, mesa de jantar, quarto e banheiro. Fica num grupo próprio
+  // que só é desenhado quando o jogador está perto (não pesa no resto da cidade).
+  // Usa um gerador aleatório próprio (semente pela posição) para não mudar o resto do mundo.
+  houseInterior(f0, w, d, wy, fh, t, doorX, wins, owner) {
+    const M = this.M; const IB = new Batcher();
+    const g = new Frame(f0.x, f0.z, f0.ry, IB, this.world);
+    let st = (Math.floor(Math.abs(f0.x * 73.1 + f0.z * 131.7)) % 2147483646) + 1;
+    const R = () => (st = (st * 16807) % 2147483647) / 2147483647;
+    const RP = (a) => a[Math.floor(R() * a.length)];
+    const P = (c) => paint(M.flatIn, c);
+    const sub = (lx, lz, ry) => new Frame(...g.pt(lx, lz), g.ry + ry, IB, this.world);
+    const xa = -w / 2 + t, xb = w / 2 - t, za = -d / 2 + t, zb = d / 2 - t;
+    const rs = doorX >= 0 ? -1 : 1; const RW = w >= 10.5 ? 3.6 : 3.2;
+    const px = rs * (w / 2 - t - RW); const zBath = za + 2.2;
+    const [mx0, mx1] = rs === 1 ? [xa, px - 0.06] : [px + 0.06, xb];
+    const [sx0, sx1] = rs === 1 ? [px + 0.06, xb] : [xa, px - 0.06];
+    const ox = rs === 1 ? xa : xb; // parede externa da área social
+    const bOuter = rs === 1 ? xb : xa; // parede externa do quarto
+    const wallC = RP([0xe8dcc4, 0xd8e4dc, 0xe8d4c8, 0xdcd8e8, 0xf0ead8, 0xc8d8e0]);
+    const bedC = RP([0xc8d8e8, 0xe8d0d8, 0xd8e8c8, 0xe8e0c8]);
+    const fabric = RP([0x5a6a7a, 0x8a3a2a, 0x3a5a4a, 0x7a6a5a, 0x2a3a5a, 0x9a8a6a]);
+    const cab = RP([0xf0ece4, 0x5a7a8a, 0x8a6a4a, 0x3a4a3a]);
+    const H = fh - 0.03, DOOR = 2.1;
+    // ---- pisos, forro e luminárias ----
+    const floor = (x0, x1, z0, z1, m) => g.add(plane(x1 - x0, z1 - z0, 2), m, (x0 + x1) / 2, wy + 0.012, (z0 + z1) / 2);
+    floor(mx0, mx1, za, zb, M.interiorWood); floor(sx0, sx1, zBath + 0.06, zb, M.interiorWood); floor(sx0, sx1, za, zBath - 0.06, M.tile);
+    g.add(plane(w - 2 * t, d - 2 * t, 4), M.ceiling, 0, wy + fh - 0.02, 0, 0, Math.PI);
+    for (const [cx, cz] of [[(mx0 + mx1) / 2, za + 2.4], [(mx0 + mx1) / 2, zb - 2.2], [(sx0 + sx1) / 2, (zBath + zb) / 2], [(sx0 + sx1) / 2, (za + zBath) / 2]])
+      g.add(cyl(0.22, 0.28, 0.07, 14), M.ceilingLight, cx, wy + fh - 0.06, cz);
+    // ---- revestimento das paredes de cada cômodo (com vãos de porta) ----
+    const lineRoom = (x0, x1, z0, z1, m, gaps) => {
+      const side = (alongX, fixed, a0, a1, gs, inward) => {
+        let cur = a0; const segs = [];
+        for (const [ga, gb] of (gs || []).slice().sort((p, q) => p[0] - q[0])) { if (ga > cur) segs.push([cur, ga, 0, H]); segs.push([ga, gb, DOOR, H]); cur = gb; }
+        if (a1 > cur) segs.push([cur, a1, 0, H]);
+        for (const [p0, p1, h0, h1] of segs) {
+          const L = p1 - p0, c = (p0 + p1) / 2; if (L < 0.02) continue;
+          if (alongX) { g.box(m, c, wy + h0, fixed + inward * 0.011, L, h1 - h0, 0.02, false); if (!h0) g.box(M.trim, c, wy, fixed + inward * 0.025, L, 0.1, 0.03, false); }
+          else { g.box(m, fixed + inward * 0.011, wy + h0, c, 0.02, h1 - h0, L, false); if (!h0) g.box(M.trim, fixed + inward * 0.025, wy, c, 0.03, 0.1, L, false); }
+        }
+      };
+      side(true, z1, x0, x1, gaps.n, -1); side(true, z0, x0, x1, gaps.s, 1); side(false, x0, z0, z1, gaps.w, 1); side(false, x1, z0, z1, gaps.e, -1);
+    };
+    const bedDoor = [zb - 1.4, zb - 0.45]; const bathDoor = [Math.min(px + rs * 0.3, px + rs * 1.1), Math.max(px + rs * 0.3, px + rs * 1.1)];
+    const mainG = { n: [[doorX - 0.55, doorX + 0.55]] }; mainG[rs === 1 ? 'e' : 'w'] = [bedDoor];
+    lineRoom(mx0, mx1, za, zb, P(wallC), mainG);
+    const bedG = { s: [bathDoor] }; bedG[rs === 1 ? 'w' : 'e'] = [bedDoor];
+    lineRoom(sx0, sx1, zBath + 0.06, zb, P(bedC), bedG);
+    lineRoom(sx0, sx1, za, zBath - 0.06, P(0xf2f4f4), { n: [bathDoor] });
+    // ---- paredes internas (estrutura + colisão) ----
+    const wallPiece = (lx, lz, bw, bd, h0 = 0, h1 = fh) => { g.box(P(0xf0ece4), lx, wy + h0, lz, bw, h1 - h0, bd, false); if (!h0) g.collide(lx, wy, lz, bw, h1, bd); };
+    // divisória vertical (x = px), vão da porta do quarto
+    const vz = [[za, bedDoor[0]], [bedDoor[1], zb]];
+    for (const [a, b] of vz) wallPiece(px, (a + b) / 2, 0.12, b - a);
+    wallPiece(px, (bedDoor[0] + bedDoor[1]) / 2, 0.12, bedDoor[1] - bedDoor[0], DOOR, fh);
+    // divisória do banheiro (z = zBath)
+    const bx0 = Math.min(sx0, sx1), bx1 = Math.max(sx0, sx1);
+    for (const [a, b] of [[bx0, bathDoor[0]], [bathDoor[1], bx1]]) if (b - a > 0.05) wallPiece((a + b) / 2, zBath, b - a, 0.12);
+    wallPiece((bathDoor[0] + bathDoor[1]) / 2, zBath, bathDoor[1] - bathDoor[0], 0.12, DOOR, fh);
+    // ---- janelas por dentro: cortina iluminada, varão e cortinas laterais ----
+    const curtainC = RP([0xe8e0c8, 0x8a3a2a, 0x3a5a7a, 0xd8c8a8, 0x6a7a5a]);
+    for (const [face, tt] of wins) {
+      const [lx, lz, ry] = face === 'front' ? [tt, zb - 0.03, 0] : face === 'back' ? [tt, za + 0.03, Math.PI] : face === 'left' ? [xa + 0.03, tt, -Math.PI / 2] : [xb - 0.03, tt, Math.PI / 2];
+      const s = sub(lx, lz, ry);
+      s.add(box(1.2, 1.3, 0.02, 1.2, 1.3), homeMat('curtain', true), 0, wy + 1.55, 0);
+      s.box(M.trim, 0, wy + 0.86, -0.04, 1.4, 0.05, 0.12, false);
+      s.box(M.metalDark, 0, wy + 2.32, -0.08, 1.9, 0.03, 0.03, false);
+      for (const k of [-1, 1]) s.box(P(curtainC), k * 0.8, wy + 0.7, -0.07, 0.32, 1.62, 0.05, false);
+    }
+    // ---- móveis ----
+    const sofa = (s) => {
+      const c = P(fabric), cl = P(fabric + 0x101010);
+      s.box(c, 0, wy, 0, 2.0, 0.42, 0.9, false); s.box(c, 0, wy, -0.35, 2.0, 0.88, 0.2, false);
+      for (const k of [-1, 1]) { s.box(c, k * 0.92, wy, 0, 0.16, 0.62, 0.9, false); s.box(cl, k * 0.42, wy + 0.42, 0.07, 0.8, 0.12, 0.68, false); s.box(cl, k * 0.42, wy + 0.42, -0.2, 0.8, 0.42, 0.14, false); }
+      s.box(P(RP([0xd8a01a, 0xc8c0b0, 0xb02a2a, 0x2a5a8a])), 0.62, wy + 0.54, -0.08, 0.32, 0.3, 0.1, false);
+      s.collide(0, wy, 0, 2.0, 0.88, 0.9);
+    };
+    const tvSet = (s) => {
+      s.box(M.woodDark, 0, wy, 0, 1.7, 0.5, 0.45, false, 1);
+      s.box(M.metalDark, 0, wy + 0.5, -0.02, 0.3, 0.05, 0.2, false); s.box(M.metalDark, 0, wy + 0.55, -0.02, 0.05, 0.12, 0.05, false);
+      s.box(M.metalDark, 0, wy + 0.65, -0.03, 1.32, 0.78, 0.05, false);
+      s.add(box(1.24, 0.7, 0.01, 1.24, 0.7), homeMat('tvhome', true), 0, wy + 1.04, 0.0);
+      s.box(M.metalDark, -0.6, wy + 0.5, 0.05, 0.25, 0.08, 0.2, false); // aparelho de som
+      s.collide(0, wy, 0, 1.7, 1.45, 0.45);
+    };
+    const shelf = (s) => {
+      s.box(M.woodDark, 0, wy, -0.15, 1.0, 1.9, 0.04, false, 1);
+      for (const k of [-1, 1]) s.box(M.woodDark, k * 0.48, wy, 0, 0.04, 1.9, 0.34, false, 1);
+      for (let r = 0; r < 5; r++) {
+        s.box(M.woodDark, 0, wy + 0.02 + r * 0.44, 0, 0.92, 0.03, 0.32, false, 1);
+        if (r < 4) s.add(box(0.9, 0.36, 0.22, 0.9, 0.36), homeMat('books'), 0, wy + 0.23 + r * 0.44, -0.03);
+      }
+      s.collide(0, wy, 0, 1.0, 1.9, 0.36);
+    };
+    const plant = (lx, lz) => { g.add(cyl(0.18, 0.13, 0.4, 10), P(0xa8582a), lx, wy + 0.2, lz); g.add(new THREE.IcosahedronGeometry(0.38, 0), M.hedge, lx, wy + 0.75, lz); g.add(new THREE.IcosahedronGeometry(0.26, 0), M.hedge, lx + 0.1, wy + 1.05, lz - 0.05); g.collide(lx, wy, lz, 0.4, 0.8, 0.4); };
+    const lamp = (lx, lz) => { g.add(cyl(0.16, 0.16, 0.03, 12), M.metalDark, lx, wy + 0.02, lz); g.add(cyl(0.02, 0.02, 1.5, 6), M.metalDark, lx, wy + 0.77, lz); g.add(cyl(0.16, 0.24, 0.3, 12), homeMat('curtain', true), lx, wy + 1.6, lz); };
+    const painting = (s, key, y = 1.7, pw = 0.8, ph = 0.6) => { s.box(M.woodDark, 0, wy + y - ph / 2 - 0.04, 0.0, pw + 0.08, ph + 0.08, 0.03, false); s.add(box(pw, ph, 0.01, pw, ph), homeMat(key), 0, wy + y, 0.02); };
+    const rug = (lx, lz, rw, rd, key) => g.add(plane(rw, rd, rw, rd), homeMat(key), lx, wy + 0.016, lz);
+    // ---- área social: cozinha (fundo), jantar e sala (frente) ----
+    const mcx = (mx0 + mx1) / 2, MW = mx1 - mx0, kd = rs; // cozinha vai da parede externa para a divisória
+    const KL = Math.min(MW - 0.6, 4.1);
+    const kz = za + 0.32; let kp = 0;
+    const kx = (wid) => ox + kd * (kp + wid / 2);
+    const counterTop = P(RP([0x2a2a2c, 0x5a5048, 0xd8d4cc]));
+    const counter = (wid, sink = false, micro = false) => {
+      const x = kx(wid); g.box(P(cab), x, wy, kz, wid - 0.01, 0.86, 0.6, false);
+      g.box(counterTop, x, wy + 0.86, kz + 0.01, wid, 0.04, 0.64, false);
+      g.box(M.metalLight, x, wy + 0.72, kz + 0.31, 0.3, 0.03, 0.02, false);
+      if (sink) { g.box(M.metalLight, x, wy + 0.895, kz + 0.04, 0.55, 0.02, 0.4, false); g.add(cyl(0.02, 0.02, 0.3, 6), M.metalLight, x, wy + 1.05, kz - 0.2); g.box(M.metalLight, x, wy + 1.18, kz - 0.12, 0.03, 0.03, 0.18, false); }
+      if (micro) { g.box(M.metalDark, x, wy + 0.9, kz - 0.05, 0.5, 0.3, 0.36, false); g.add(box(0.3, 0.2, 0.01), P(0x1a1a1a), x - 0.05, wy + 1.05, kz + 0.135); }
+      kp += wid;
+    };
+    { const x = kx(0.8); g.add(box(0.78, 1.85, 0.68, 0.78, 1.85), homeMat('fridge'), x, wy + 0.925, kz + 0.02); kp += 0.8; }
+    counter(0.6, false, true);
+    { const x = kx(0.75); g.add(box(0.74, 0.86, 0.6, 0.74, 0.86), homeMat('oven'), x, wy + 0.43, kz); g.add(box(0.74, 0.03, 0.6, 0.74, 0.6), homeMat('stove'), x, wy + 0.875, kz); g.box(M.metalDark, x, wy + 1.6, kz - 0.05, 0.7, 0.18, 0.45, false); kp += 0.75; }
+    while (kp < KL - 0.55) counter(Math.min(0.9, KL - kp), kp > 1.9 && kp < 2.9);
+    g.add(box(kp - 0.8, 0.55, 0.02, kp - 0.8, 0.55), homeMat('tiles'), ox + kd * (0.8 + (kp - 0.8) / 2), wy + 1.18, za + 0.012);
+    g.collide(ox + kd * kp / 2, wy, kz, kp, 0.9, 0.66);
+    // mesa de jantar com 4 cadeiras e fruteira
+    { const tz = za + 2.45, tx = mcx; const tm = M.wood;
+      g.box(tm, tx, wy + 0.72, tz, 1.4, 0.05, 0.85, false, 1);
+      for (const [a, b] of [[-0.62, -0.35], [0.62, -0.35], [-0.62, 0.35], [0.62, 0.35]]) g.box(M.woodDark, tx + a, wy, tz + b, 0.06, 0.72, 0.06, false);
+      for (const [a, side] of [[-0.35, -1], [0.35, -1], [-0.35, 1], [0.35, 1]]) {
+        const cz = tz + side * 0.62; g.box(M.woodDark, tx + a, wy + 0.43, cz, 0.42, 0.04, 0.42, false, 1);
+        g.box(M.woodDark, tx + a, wy + 0.47, cz + side * 0.19, 0.42, 0.5, 0.04, false, 1);
+        for (const [la, lb] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) g.box(M.woodDark, tx + a + la, wy, cz + lb, 0.035, 0.43, 0.035, false);
+      }
+      g.add(cyl(0.16, 0.1, 0.08, 12), M.white, tx, wy + 0.79, tz);
+      for (const [a, b, c] of [[0, 0, 0xc41a1a], [0.07, 0.04, 0xf2c21a], [-0.06, 0.05, 0x4ab02a], [0.02, -0.07, 0xf08a10]]) g.add(new THREE.SphereGeometry(0.05, 8, 6), P(c), tx + a, wy + 0.87, tz + b);
+      g.collide(tx, wy, tz, 1.5, 0.78, 1.95);
+      rug(tx, tz, 2.2, 2.4, 'rug' + Math.floor(R() * 4));
+    }
+    // sala: sofá na parede externa, TV na divisória, mesa de centro e tapete
+    const sofaZ = 1.4;
+    sofa(sub(ox + rs * 0.5, sofaZ, rs * Math.PI / 2));
+    tvSet(sub(px - rs * 0.3, sofaZ, -rs * Math.PI / 2));
+    { const cx = ox + rs * 1.6; g.box(M.wood, cx, wy + 0.38, sofaZ, 0.55, 0.05, 1.0, false, 1);
+      for (const [a, b] of [[-0.22, -0.44], [0.22, -0.44], [-0.22, 0.44], [0.22, 0.44]]) g.box(M.woodDark, cx + a, wy, sofaZ + b, 0.05, 0.38, 0.05, false);
+      g.box(homeMat('books'), cx, wy + 0.43, sofaZ - 0.2, 0.25, 0.04, 0.32, false, 0.25, 0.04);
+      g.add(cyl(0.06, 0.05, 0.1, 10), P(0xf2f2f2), cx + 0.05, wy + 0.48, sofaZ + 0.25);
+      g.collide(cx, wy, sofaZ, 0.6, 0.43, 1.05);
+      rug(ox + rs * 1.7, sofaZ, 2.0, 2.8, 'rug' + Math.floor(R() * 4)); }
+    lamp(ox + rs * 0.35, sofaZ + 1.35);
+    plant(ox + rs * 0.4, zb - 0.45);
+    shelf(sub(px - rs * 0.24, -0.4, -rs * Math.PI / 2));
+    painting(sub(px - rs * 0.075, za + 2.45, -rs * Math.PI / 2), 'art' + Math.floor(R() * 8), 1.65, 1.0, 0.7);
+    painting(sub(px - rs * 0.075, sofaZ, -rs * Math.PI / 2), 'photo', 1.95, 0.9, 0.42);
+    // ---- quarto ----
+    const bedZ = (zBath + zb) / 2 + 0.2;
+    { const s = sub(bOuter - rs * 1.07, bedZ, -rs * Math.PI / 2); const wd = M.woodDark;
+      s.box(wd, 0, wy, 0, 1.5, 0.35, 2.05, false, 1);
+      s.box(P(0xf4f2ec), 0, wy + 0.35, 0.02, 1.42, 0.2, 1.95, false);
+      s.add(box(1.5, 0.06, 1.4, 1.5, 1.4), homeMat('quilt' + Math.floor(R() * 4)), 0, wy + 0.58, 0.32);
+      for (const k of [-1, 1]) s.box(P(0xffffff), k * 0.36, wy + 0.55, -0.72, 0.58, 0.14, 0.36, false);
+      s.box(wd, 0, wy, -1.04, 1.6, 0.95, 0.08, false, 1);
+      s.collide(0, wy, 0, 1.6, 0.62, 2.12);
+      painting(sub(bOuter - rs * 0.025, bedZ - 0.35, -rs * Math.PI / 2), 'art' + Math.floor(R() * 8), 1.7, 0.9, 0.55);
+      // criado-mudo com abajur e porta-retrato
+      const nx = bOuter - rs * 0.28, nz = bedZ - 1.05;
+      g.box(M.wood, nx, wy, nz, 0.45, 0.52, 0.42, true, 1);
+      g.add(cyl(0.06, 0.08, 0.2, 10), P(0x3a3a3a), nx, wy + 0.62, nz); g.add(cyl(0.1, 0.16, 0.2, 12), homeMat('curtain', true), nx, wy + 0.8, nz);
+      g.add(box(0.14, 0.1, 0.02, 0.14, 0.1), homeMat('photo'), nx + rs * 0.0, wy + 0.58, nz + 0.12);
+      rug(bOuter - rs * 1.4, bedZ, 2.4, 2.2, 'rug' + Math.floor(R() * 4));
+    }
+    // guarda-roupa encostado na parede do banheiro
+    { const s = sub(bOuter - rs * 0.8, zBath + 0.06 + 0.31, 0);
+      s.box(M.woodDark, 0, wy, 0, 1.3, 2.05, 0.6, false, 1);
+      s.box(P(0x1a1410), 0, wy + 0.05, 0.305, 0.015, 1.95, 0.01, false);
+      for (const k of [-1, 1]) s.box(M.metalLight, k * 0.08, wy + 1.0, 0.31, 0.03, 0.25, 0.03, false);
+      s.collide(0, wy, 0, 1.3, 2.05, 0.6); }
+    // ---- banheiro ----
+    { const tx = bOuter - rs * 0.42, tz = za + 0.42;
+      g.add(cyl(0.17, 0.14, 0.4, 12), M.white, tx, wy + 0.2, tz + 0.05); g.add(cyl(0.2, 0.2, 0.04, 14), M.white, tx, wy + 0.42, tz + 0.05);
+      g.box(M.white, tx, wy + 0.3, za + 0.12, 0.42, 0.42, 0.18, false); g.collide(tx, wy, tz, 0.5, 0.75, 0.75);
+      const sx = (bOuter + px) / 2 + rs * 0.2;
+      g.add(cyl(0.08, 0.1, 0.78, 10), M.white, sx, wy + 0.39, za + 0.28); g.box(M.white, sx, wy + 0.78, za + 0.25, 0.55, 0.12, 0.42, false);
+      g.add(cyl(0.015, 0.015, 0.15, 6), M.metalLight, sx, wy + 0.95, za + 0.1);
+      g.add(box(0.6, 0.8, 0.02, 0.6, 0.8), homeMat('mirror'), sx, wy + 1.55, za + 0.015);
+      g.collide(sx, wy, za + 0.25, 0.6, 0.9, 0.45);
+      // box do chuveiro no canto da divisória
+      const shx = px + rs * 0.53;
+      g.box(M.white, shx, wy, za + 0.47, 0.9, 0.06, 0.9, false);
+      g.add(box(0.9, 1.9, 0.01, 0.9, 1.9), homeMat('bathtile'), shx, wy + 1.0, za + 0.015);
+      g.add(box(0.9, 1.9, 0.02), M.glass, shx, wy + 1.0, za + 0.93);
+      g.add(cyl(0.08, 0.08, 0.03, 10), M.metalLight, shx, wy + 2.0, za + 0.25);
+      g.collide(shx, wy, za + 0.47, 0.92, 1.95, 0.94);
+      g.box(P(RP([0x3a6aa8, 0xf2f2f2, 0xd88a3a])), tx + rs * 0.0, wy + 0.016, zBath - 0.5, 0.6, 0.01, 0.4, false); // tapetinho
+    }
+    const grp = new THREE.Group(); grp.name = 'interior';
+    IB.flush(grp, { castShadow: false });
+    grp.visible = false; this.root.add(grp);
+    this.interiors.push({ group: grp, x: f0.x, z: f0.z, rooms: { quarto: g.pt((sx0 + sx1) / 2, (zBath + zb) / 2), banheiro: g.pt((sx0 + sx1) / 2, (za + zBath) / 2), sala: g.pt((mx0 + mx1) / 2, 1.4), cozinha: g.pt((mx0 + mx1) / 2, za + 2.4) } });
+    return g.pt(bOuter - rs * 1.07, bedZ);
   }
 
   residential(F, j, k) {
@@ -352,9 +562,9 @@ export class City {
         const depth = 8.5, front = 8.5;
         const zc = side * (inner - front - depth / 2 - 1.8);
         const isEthan = j === 0 && k === 2 && side === 1 && i === 2;
-        const h = this.house(F, lx, zc, ry, { d: depth, front, floors: isEthan ? 2 : undefined, siding: isEthan ? M.siding[1] : undefined, doorX: isEthan ? 1.5 : undefined });
+        const h = this.house(F, lx, zc, ry, { d: depth, front, floors: isEthan ? 2 : undefined, siding: isEthan ? M.siding[1] : undefined, doorX: isEthan ? 1.5 : undefined, owner: isEthan });
         if (isEthan) {
-          this.ethanHouse = { door: h.frame.pt(h.doorX, depth / 2 + 3.5), driveway: h.driveway, heading: h.drivewayHeading };
+          this.ethanHouse = { door: h.frame.pt(h.doorX, depth / 2 + 3.5), driveway: h.driveway, heading: h.drivewayHeading, bed: h.bed };
         } else if (rand() < 0.45) {
           this.parkedCars.push({ x: h.driveway[0], z: h.driveway[1], heading: ry + (rand() < 0.5 ? 0 : Math.PI), type: pick(['sedan', 'hatch', 'suv', 'pickup', 'popular', 'classico', 'besouro', 'luxo']) });
         }

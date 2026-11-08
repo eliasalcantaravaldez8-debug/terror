@@ -496,3 +496,106 @@ export function shopWindowCanvas() {
   g.fillStyle = 'rgba(255,255,255,0.12)'; g.beginPath(); g.moveTo(300, 0); g.lineTo(330, 0); g.lineTo(260, 256); g.lineTo(230, 256); g.fill();
   WIN = c; return c;
 }
+
+// ---------- DECORAÇÃO DAS CASAS (atlas 1024x1024) ----------
+function rugDraw(g, x, y, w, h, v) {
+  const P = [['#7a1a1a', '#e8c890', '#1a2a4a'], ['#1a3a5a', '#d8d0b8', '#8a4a1a'], ['#3a5a2a', '#efe6d0', '#7a3a1a'], ['#5a4a7a', '#f0e0c0', '#2a2a2a']][v % 4];
+  g.fillStyle = P[0]; g.fillRect(x, y, w, h);
+  g.strokeStyle = P[1]; g.lineWidth = 6; g.strokeRect(x + 12, y + 12, w - 24, h - 24);
+  g.lineWidth = 3; g.strokeStyle = P[2]; g.strokeRect(x + 24, y + 24, w - 48, h - 48);
+  const cx = x + w / 2, cy = y + h / 2;
+  if (v % 2 === 0) { // medalhão central
+    for (let r = 5; r > 0; r--) { g.fillStyle = r % 2 ? P[1] : P[2]; g.beginPath(); g.moveTo(cx, cy - r * 16); g.lineTo(cx + r * 16, cy); g.lineTo(cx, cy + r * 16); g.lineTo(cx - r * 16, cy); g.fill(); }
+    for (const [ax, ay] of [[x + 40, y + 40], [x + w - 40, y + 40], [x + 40, y + h - 40], [x + w - 40, y + h - 40]]) { g.fillStyle = P[1]; g.beginPath(); g.arc(ax, ay, 9, 0, 7); g.fill(); }
+  } else { // listras modernas
+    for (let i = 0; i < 7; i++) { g.fillStyle = i % 2 ? P[1] : P[2]; g.fillRect(x + 36 + i * (w - 72) / 7, y + 36, (w - 72) / 7 - 4, h - 72); }
+  }
+  for (let i = 0; i < 1500; i++) { g.fillStyle = `rgba(${rand() < 0.5 ? '0,0,0' : '255,255,255'},0.06)`; g.fillRect(x + rand() * w, y + rand() * h, 2, 2); }
+}
+function artDraw(g, x, y, w, h, v) {
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+  const k = v % 6;
+  if (k === 0 || k === 3) { // paisagem: céu, montanhas, campo
+    const s = g.createLinearGradient(0, y, 0, y + h); s.addColorStop(0, k ? '#e88a4a' : '#6aa8d8'); s.addColorStop(0.6, k ? '#f2d08a' : '#cfe6f2'); s.addColorStop(1, '#5a8a3a');
+    g.fillStyle = s; g.fillRect(x, y, w, h);
+    g.fillStyle = k ? '#5a3a5a' : '#5a6a8a'; g.beginPath(); g.moveTo(x, y + h * 0.65); g.lineTo(x + w * 0.3, y + h * 0.3); g.lineTo(x + w * 0.55, y + h * 0.6); g.lineTo(x + w * 0.8, y + h * 0.35); g.lineTo(x + w, y + h * 0.6); g.lineTo(x + w, y + h); g.lineTo(x, y + h); g.fill();
+    g.fillStyle = '#4a7a2a'; g.fillRect(x, y + h * 0.72, w, h * 0.28);
+    if (k) { g.fillStyle = '#f8e070'; g.beginPath(); g.arc(x + w * 0.7, y + h * 0.42, w * 0.08, 0, 7); g.fill(); }
+  } else if (k === 1 || k === 4) { // abstrato
+    g.fillStyle = k === 1 ? '#f2ead8' : '#1a1a2a'; g.fillRect(x, y, w, h);
+    for (let i = 0; i < 6; i++) { g.fillStyle = pick(['#c41a1a', '#1a4ab0', '#f2c21a', '#2a8a5a', '#f28a3a']); if (rand() < 0.5) g.fillRect(x + rand() * w * 0.7, y + rand() * h * 0.7, rr(16, 50), rr(16, 50)); else { g.beginPath(); g.arc(x + rand() * w, y + rand() * h, rr(10, 30), 0, 7); g.fill(); } }
+  } else if (k === 2) { // vaso de flores
+    g.fillStyle = '#3a4a5a'; g.fillRect(x, y, w, h);
+    g.fillStyle = '#c88a4a'; g.beginPath(); g.moveTo(x + w * 0.38, y + h * 0.62); g.lineTo(x + w * 0.62, y + h * 0.62); g.lineTo(x + w * 0.58, y + h * 0.9); g.lineTo(x + w * 0.42, y + h * 0.9); g.fill();
+    for (let i = 0; i < 9; i++) { const fx = x + w * rr(0.25, 0.75), fy = y + h * rr(0.15, 0.55); g.strokeStyle = '#3a7a2a'; g.lineWidth = 2; g.beginPath(); g.moveTo(x + w / 2, y + h * 0.62); g.lineTo(fx, fy); g.stroke(); g.fillStyle = pick(['#f2f2f2', '#f28ab0', '#f2d21a', '#c41a3a']); g.beginPath(); g.arc(fx, fy, w * 0.05, 0, 7); g.fill(); }
+  } else { // retrato em silhueta (sem rostos reais)
+    g.fillStyle = '#c8b08a'; g.fillRect(x, y, w, h);
+    g.fillStyle = '#3a2a1a'; g.beginPath(); g.arc(x + w / 2, y + h * 0.4, w * 0.16, 0, 7); g.fill(); g.beginPath(); g.ellipse(x + w / 2, y + h * 0.95, w * 0.3, h * 0.35, 0, Math.PI, 0); g.fill();
+  }
+  g.restore();
+}
+let HOME = null;
+export function homeAtlas() {
+  if (HOME) return HOME;
+  const W = 1024, H = 1024; const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  g.fillStyle = '#888'; g.fillRect(0, 0, W, H);
+  const regions = {}; const reg = (k, x, y, w, h) => { regions[k] = { u0: (x + 1) / W, u1: (x + w - 1) / W, v0: 1 - (y + h - 1) / H, v1: 1 - (y + 1) / H }; };
+  for (let i = 0; i < 4; i++) { rugDraw(g, i * 256, 0, 256, 256, i); reg('rug' + i, i * 256, 0, 256, 256); }
+  for (let i = 0; i < 8; i++) { const x = i * 128, y = 256; g.fillStyle = '#222'; g.fillRect(x, y, 128, 128); artDraw(g, x + 4, y + 4, 120, 120, i); reg('art' + i, x, y, 128, 128); }
+  // colchas
+  for (let i = 0; i < 4; i++) {
+    const x = i * 256, y = 384; const col = ['#2a4a7a', '#7a2a3a', '#3a6a4a', '#d8c8a8'][i];
+    g.fillStyle = col; g.fillRect(x, y, 256, 128);
+    if (i % 2) for (let a = 0; a < 256; a += 32) for (let b = 0; b < 128; b += 32) { g.fillStyle = (a + b) % 64 ? shade(col, 0.15) : shade(col, -0.15); g.fillRect(x + a, y + b, 32, 32); }
+    else for (let a = 0; a < 256; a += 16) { g.fillStyle = shade(col, a % 32 ? 0.1 : -0.1); g.fillRect(x + a, y, 8, 128); }
+    g.strokeStyle = 'rgba(255,255,255,0.3)'; g.setLineDash([4, 4]); g.strokeRect(x + 10, y + 10, 236, 108); g.setLineDash([]);
+    reg('quilt' + i, x, y, 256, 128);
+  }
+  // livros
+  { const y = 512; g.fillStyle = '#3a2a1a'; g.fillRect(0, y, 1024, 128);
+    let x = 2; while (x < 1020) { const bw = rr(10, 22), bh = rr(80, 122), col = pick(['#7a1a1a', '#1a3a6a', '#2a5a2a', '#c8a050', '#3a3a3a', '#6a3a7a', '#a85a1a', '#e8e0c8']);
+      if (rand() < 0.08) { x += 20; continue; }
+      g.fillStyle = cylGrad(g, x, bw, col, 0.25); g.fillRect(x, y + 128 - bh, bw, bh);
+      g.fillStyle = 'rgba(255,220,140,0.7)'; g.fillRect(x + 2, y + 128 - bh + 10, bw - 4, 2); g.fillRect(x + 2, y + 128 - 16, bw - 4, 2);
+      x += bw + 1; }
+    reg('books', 0, y, 1024, 128); }
+  // azulejos da cozinha (fundo da pia)
+  { const y = 640; for (let a = 0; a < 512; a += 32) for (let b = 0; b < 128; b += 32) { g.fillStyle = (a / 32 + b / 32) % 2 ? '#e8f0f2' : '#bcd8e0'; g.fillRect(a, y + b, 31, 31); }
+    g.fillStyle = 'rgba(255,255,255,0.35)'; for (let a = 0; a < 512; a += 32) g.fillRect(a + 3, y + 3, 10, 2);
+    reg('tiles', 0, y, 512, 128); }
+  // fogão (vista de cima: 4 bocas)
+  { const x = 512, y = 640; g.fillStyle = '#1a1a1c'; g.fillRect(x, y, 128, 128);
+    for (const [a, b] of [[34, 34], [94, 34], [34, 94], [94, 94]]) { g.strokeStyle = '#6a6a6e'; g.lineWidth = 4; g.beginPath(); g.arc(x + a, y + b, 20, 0, 7); g.stroke(); g.fillStyle = '#2a2a2e'; g.beginPath(); g.arc(x + a, y + b, 10, 0, 7); g.fill(); }
+    reg('stove', x, y, 128, 128); }
+  // frente do forno
+  { const x = 640, y = 640; g.fillStyle = '#e8e8e8'; g.fillRect(x, y, 128, 128); g.fillStyle = '#222'; g.fillRect(x + 14, y + 34, 100, 72); g.fillStyle = 'rgba(255,160,60,0.25)'; g.fillRect(x + 20, y + 40, 88, 60);
+    g.fillStyle = '#9a9aa0'; g.fillRect(x + 20, y + 20, 88, 6); for (let i = 0; i < 4; i++) { g.fillStyle = '#333'; g.beginPath(); g.arc(x + 26 + i * 25, y + 10, 5, 0, 7); g.fill(); }
+    reg('oven', x, y, 128, 128); }
+  // porta da geladeira (frente)
+  { const x = 768, y = 640; const gr = g.createLinearGradient(x, 0, x + 128, 0); gr.addColorStop(0, '#d8dcdf'); gr.addColorStop(0.4, '#f6f8f9'); gr.addColorStop(1, '#c8ccd0');
+    g.fillStyle = gr; g.fillRect(x, y, 128, 256); g.fillStyle = '#9aa0a6'; g.fillRect(x, y + 84, 128, 3); g.fillRect(x + 108, y + 20, 6, 50); g.fillRect(x + 108, y + 100, 6, 70);
+    for (let i = 0; i < 3; i++) { g.fillStyle = pick(['#f2d21a', '#c41a1a', '#1a8ad0', '#2ab05a']); g.fillRect(x + 20 + i * 24, y + 110 + (i % 2) * 18, 16, 14); } // ímãs e bilhetes
+    g.fillStyle = '#fff'; g.fillRect(x + 24, y + 140, 50, 40); g.fillStyle = '#5a5a8a'; for (let i = 0; i < 4; i++) g.fillRect(x + 28, y + 146 + i * 8, 40, 2);
+    reg('fridge', x, y, 128, 256); }
+  // cortina iluminada pela luz de fora
+  { const x = 896, y = 640; const gr = g.createLinearGradient(x, 0, x + 128, 0);
+    for (let i = 0; i <= 8; i++) gr.addColorStop(i / 8, i % 2 ? '#fff6e0' : '#e8d8b8');
+    g.fillStyle = gr; g.fillRect(x, y, 128, 256); reg('curtain', x, y, 128, 256); }
+  // porta-retratos / foto de família desfocada (formas, sem rostos)
+  { const x = 0, y = 768; g.fillStyle = '#f2ead8'; g.fillRect(x, y, 256, 128); const s = g.createLinearGradient(0, y, 0, y + 128); s.addColorStop(0, '#8ac0e8'); s.addColorStop(1, '#e8d8a8'); g.fillStyle = s; g.fillRect(x + 10, y + 10, 236, 108);
+    for (let i = 0; i < 3; i++) { g.fillStyle = pick(['#5a3a2a', '#2a2a3a', '#7a4a2a']); g.beginPath(); g.arc(x + 70 + i * 55, y + 54, 13, 0, 7); g.fill(); g.fillStyle = pick(['#c41a1a', '#1a4ab0', '#f2f2f2', '#2a8a5a']); g.beginPath(); g.ellipse(x + 70 + i * 55, y + 118, 22, 46, 0, Math.PI, 0); g.fill(); }
+    reg('photo', x, y, 256, 128); }
+  // tela da TV (desenho animado colorido)
+  { const x = 256, y = 768; const s = g.createLinearGradient(0, y, 0, y + 128); s.addColorStop(0, '#3a8ad8'); s.addColorStop(1, '#8ad8f2'); g.fillStyle = s; g.fillRect(x, y, 256, 128);
+    g.fillStyle = '#4ab02a'; g.fillRect(x, y + 96, 256, 32); g.fillStyle = '#fff'; for (let i = 0; i < 3; i++) { g.beginPath(); g.ellipse(x + 40 + i * 80, y + 26 + (i % 2) * 10, 26, 10, 0, 0, 7); g.fill(); }
+    g.fillStyle = '#f2c21a'; g.beginPath(); g.arc(x + 128, y + 76, 20, 0, 7); g.fill(); g.fillStyle = '#c41a1a'; g.fillRect(x + 108, y + 92, 40, 6);
+    reg('tvhome', x, y, 256, 128); }
+  // espelho (reflexo suave)
+  { const x = 512, y = 768; const s = g.createLinearGradient(x, y, x + 128, y + 128); s.addColorStop(0, '#d8e4ea'); s.addColorStop(0.5, '#a8bcc8'); s.addColorStop(1, '#e8f0f4'); g.fillStyle = s; g.fillRect(x, y, 128, 128);
+    g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.moveTo(x + 20, y); g.lineTo(x + 50, y); g.lineTo(x + 10, y + 128); g.lineTo(x - 20, y + 128); g.fill(); reg('mirror', x, y, 128, 128); }
+  // azulejo do banheiro
+  { const x = 640, y = 768; for (let a = 0; a < 128; a += 16) for (let b = 0; b < 128; b += 16) { g.fillStyle = (a + b) % 32 ? '#f4f6f6' : '#e2e8ea'; g.fillRect(x + a, y + b, 15, 15); } reg('bathtile', x, y, 128, 128); }
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  HOME = { texture: tex, regions };
+  return HOME;
+}

@@ -1,7 +1,7 @@
 // Materiais compartilhados (Lambert/Phong: leves e compatíveis com GPUs fracas / WebGL)
 import * as THREE from 'three';
 import * as TX from './textures.js';
-import { productAtlas, shopWindowCanvas } from './products.js';
+import { productAtlas, shopWindowCanvas, homeAtlas } from './products.js';
 
 export const nightMats = []; // materiais cujo brilho depende da noite: {mat, base, night}
 function lam(opts, ud = {}) { const m = new THREE.MeshLambertMaterial(opts); Object.assign(m.userData, ud); return m; }
@@ -94,6 +94,10 @@ export function mats() {
   M.signAtlas = TX.signAtlas();
   M.sign = night(lam({ map: M.signAtlas.texture, emissiveMap: M.signAtlas.texture, emissive: 0xffffff, emissiveIntensity: 0.4 }, { castShadow: false }), 0.25, 0.9);
   M.flat = flat;
+  M.flatIn = lam({ vertexColors: true, emissive: 0x2a2622 }); // tinta das paredes internas e móveis (levemente iluminados)
+  const HA = homeAtlas();
+  M.home = night(lam({ map: HA.texture, emissiveMap: HA.texture, emissive: 0xffffff, emissiveIntensity: 0.12 }), 0.12, 0.3);
+  M.homeGlow = night(lam({ map: HA.texture, emissiveMap: HA.texture, emissive: 0xffffff, emissiveIntensity: 0.55 }, { castShadow: false }), 0.55, 0.8);
   const PA = productAtlas();
   M.prod = night(lam({ map: PA.texture, emissiveMap: PA.texture, emissive: 0xffffff, emissiveIntensity: 0.14 }), 0.14, 0.3);
   M.prodGlow = night(lam({ map: PA.texture, emissiveMap: PA.texture, emissive: 0xffffff, emissiveIntensity: 0.5 }, { castShadow: false }), 0.5, 0.85);
@@ -105,6 +109,13 @@ export function prodMat(key, glow = false) {
   const m = mats(); const r = productAtlas().regions[key];
   if (!r) console.warn('Produto sem região no atlas: ' + key);
   return { isSign: true, mat: glow ? m.prodGlow : m.prod, region: r };
+}
+
+// decoração das casas: região do atlas de casa
+export function homeMat(key, glow = false) {
+  const m = mats(); const r = homeAtlas().regions[key];
+  if (!r) console.warn('Decoração sem região no atlas: ' + key);
+  return { isSign: true, mat: glow ? m.homeGlow : m.home, region: r };
 }
 
 // placa: região do atlas (uma textura para todas as placas => 1 material)
