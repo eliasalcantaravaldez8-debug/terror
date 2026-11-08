@@ -126,8 +126,8 @@ export class Menus {
     this.current = 'complete';
     const acc = stats.shots ? Math.round((stats.hits / stats.shots) * 100) : 0;
     this._show(`
-      <div class="logo small"><div class="logo-top">MISSÃO 1</div><div class="logo-main">PRIMEIRO CONTATO</div></div>
-      <p class="hint">Fim da fatia vertical jogável. A equipe Iron entra no Edifício Halden...<br><b>Continua na próxima atualização.</b></p>
+      <div class="logo small"><div class="logo-top">MISSÃO 1 CONCLUÍDA</div><div class="logo-main">PRIMEIRO CONTATO</div></div>
+      <p class="hint">Os códigos encontrados no Halden pertencem ao próprio Comando da Coalizão.<br>Alguém de dentro está ajudando o VÉRTICE — e a equipe Iron perdeu contato com Bastião.<br><b>Continua na Missão 2 — Sinal Morto.</b></p>
       <table class="controls stats">
         <tr><td class="k">Tempo</td><td>${stats.time}</td></tr>
         <tr><td class="k">Hostis abatidos</td><td>${stats.kills}</td></tr>

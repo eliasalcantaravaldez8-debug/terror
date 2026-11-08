@@ -9,10 +9,11 @@
 - [x] Checkpoints e salvamento, menu, pausa, configurações, qualidade gráfica
 - [x] Chuva, fumaça, fogo, explosões, poeira do rotor, decalques
 
-## Etapa 2 — Missão 1 completa
-- Interior do Edifício Halden (combate em ambientes fechados, servidores)
-- Reviravolta: dados apontam um traidor dentro da coalizão
-- Substituição dos primeiros recursos provisórios por arte definitiva
+## Etapa 2 — Missão 1 completa (FEITO)
+- [x] Arrombamento da porta e interior do Edifício Halden (saguão, corredor, sala dos servidores)
+- [x] Download dos servidores sob contra-ataque do VÉRTICE
+- [x] Reviravolta: os códigos são do próprio Comando da Coalizão; contato com Bastião perdido
+- [ ] Substituição dos primeiros recursos provisórios por arte definitiva
 
 ## Etapa 3 — Campanha (≈10 missões, ≈5 h)
 1. Primeiro Contato (Teresk) · 2. Sinal Morto · 3. Porto de Vareny · 4. Céu Cinzento (helicóptero)

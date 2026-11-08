@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GeometryBatcher } from './GeometryBatcher.js';
+import { TextureFactory } from '../render/TextureFactory.js';
 import { mulberry32, randRange } from '../utils/math.js';
 import {
   BUILDINGS, STYLES, SHOPS, HALDEN, PROPS, BOUNDS, MISSION_RECT, ROAD,
@@ -235,45 +236,176 @@ export class CityBuilder {
   }
 
   buildHalden() {
-    const m = this.mats, B = this.near, h = HALDEN;
+    const m = this.mats, B = this.near, h = HALDEN, W = this.world;
     const stone = m.concrete('#b4ad9c', 41);
     const facade = m.facade({ wall: '#b2ab9a', frame: '#3a3a38', band: '#a19a88', seed: 17, damage: 0.4 });
     const H = 6 + 3 * 3;
-    // podium + main block
-    B.box(h.x0, 0, h.z0, h.x1, 6, h.z1, { sides: stone, tile: { w: 6, h: 6 } });
+    const FL = 0.4; // interior floor level
+    const DX = 1.8, DH = 4.4; // door half-width / top
+    // ---- exterior shell (podium with a real doorway) + upper floors
+    B.box(h.x0, 0, h.z0, h.x1, 6, h.z1, { sides: stone, tile: { w: 6, h: 6 }, skipFaces: 'pz' });
+    const front = (xa, xb, ya, yb) => B.quad(stone, [xa, ya, h.z1], [xb, ya, h.z1], [xb, yb, h.z1], [xa, yb, h.z1], [0, 0, 1],
+      [xa / 6, ya / 6], [xb / 6, ya / 6], [xb / 6, yb / 6], [xa / 6, yb / 6]);
+    front(h.x0, -DX, 0, 6); front(DX, h.x1, 0, 6); front(-DX, DX, DH, 6);
     B.box(h.x0, 6, h.z0, h.x1, H, h.z1, { sides: facade, top: m.roof(), tile: { w: 12, h: 6, yBase: 6 }, topTile: 6 });
     B.box(h.x0 - 0.4, H, h.z0 - 0.4, h.x1 + 0.4, H + 0.15, h.z1 + 0.4, { sides: stone, top: stone, tile: { w: 4, h: 4 } });
-    // balustrade along the roof edge
     B.box(h.x0 - 0.4, H + 0.15, h.z1 - 0.4, h.x1 + 0.4, H + 0.8, h.z1 + 0.4, { sides: stone, top: stone, tile: { w: 4, h: 4 } });
-    this.world.addBox(h.x0, 0, h.z0, h.x1, H, h.z1, { tag: 'building' });
-    this.world.addBox(h.x0 - 0.4, H, h.z1 - 0.4, h.x1 + 0.4, H + 0.8, h.z1 + 0.4, { tag: 'parapet' });
-    // portico: steps + columns + pediment
+    W.addBox(h.x0 - 0.4, H, h.z1 - 0.4, h.x1 + 0.4, H + 0.8, h.z1 + 0.4, { tag: 'parapet' });
+
+    // ---- collision shell with interior spaces: lobby, corridor, server room
+    const wz = h.z1 - 0.5; // inner face of the front wall
+    const ix0 = h.x0 + 0.5, ix1 = h.x1 - 0.5, iz0 = h.z0 + 0.5;
+    const LB = -186, CB = -196; // lobby back wall, corridor end
+    const bld = { tag: 'building' };
+    W.addBox(-23.5, 0, iz0, 23.5, FL, h.z1, { tag: 'floor' });
+    W.addBox(h.x0, 0, wz, -DX, H, h.z1, bld); W.addBox(DX, 0, wz, h.x1, H, h.z1, bld); W.addBox(-DX, DH, wz, DX, H, h.z1, bld);
+    W.addBox(h.x0, 0, h.z0, h.x1, H, iz0, bld);
+    W.addBox(h.x0, 0, h.z0, ix0, H, h.z1, bld); W.addBox(ix1, 0, h.z0, h.x1, H, h.z1, bld);
+    W.addBox(ix0, 6, LB, ix1, H, wz, bld); // lobby ceiling / upper floors
+    W.addBox(ix0, 0, CB, -2, H, LB, bld); W.addBox(2, 0, CB, ix1, H, LB, bld); // solid block around the corridor
+    W.addBox(-2, 3.4, CB, 2, H, LB, bld); // corridor ceiling
+    W.addBox(ix0, 4.5, iz0, ix1, H, CB, bld); // server room ceiling
+    const doorBox = W.addBox(-DX, 0, wz, DX, DH, h.z1, { tag: 'door', surface: 'wood' });
+
+    // ---- interior surfaces (inward facing)
+    const plaster = m.concrete('#a8a196', 53), ceil = m.concrete('#6e6a63', 55);
+    const marble = new THREE.MeshStandardMaterial({ ...TextureFactory.pavers(29, '#6f6a62', 48), roughness: 0.4, envMapIntensity: 0.5 });
+    const tiles = new THREE.MeshStandardMaterial({ ...TextureFactory.pavers(31, '#4a4c4e', 32), roughness: 0.6 });
+    const wall = (mat, ax, az, bx, bz, y0, y1) => {
+      const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz);
+      B.quad(mat, [ax, y0, az], [bx, y0, bz], [bx, y1, bz], [ax, y1, az], [-dz / len, 0, dx / len], [0, y0 / 3], [len / 3, y0 / 3], [len / 3, y1 / 3], [0, y1 / 3]);
+    };
+    const flat = (mat, x0, z0, x1, z1, y, up, t = 3) => {
+      if (up) B.quad(mat, [x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0], [0, 1, 0], [x0 / t, z1 / t], [x1 / t, z1 / t], [x1 / t, z0 / t], [x0 / t, z0 / t]);
+      else B.quad(mat, [x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [0, -1, 0], [x0 / t, z0 / t], [x1 / t, z0 / t], [x1 / t, z1 / t], [x0 / t, z1 / t]);
+    };
+    // lobby
+    wall(plaster, ix1, wz, DX, wz, FL, 6); wall(plaster, -DX, wz, ix0, wz, FL, 6); wall(plaster, DX, wz, -DX, wz, DH, 6);
+    wall(plaster, ix0, LB, -2, LB, FL, 6); wall(plaster, 2, LB, ix1, LB, FL, 6); wall(plaster, -2, LB, 2, LB, 3.4, 6);
+    wall(plaster, ix0, wz, ix0, LB, FL, 6); wall(plaster, ix1, LB, ix1, wz, FL, 6);
+    flat(marble, ix0, LB, ix1, wz, FL, true, 4); flat(ceil, ix0, LB, ix1, wz, 6, false);
+    // door reveal
+    wall(stone, -DX, h.z1, -DX, wz, 0, DH); wall(stone, DX, wz, DX, h.z1, 0, DH);
+    // corridor
+    wall(plaster, -2, LB, -2, CB, FL, 3.4); wall(plaster, 2, CB, 2, LB, FL, 3.4);
+    flat(tiles, -2, CB, 2, LB, FL, true); flat(ceil, -2, CB, 2, LB, 3.4, false);
+    // server room
+    const grey = m.concrete('#7c7f80', 57);
+    wall(grey, ix1, CB, 2, CB, FL, 4.5); wall(grey, -2, CB, ix0, CB, FL, 4.5); wall(grey, 2, CB, -2, CB, 3.4, 4.5);
+    wall(grey, ix0, iz0, ix1, iz0, FL, 4.5); wall(grey, ix0, CB, ix0, iz0, FL, 4.5); wall(grey, ix1, iz0, ix1, CB, FL, 4.5);
+    flat(tiles, ix0, iz0, ix1, CB, FL, true); flat(ceil, ix0, iz0, ix1, CB, 4.5, false);
+
+    // ---- lobby furniture / cover
+    const cover = (x0, y0, z0, x1, y1, z1, mat, tag = 'furniture') => {
+      B.box(x0, y0, z0, x1, y1, z1, { sides: mat, top: mat, tile: { w: 2, h: 2 } });
+      const b = W.addBox(x0, y0, z0, x1, y1, z1, { tag, cover: true, surface: 'wood' });
+      this.coverBoxes.push(b);
+    };
+    const wood = m.wood(), leather = m.polymer(0x3b2a20);
+    cover(-3, FL, -178.6, 3, FL + 1.1, -177.4, wood, 'desk'); // reception desk
+    B.box(-3.1, FL + 1.1, -178.7, 3.1, FL + 1.16, -177.3, { sides: m.darkMetal(), top: m.darkMetal(), tile: { w: 2, h: 2 } });
+    for (const [x, z] of [[-7, -174], [7, -174], [-7, -182], [7, -182], [-15, -174], [15, -174], [-15, -182], [15, -182]]) {
+      const g = new THREE.CylinderGeometry(0.5, 0.5, 6 - FL, 16); g.translate(x, FL + (6 - FL) / 2, z);
+      B.addGeometry(m.concrete('#c4bdac', 43), g);
+      W.addBlock(x, FL, z, 1.0, 6 - FL, 1.0, { tag: 'column', cover: true });
+    }
+    cover(-13.1, FL, -176.5, -10.9, FL + 0.85, -175.6, leather, 'sofa');
+    cover(10.9, FL, -176.6, 13.1, FL + 0.85, -175.7, leather, 'sofa');
+    cover(-19, FL, -180.6, -17.8, FL + 1.0, -178, m.paint('#5a5f5c', 75), 'cabinet');
+    cover(18, FL, -171.5, 19.2, FL + 1.0, -169.5, m.paint('#5a5f5c', 75), 'cabinet');
+    cover(4.5, FL, -183.6, 7.5, FL + 0.95, -182.9, m.sandbag(), 'sandbags');
+    cover(-7.5, FL, -183.6, -4.5, FL + 0.95, -182.9, m.sandbag(), 'sandbags');
+    // collapsed ceiling slab (visual + low cover)
+    const slab = new THREE.BoxGeometry(4, 0.3, 2.5); slab.rotateZ(0.25); slab.rotateY(0.4); slab.translate(-11, FL + 0.6, -171.5);
+    B.addGeometry(ceil, slab);
+    const sb = W.addBox(-13, FL, -172.8, -9, FL + 1.0, -170.2, { tag: 'slab', cover: true }); this.coverBoxes.push(sb);
+
+    // ---- server room racks with blinking LED panels
+    const led = this.makeRackTexture();
+    const rackMat = new THREE.MeshStandardMaterial({ map: led, emissiveMap: led, emissive: 0xffffff, emissiveIntensity: 0.9, roughness: 0.5, metalness: 0.4 });
+    this.rackMat = rackMat;
+    for (const z of [-199.5, -202.6]) {
+      for (const [xa, xb] of [[-20, -4], [4, 20]]) {
+        B.box(xa, FL, z - 0.5, xb, FL + 2.1, z + 0.5, { sides: rackMat, top: m.darkMetal(), tile: { w: 2, h: 2.1, yBase: FL } });
+        const b = W.addBox(xa, FL, z - 0.5, xb, FL + 2.1, z + 0.5, { tag: 'rack', cover: true, surface: 'metal' });
+        this.coverBoxes.push(b);
+      }
+    }
+    // central terminal desk
+    cover(-1.2, FL, -198.4, 1.2, FL + 0.95, -197.6, m.darkMetal(), 'terminal');
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.45), m.emissive(0x2f78c0, 0.55));
+    screen.position.set(0, FL + 1.3, -198.3); this.root.add(screen);
+    this.terminalScreen = screen;
+
+    // ---- interior lighting (constant light count)
+    const l1 = new THREE.PointLight(0xffe2b8, 9, 26, 1.6); l1.position.set(0, 5.4, -176); this.root.add(l1);
+    const l2 = new THREE.PointLight(0x7fb4ff, 7, 22, 1.6); l2.position.set(0, 4.0, -200); this.root.add(l2);
+    this.interiorLights = [l1, l2];
+    for (const [x, z] of [[-8, -172], [8, -172], [-8, -180], [8, -180], [0, -191], [-10, -200], [10, -200]]) {
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.3), m.emissive(z < -186 ? 0xa8c8ff : 0xfff0d8, z === -180 ? 0.15 : 1.6));
+      panel.rotation.x = Math.PI / 2; panel.position.set(x, (z < -196 ? 4.5 : z < -186 ? 3.4 : 6) - 0.02, z);
+      this.root.add(panel);
+    }
+
+    // ---- portico: low steps up to the floor level, columns, pediment
     for (let s = 0; s < 4; s++) {
       const z1 = h.z1 + 4 - s * 1.0;
-      B.box(-10, s * 0.2, h.z1, 10, (s + 1) * 0.2, z1, { sides: stone, top: stone, tile: { w: 3, h: 3 }, topTile: 3 });
-      this.world.addBox(-10, 0, h.z1, 10, (s + 1) * 0.2, z1, { tag: 'steps' });
+      B.box(-10, s * 0.1, h.z1, 10, (s + 1) * 0.1, z1, { sides: stone, top: stone, tile: { w: 3, h: 3 }, topTile: 3 });
+      W.addBox(-10, 0, h.z1, 10, (s + 1) * 0.1, z1, { tag: 'steps' });
     }
     const colMat = m.concrete('#c4bdac', 43);
     for (let i = 0; i < 6; i++) {
       const x = -8.5 + i * 3.4;
-      const g = new THREE.CylinderGeometry(0.45, 0.5, 7.4, 16); g.translate(x, 0.8 + 3.7, h.z1 + 2.6);
+      const g = new THREE.CylinderGeometry(0.45, 0.5, 7.8, 16); g.translate(x, FL + 3.9, h.z1 + 2.6);
       B.addGeometry(colMat, g);
-      this.world.addBlock(x, 0.8, h.z1 + 2.6, 0.95, 7.4, 0.95, { tag: 'column', cover: true });
+      W.addBlock(x, FL, h.z1 + 2.6, 0.95, 7.8, 0.95, { tag: 'column', cover: true });
     }
     B.box(-10, 8.2, h.z1, 10, 9.4, h.z1 + 3.4, { sides: stone, top: stone, bottom: stone, tile: { w: 4, h: 4 } });
-    // door
-    const door = new THREE.BoxGeometry(3.0, 3.6, 0.2); door.translate(0, 0.8 + 1.8, h.z1 + 0.05);
-    B.addGeometry(m.wood(), door);
-    const frame = new THREE.BoxGeometry(3.6, 4.2, 0.15); frame.translate(0, 0.8 + 2.1, h.z1 + 0.01);
-    B.addGeometry(m.darkMetal(), frame);
-    // VÉRTICE banner hanging between columns
+    // door frame (posts + lintel) and two swinging leaves
+    for (const x of [-DX - 0.1, DX + 0.1]) { const p = new THREE.BoxGeometry(0.2, DH, 0.25); p.translate(x, DH / 2, h.z1 + 0.05); B.addGeometry(m.darkMetal(), p); }
+    const lin = new THREE.BoxGeometry(DX * 2 + 0.4, 0.25, 0.25); lin.translate(0, DH + 0.1, h.z1 + 0.05); B.addGeometry(m.darkMetal(), lin);
+    const leaves = [];
+    for (const side of [-1, 1]) {
+      const pivot = new THREE.Group();
+      pivot.position.set(side * DX, FL, h.z1 - 0.05);
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(DX, DH - FL - 0.05, 0.12), m.wood());
+      leaf.position.set(-side * DX / 2, (DH - FL) / 2, 0);
+      leaf.castShadow = leaf.receiveShadow = true;
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.4, 0.08), m.metalPole());
+      handle.position.set(-side * (DX - 0.2), 1.1, 0.1); leaf.add(handle);
+      pivot.add(leaf);
+      this.root.add(pivot);
+      leaves.push({ pivot, side });
+    }
+    this.namedProps.halden = {
+      leaves, doorBox, open: false,
+      setOpen: (amount) => { for (const l of leaves) l.pivot.rotation.y = -l.side * amount * 1.55; },
+    };
+    // VÉRTICE banners hanging between the columns
     const bannerTex = this.makeBannerTexture();
     const banner = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 6), new THREE.MeshStandardMaterial({ map: bannerTex, side: THREE.DoubleSide, roughness: 0.9 }));
     banner.position.set(-5.1, 5.0, h.z1 + 3.05);
     banner.castShadow = true;
     this.root.add(banner);
     const banner2 = banner.clone(); banner2.position.x = 5.1; this.root.add(banner2);
-    this.interactables.push({ id: 'haldenDoor', x: 0, y: 1.6, z: h.z1 + 0.3, radius: 2.6, prompt: 'Entrar no Edifício Halden' });
+    this.interactables.push({ id: 'haldenDoor', x: 0, y: 1.6, z: h.z1 + 0.3, radius: 2.6, prompt: 'Arrombar a porta do Edifício Halden' });
+    this.interactables.push({ id: 'serverTerminal', x: 0, y: FL + 1.2, z: -197.6, radius: 2.0, prompt: 'Iniciar o download dos servidores' });
+    this.indoorRects = [{ x0: h.x0, x1: h.x1, z0: h.z0, z1: h.z1 }];
+  }
+
+  makeRackTexture() {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+    const x = c.getContext('2d');
+    x.fillStyle = '#16181a'; x.fillRect(0, 0, 128, 128);
+    for (let u = 0; u < 12; u++) {
+      x.fillStyle = u % 2 ? '#202326' : '#1b1d20'; x.fillRect(4, 4 + u * 10, 120, 8);
+      for (let k = 0; k < 6; k++) {
+        if (Math.random() < 0.55) { x.fillStyle = ['#2bff6a', '#3fa0ff', '#ffb02b', '#2bff6a'][k % 4]; x.fillRect(80 + k * 6, 6 + u * 10, 3, 3); }
+      }
+      x.fillStyle = '#0c0d0e'; x.fillRect(8, 6 + u * 10, 60, 3);
+    }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
   }
 
   makeBannerTexture() {

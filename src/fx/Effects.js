@@ -291,7 +291,9 @@ export class Effects {
       if (z - cam.z > 20) z -= 40; if (z - cam.z < -20) z += 40;
       this.rainDrops[i * 3] = x; this.rainDrops[i * 3 + 1] = y; this.rainDrops[i * 3 + 2] = z;
       const o = i * 6;
-      if (i < n) {
+      let indoor = false;
+      if (this.indoorRects) for (const r of this.indoorRects) if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1 && y < 16) { indoor = true; break; }
+      if (i < n && !indoor) {
         P[o] = x; P[o + 1] = y; P[o + 2] = z;
         P[o + 3] = x - wx * 0.6 - (velocity ? velocity.x * 0.02 : 0); P[o + 4] = y + 0.55; P[o + 5] = z - wz * 0.6 - (velocity ? velocity.z * 0.02 : 0);
       } else {

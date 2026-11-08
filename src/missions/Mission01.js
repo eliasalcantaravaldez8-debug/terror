@@ -19,6 +19,7 @@ const CHECKPOINTS = {
   cp_street: 'Avenida Verkhov',
   cp_crossroads: 'Cruzamento',
   cp_halden: 'Edifício Halden',
+  cp_lobby: 'Saguão do Halden',
 };
 
 // Flight path (helicopter root keys). yaw PI = heading north (-Z).
@@ -82,7 +83,24 @@ const WAVES = [
       { x: -6, z: -164, delay: 6 }, { x: 6, z: -164, delay: 9 },
     ],
   },
+  {
+    // inside the Halden lobby — dormant until the breach
+    id: 'w4', zone: { x0: -23, x1: 23, z0: -186, z1: -169 },
+    enemies: [
+      { x: -2, y: 0.4, z: -179.3 }, { x: 2.2, y: 0.4, z: -179.3 }, { x: -7, y: 0.4, z: -183.1 }, { x: 7, y: 0.4, z: -183.1 },
+      { x: -12, y: 0.4, z: -177.2 }, { x: 12, y: 0.4, z: -177.3 }, { x: 6, y: 0.4, z: -184.2 }, { x: -18.4, y: 0.4, z: -181.4 },
+    ],
+  },
+  {
+    // counter-attack while the servers download — they come in through the front door
+    id: 'w5', zone: { x0: -23, x1: 23, z0: -196, z1: -169 },
+    enemies: [
+      { x: -3, z: -162, delay: 4 }, { x: 3, z: -162, delay: 6 }, { x: 0, z: -160, delay: 11 },
+      { x: -4, z: -161, delay: 16 }, { x: 4, z: -161, delay: 21 }, { x: 0, z: -162, delay: 26 }, { x: -2, z: -160, delay: 31 },
+    ],
+  },
 ];
+const DOWNLOAD_TIME = 40;
 
 export class Mission01 {
   constructor(game) {
@@ -206,6 +224,8 @@ export class Mission01 {
     const car = g.city.namedProps.rpgTarget;
     const carDestroyed = ['cp_crossroads', 'cp_halden'].includes(checkpoint);
     car.intact.visible = !carDestroyed; car.wreck.visible = carDestroyed;
+    this._setDoor(checkpoint === 'cp_lobby');
+    this.download = null;
     if (carDestroyed) g.effects.addFire({ x: car.x, y: 0.9, z: car.z }, 1.1, true);
 
     this.spawnSquad();
@@ -249,6 +269,12 @@ export class Mission01 {
         p.reset(new THREE.Vector3(0, 0, -150), PI);
         for (let i = 0; i < 3; i++) this.waves[i] = { soldiers: [], active: true, done: true };
         this._stageDoor(true);
+        break;
+      case 'cp_lobby':
+        this._placeSquad([[-3, -175], [3, -176], [6, -173]]);
+        p.reset(new THREE.Vector3(0, 0.4, -171), PI);
+        for (let i = 0; i < 4; i++) this.waves[i] = { soldiers: [], active: true, done: true };
+        this._stageServers(true);
         break;
     }
     if (checkpoint !== 'start') {
@@ -531,6 +557,7 @@ export class Mission01 {
   _stageDoor(fromCheckpoint) {
     const g = this.game;
     this.stage = 'door';
+    if (!this.waves[3]) this.spawnWave(3);
     g.squad.setAnchor(0, -163.5, { radius: 3, facing: PI, combat: false });
     g.hud.setObjective('Entre no Edifício Halden', new THREE.Vector3(0, 2, -167.6));
     g.audio.setMusicIntensity(0.25);
@@ -539,7 +566,7 @@ export class Mission01 {
       g.dialogue.sequence([
         { speaker: 'KANE', text: 'Área limpa! Todos em posição na porta.' },
         { speaker: 'RUIZ', text: 'Bandeiras do Vértice na fachada... eles queriam que a gente visse isso.' },
-        { speaker: 'KANE', text: 'Capitão, a porta é sua. Quando estiver pronto.' },
+        { speaker: 'KANE', text: 'Capitão, a porta é sua. Carga de arrombamento pronta. Quando estiver pronto.' },
       ]);
       setTimeoutGame(g, 1.5, () => this.saveCheckpoint('cp_halden'));
     }
@@ -547,19 +574,118 @@ export class Mission01 {
 
   /** Called by the interaction system. */
   onInteract(it) {
-    if (it.id === 'haldenDoor' && this.stage === 'door' && !this.endTriggered) {
-      this.endTriggered = true;
-      const g = this.game;
-      g.dialogue.say({ speaker: 'KANE', text: 'Entrando!' });
-      g.fade.to(1, 1.6);
-      setTimeoutGame(g, 1.8, () => g.completeMission());
-      return true;
-    }
+    if (it.id === 'haldenDoor' && this.stage === 'door') { this._breach(); return true; }
+    if (it.id === 'serverTerminal' && this.stage === 'servers') { this._startDownload(); return true; }
     return false;
   }
   interactAllowed(it) {
     if (it.id === 'haldenDoor') return this.stage === 'door';
+    if (it.id === 'serverTerminal') return this.stage === 'servers';
     return true;
+  }
+
+  /** Open/close the Halden front door (collider + navigation). */
+  _setDoor(open) {
+    const g = this.game, d = g.city.namedProps.halden;
+    if (open && d.doorBox) { g.world.removeBox(d.doorBox); d.doorBox = null; }
+    if (!open && !d.doorBox) d.doorBox = g.world.addBox(-1.8, 0, -168.5, 1.8, 4.4, -168, { tag: 'door', surface: 'wood' });
+    d.open = open;
+    d.setOpen(open ? 1 : 0);
+    this.doorAnim = null;
+    g.nav.rebuild();
+  }
+
+  // ------------------------------------------------------------ Halden interior
+  _breach() {
+    const g = this.game;
+    this.stage = 'breach';
+    g.hud.setObjective('Afaste-se da porta', null);
+    g.dialogue.say({ speaker: 'KANE', text: 'Carga posicionada! Afastem-se... Rompendo!' });
+    setTimeoutGame(g, 2.2, () => {
+      const pos = new THREE.Vector3(0, 0.6, -167.7);
+      g.effects.explosion(pos, 0.55);
+      g.audio.playExplosion(pos, 0.7);
+      const pd = g.player.pos.distanceTo(pos);
+      g.player.addTrauma(Math.max(0.2, 1 - pd / 15));
+      if (pd < 2.5) g.player.takeDamage(35, pos);
+      g.audio.concussion(1.6, 0.6);
+      this._setDoor(true);
+      g.city.namedProps.halden.setOpen(0);
+      this.doorAnim = { t: 0 };
+      g.slowMotion(0.4, 0.9);
+      this._startLobby();
+    });
+  }
+
+  _startLobby() {
+    const g = this.game;
+    this.stage = 'lobby';
+    for (const s of this.waves[3].soldiers) s.brain.activate();
+    this.activateWave(3);
+    g.squad.setAnchor(0, -171.5, { radius: 6, facing: PI, combat: true });
+    g.hud.setObjective('Limpe o saguão do Edifício Halden', new THREE.Vector3(0, 1.8, -178));
+    g.audio.setMusicIntensity(1);
+    g.audio.battleIntensity = 0.6;
+    setTimeoutGame(g, 0.8, () => g.dialogue.say({ speaker: 'RUIZ', text: 'Contatos no saguão! Atrás do balcão e das colunas!' }));
+  }
+
+  _stageServers(fromCheckpoint) {
+    const g = this.game;
+    this.stage = 'servers';
+    g.squad.setAnchor(0, -199.5, { radius: 5, facing: 0, combat: false });
+    g.hud.setObjective('Chegue à sala dos servidores e inicie o download', new THREE.Vector3(0, 1.6, -197.6));
+    g.audio.setMusicIntensity(0.3);
+    g.audio.battleIntensity = 0.3;
+    if (!fromCheckpoint) {
+      g.dialogue.sequence([
+        { speaker: 'KANE', text: 'Saguão limpo!' },
+        { speaker: 'RUIZ', text: 'A sala dos servidores fica no fim do corredor. Se o relé está aqui, é lá.' },
+        { speaker: 'KANE', text: 'Capitão, conecte o terminal. Okafor, cobre o corredor.' },
+      ]);
+      setTimeoutGame(g, 1.5, () => this.saveCheckpoint('cp_lobby'));
+    }
+  }
+
+  _startDownload() {
+    const g = this.game;
+    this.stage = 'download';
+    this.download = { t: 0 };
+    if (!this.waves[4]) this.spawnWave(4);
+    this.activateWave(4);
+    g.squad.setAnchor(0, -199.2, { radius: 6, facing: 0, combat: true });
+    g.hud.setObjective('Defenda a sala dos servidores durante o download', new THREE.Vector3(0, 1.6, -191));
+    g.hud.setProgress(0);
+    g.audio.setMusicIntensity(0.9);
+    g.audio.playFoley('ammo');
+    g.dialogue.sequence([
+      { speaker: 'OKAFOR', text: 'Download iniciado. Quarenta segundos.' },
+      { speaker: 'BASTIÃO', radio: true, text: 'Iron, Bastião. Veículos do Vértice se aproximando do Halden. Muitos.' },
+      { speaker: 'KANE', text: 'Eles vão entrar pela porta da frente. Segurem o corredor!' },
+    ]);
+  }
+
+  _twist() {
+    const g = this.game;
+    this.stage = 'twist';
+    g.hud.setProgress(null);
+    g.hud.setObjective(null);
+    g.squad.setCombat(false);
+    g.audio.setMusicIntensity(0.4);
+    g.audio.battleIntensity = 0.2;
+    g.dialogue.sequence([
+      { speaker: 'OKAFOR', text: 'Download completo. Abrindo os arquivos...' },
+      { speaker: 'RUIZ', text: 'Capitão... estes códigos de autorização. São nossos. São do Comando da Coalizão.' },
+      { speaker: 'KANE', text: 'Impossível. Ninguém fora do alto comando tem esses códigos.' },
+      { speaker: 'RUIZ', text: 'Alguém de dentro está entregando tudo ao Vértice. Rotas, horários... até a nossa zona de pouso.' },
+      { speaker: 'KANE', text: 'Então a emboscada não foi azar. Eles sabiam que a gente vinha. Briggs...' },
+      { speaker: 'BASTIÃO', radio: true, text: 'Iron, Bastião. Interrompam a transmissão dos dados imediatamente. Repito, interrompam—', onDone: () => { g.audio.radioStatic(2.5); g.audio.concussion(0.6, 0.2); } },
+      { speaker: 'KANE', text: 'Bastião? Bastião, responda!' },
+      { speaker: 'OKAFOR', text: 'O canal caiu, sargento. Estamos sozinhos.', onDone: () => {
+        g.audio.stinger();
+        g.fade.to(1, 2.5);
+        setTimeoutGame(g, 2.8, () => g.completeMission());
+      } },
+    ]);
   }
 
   waveCleared(i) {
@@ -642,13 +768,41 @@ export class Mission01 {
       case 'wave3':
         if (this.waveCleared(2)) this._stageDoor(false);
         break;
+      case 'lobby':
+        if (this.waveCleared(3)) this._stageServers(false);
+        break;
+      case 'download': {
+        const d = this.download;
+        if (d.t < DOWNLOAD_TIME) {
+          d.t += dt;
+          g.hud.setProgress(Math.min(1, d.t / DOWNLOAD_TIME));
+          if (d.t >= DOWNLOAD_TIME) {
+            g.hud.setProgress(1);
+            if (!this.waveCleared(4)) { g.hud.setObjective('Download completo — elimine os hostis restantes', null); g.dialogue.say({ speaker: 'OKAFOR', text: 'Dados copiados! Ainda tem gente no saguão!' }); }
+          }
+        } else if (this.waveCleared(4)) this._twist();
+        break;
+      }
+    }
+    // breach door swing
+    if (this.doorAnim) {
+      this.doorAnim.t += dt;
+      const k = Math.min(1, this.doorAnim.t / 0.35);
+      g.city.namedProps.halden.setOpen(1 - Math.pow(1 - k, 3));
+      if (k >= 1) this.doorAnim = null;
     }
     // squad keeps up with an aggressive player during combat
+    if (['lobby', 'download'].includes(this.stage)) {
+      const w = this.waves[this.stage === 'lobby' ? 3 : 4];
+      const alive = w ? w.soldiers.filter((s) => s.alive && !s.hiddenUntilActive) : [];
+      const left = w ? w.soldiers.filter((s) => s.alive).length : 0;
+      if (alive.length > 0 && left <= 2) for (const s of alive) if (!s.brain.rush) { s.brain.rush = true; s.brain.relocateT = 0; }
+    }
     if (['wave1', 'wave2', 'wave3'].includes(this.stage)) {
       const a = g.squad.anchor;
-      if (p.pos.z < a.z - 18) g.squad.setAnchor(0, Math.max(p.pos.z + 6, a.z - 20), { radius: 8, facing: PI, combat: true });
+      if (p.pos.z < a.z - 18 && p.pos.z > -166) g.squad.setAnchor(0, Math.max(p.pos.z + 6, a.z - 20), { radius: 8, facing: PI, combat: true });
       // remaining hostiles push the player when few are left
-      const w = this.waves[{ wave1: 0, wave2: 1, wave3: 2 }[this.stage]];
+      const w = this.waves[{ wave1: 0, wave2: 1, wave3: 2, lobby: 3, download: 4 }[this.stage]];
       const alive = w ? w.soldiers.filter((s) => s.alive && !s.isStatic) : [];
       if (alive.length > 0 && alive.length <= 2) for (const s of alive) if (!s.brain.rush) { s.brain.rush = true; s.brain.relocateT = 0; }
     }

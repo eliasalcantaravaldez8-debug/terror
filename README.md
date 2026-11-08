@@ -4,9 +4,10 @@ FPS militar single-player em 3D — guerra moderna fictícia, 2029.
 O Capitão **Daniel Mercer** e a Força-Tarefa Iron investigam a organização
 **VÉRTICE**, responsável por ataques coordenados pelo mundo.
 
-> **Estado atual: v0.1 — fatia vertical jogável da Missão 1 "Primeiro Contato".**
+> **Estado atual: v0.2 — Missão 1 "Primeiro Contato" jogável do início ao fim.**
 > Abertura no helicóptero → pouso no distrito de Teresk → emboscada do atirador →
-> combate em três ondas pela Avenida Verkhov → porta do Edifício Halden.
+> combate em três ondas pela Avenida Verkhov → arrombamento do Edifício Halden →
+> combate no saguão → download dos servidores sob contra-ataque → reviravolta.
 
 ## Como jogar
 
@@ -51,8 +52,10 @@ volumes, inverter Y, legendas, vozes provisórias, contador de FPS.
   restam poucos; atirador de elite com reflexo da luneta, RPG roteirizado,
   metralhadora, inimigos em telhados e varandas; sistema de "tokens" para
   controlar quantos atiram com precisão no jogador ao mesmo tempo.
-- **Missão 1** roteirizada com diálogos, objetivos com marcador, câmera lenta
-  no momento do disparo, checkpoints salvos automaticamente.
+- **Missão 1 completa** roteirizada com diálogos, objetivos com marcador, câmera lenta
+  no momento do disparo, arrombamento com carga explosiva, interior do Edifício
+  Halden (saguão, corredor, sala dos servidores), defesa durante o download com
+  barra de progresso e a primeira reviravolta da história. Checkpoints automáticos.
 - **Efeitos**: chuva, neblina, fumaça, fogo com luz, explosões, poeira do rotor,
   céu físico, sombras suaves, pós-processamento (bloom, vinheta, gradação).
 - **Áudio 3D procedural**: helicóptero (dentro/fora), tiros com eco urbano,

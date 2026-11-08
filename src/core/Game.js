@@ -72,6 +72,7 @@ export class Game {
     await nextFrame();
     this.effects = new Effects(this.scene, this.pipeline, this.pipeline.quality);
     this.effects.onCasingLand = (p) => this.audio.playCasing(p);
+    this.effects.indoorRects = this.city.indoorRects;
     this.player = new Player(this);
     this.actors.push(this.player);
     this.combat = new Combat(this);
@@ -198,7 +199,7 @@ export class Game {
       time: `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`,
       kills: p.kills, headshots: p.headshots, shots: p.shotsFired, hits: p.shotsHit, deaths: this.stats.deaths || 0,
     };
-    this.saves.save({ mission: MISSION_ID, checkpoint: 'cp_halden', weapons: this.weapons.serialize(), stats: this.stats, completed: true });
+    this.saves.save({ mission: MISSION_ID, checkpoint: 'cp_lobby', weapons: this.weapons.serialize(), stats: this.stats, completed: true });
     this.hud.show(false);
     this.input.exitLock();
     this.audio.setMusicIntensity(0.2);
@@ -269,6 +270,13 @@ export class Game {
     const fwd = this.player.forward;
     this.audio.setListener(cam.position, fwd, new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion));
     this.audio.updateDistantBattle(dt);
+    const indoor = this.city.indoorRects.some((r) => this.player.pos.x > r.x0 && this.player.pos.x < r.x1 && this.player.pos.z > r.z0 && this.player.pos.z < r.z1);
+    if (indoor !== this._indoor && !this.player.mount) {
+      this._indoor = indoor;
+      this.audio.setAmbience(indoor ? { wind: 0.015, rain: 0.012 } : { wind: 0.07, rain: 0.045 });
+      if (this.audio.reverbSend) this.audio.reverbSend.gain.value = indoor ? 0.9 : 0.55;
+    }
+    if (this.city.rackMat) this.city.rackMat.emissiveIntensity = 0.75 + Math.sin(this.time * 7) * 0.15;
     if (this.player.health < 30 && this.player.alive) {
       this._hb = (this._hb || 0) - dt;
       if (this._hb <= 0) { this._hb = 0.9; this.audio.playHeartbeat(1 - this.player.health / 30); }

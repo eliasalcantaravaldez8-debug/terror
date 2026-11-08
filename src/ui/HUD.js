@@ -13,7 +13,7 @@ export class HUD {
       <div id="vignette-damage"></div>
       <div id="dmg-indicators"></div>
       <div id="compass"><div id="compass-strip"></div><div id="compass-needle"></div></div>
-      <div id="objective"><div class="obj-label">OBJETIVO</div><div id="obj-text"></div></div>
+      <div id="objective"><div class="obj-label">OBJETIVO</div><div id="obj-text"></div><div id="obj-progress"><div id="obj-progress-fill"></div></div></div>
       <div id="obj-marker"><div class="diamond"></div><div id="obj-dist"></div></div>
       <div id="crosshair"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><b></b></div>
       <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
@@ -83,6 +83,13 @@ export class HUD {
     this.objText.textContent = text || '';
     this.el('objective').classList.toggle('visible', !!text);
     if (text) { this.el('objective').classList.remove('flash'); void this.el('objective').offsetWidth; this.el('objective').classList.add('flash'); }
+  }
+
+  /** Objective progress bar (0..1) or null to hide. */
+  setProgress(v) {
+    const el = this.el('obj-progress');
+    el.style.display = v === null || v === undefined ? 'none' : 'block';
+    if (v !== null && v !== undefined) this.el('obj-progress-fill').style.width = `${Math.round(v * 100)}%`;
   }
 
   toast(text, ms = 2600) {
@@ -203,6 +210,7 @@ export class HUD {
   }
 
   reset() {
+    this.setProgress(null);
     for (const i of this.indicators) i.el.remove();
     this.indicators.length = 0;
     this.setSubtitle(null);

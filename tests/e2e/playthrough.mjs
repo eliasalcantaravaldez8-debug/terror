@@ -231,18 +231,38 @@ function check(cond, msg) {
   check(await G(() => window.__IRON.game.mission.stage === 'door'), 'objective: enter the Halden building');
 
   // Walk to the door and interact
-  await walkTo(-165, 40);
+  await walkTo(-164.5, 40);
   await G(() => { const g = window.__IRON.game, p = g.player; p.yaw = 0; p.pitch = 0.05; g.advance(0.3); });
   await sleep(200); await snap('halden-door');
-  await G(() => { const g = window.__IRON.game; g.input.simulateKey('KeyE', true); g.advance(0.1); g.input.simulateKey('KeyE', false); g.advance(3); });
+  const pressE = () => G(() => { const g = window.__IRON.game; g.input.simulateKey('KeyE', true); g.advance(0.1); g.input.simulateKey('KeyE', false); });
+  await pressE();
+  check(await G(() => window.__IRON.game.mission.stage === 'breach'), 'breaching charge placed on the Halden door');
+  await G(() => { const g = window.__IRON.game; g.player.pos.z += 5; g.advance(3.5); });
+  check(await G(() => window.__IRON.game.mission.stage === 'lobby' && window.__IRON.game.city.namedProps.halden.open), 'door blown open, lobby fight starts');
+  await G(() => { const p = window.__IRON.game.player; p.yaw = 0; p.pitch = 0; window.__IRON.game.advance(0.1); });
+  await sleep(200); await snap('breach');
+  res = await fightWave('lobby', 220, 'lobby');
+  await G(() => { const g = window.__IRON.game; g.input.simulateKey('KeyW', false); g.input.simulateMouseButton(2, false); });
+  check(res.ok, `Halden lobby cleared in ${res.t}s`);
+  await adv(3);
+  check(await G(() => window.__IRON.game.saves.load()?.checkpoint === 'cp_lobby'), 'checkpoint cp_lobby saved');
+  await walkTo(-196.5, 60);
+  await G(() => { const g = window.__IRON.game, p = g.player; p.yaw = 0; p.pitch = -0.2; g.advance(0.3); });
+  await sleep(200); await snap('server-room');
+  await pressE();
+  check(await G(() => window.__IRON.game.mission.stage === 'download'), 'server download started');
+  res = await fightWave('download', 300, 'defense');
+  await G(() => { const g = window.__IRON.game; g.input.simulateKey('KeyW', false); g.input.simulateMouseButton(2, false); });
+  check(res.ok, `download defended in ${res.t}s`);
+  check(await G(() => window.__IRON.game.mission.stage === 'twist'), 'twist dialogue plays');
+  for (let i = 0; i < 40 && !(await G(() => window.__IRON.game.state === 'complete')); i++) await adv(2);
   await sleep(400);
-  check(await G(() => window.__IRON.game.state === 'complete'), 'mission slice completes');
+  check(await G(() => window.__IRON.game.state === 'complete'), 'mission 1 completes after the twist');
   await snap('mission-complete');
-
   // Checkpoint reload test
   await G(() => window.__IRON.game.continueCampaign());
   await sleep(300);
-  check(await G(() => window.__IRON.game.state === 'playing' && window.__IRON.game.mission.checkpoint === 'cp_halden'), 'continue loads saved checkpoint');
+  check(await G(() => window.__IRON.game.state === 'playing' && window.__IRON.game.mission.checkpoint === 'cp_lobby'), 'continue loads saved checkpoint');
   await G(() => { const g = window.__IRON.game; g.saves.save({ mission: 'm01', checkpoint: 'cp_lz', weapons: g.weapons.serialize() }); g.restartFromCheckpoint(); g.advance(1); });
   check(await G(() => window.__IRON.game.mission.stage === 'wave1'), 'restart from cp_lz puts the player in the ambush');
   // death -> retry
