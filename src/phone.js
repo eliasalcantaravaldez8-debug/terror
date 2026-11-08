@@ -20,7 +20,7 @@ const CSS = `
 const APPS_BASE = [
   ['mapa', 'Mapa', '#3a8a5a', 'M'], ['mensagens', 'Mensagens', '#3a7ad0', '✉'], ['ligacoes', 'Ligações', '#2aa060', '☎'], ['banco', 'Banco', '#c8962a', '$'],
   ['camera', 'Câmera', '#555', '◉'], ['garagem', 'Garagem', '#6a5aa8', 'G'], ['missoes', 'Missões', '#a83a3a', '!'], ['noticias', 'Notícias', '#2a5a8a', 'N'],
-  ['vibe', 'VIBE', '#d0306a', 'V'], ['status', 'Status', '#4a6a7a', '♥'],
+  ['vibe', 'VIBE', '#d0306a', 'V'], ['status', 'Status', '#4a6a7a', '♥'], ['codigos', 'Códigos', '#222', '#'],
 ];
 const APPS_RYAN = [['arquivos', 'Arquivos', '#5a5a3a', 'A'], ['casos', 'Casos', '#7a3a2a', 'C'], ['contratos', 'Contratos', '#2a2a2a', '✦'], ['ferramentas', 'Ferramentas', '#2a6a6a', 'F'], ['anotacoes', 'Anotações', '#8a7a3a', '✎']];
 
@@ -64,6 +64,8 @@ export class Phone {
     if (act === 'photo') { G.takePhoto && G.takePhoto(); this.render(); }
     if (act === 'callcar') { G.callCar && G.callCar(); this.toggle(false); }
     if (act === 'contract') { G.onContract && G.onContract(arg); this.render(); }
+    if (act === 'code') { const inp = document.getElementById('code-in'); this.codeResult = G.cheat ? G.cheat((inp && inp.value) || '') : null; this.render(); }
+    if (act === 'spawn') { G.spawnVehicle && G.spawnVehicle(arg); this.codeResult = null; this.toggle(false); G.relockPointer && G.relockPointer(); }
   }
   render() {
     const G = this.G, st = G.state, C = this.C, ryan = st.char === 'ryan';
@@ -96,6 +98,15 @@ export class Phone {
       case 'casos': body = back + '<h4>Casos</h4>' + list(C.notes.filter((n) => n.type === 'caso'), (n) => `<div class="item"><b>${esc(n.title)}</b><br>${esc(n.text)}</div>`, 'Nenhum caso aberto.'); break;
       case 'contratos': body = back + '<h4>Contratos</h4>' + list(C.contracts, (k) => `<div class="item"><b>${esc(k.title)}</b> <span class="tag">${esc(k.status)}</span><br>${esc(k.text)}${k.status === 'oferta' ? `<br><button class="btn" data-act="contract" data-arg="${k.id}:aceitar">Aceitar</button><button class="btn" data-act="contract" data-arg="${k.id}:recusar">Recusar</button>` : ''}</div>`, 'Nenhum contrato.'); break;
       case 'ferramentas': body = back + '<h4>Ferramentas</h4>' + (C.tools.pulso ? '<div class="item"><b>Pulso Eletrônico</b><br>Desativa câmeras próximas por alguns segundos. Tecla <b>Q</b>.</div>' : '<div class="item">Nenhuma ferramenta desbloqueada.</div>'); break;
+      case 'codigos': {
+        const r = this.codeResult;
+        body = back + '<h4>Códigos</h4><div class="item">Digite um código e toque em Ativar.</div>'
+          + '<input id="code-in" type="text" autocomplete="off" spellcheck="false" placeholder="ex.: TODOSCARROS" style="width:100%;box-sizing:border-box;padding:8px;font-size:15px;text-transform:uppercase;border-radius:8px;border:1px solid #555;background:#111;color:#fff">'
+          + '<button class="btn" data-act="code">Ativar</button>'
+          + (r ? (r.msg ? `<div class="item"><b>${esc(r.msg)}</b></div>` : '') + (r.list ? r.list.map(([id, name]) => `<button class="btn" style="display:block;width:100%;margin:4px 0;text-align:left" data-act="spawn" data-arg="${id}">${esc(name)}</button>`).join('') : '') : '')
+          + '<div class="item"><small>Códigos: TODOSCARROS · TODASMOTOS · SEMFOME · VIDACHEIA · SEMPOLICIA</small></div>';
+        break;
+      }
       case 'anotacoes': body = back + '<h4>Anotações</h4>' + list(C.notes.filter((n) => n.type === 'nota'), (n) => `<div class="item">${esc(n.text)}</div>`, 'Sem anotações.'); break;
     }
     this.el.innerHTML = head + `<div class="scr">${body}</div><div class="home"></div>`;

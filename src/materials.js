@@ -94,6 +94,9 @@ export function mats() {
   M.signAtlas = TX.signAtlas();
   M.sign = night(lam({ map: M.signAtlas.texture, emissiveMap: M.signAtlas.texture, emissive: 0xffffff, emissiveIntensity: 0.4 }, { castShadow: false }), 0.25, 0.9);
   M.flat = flat;
+  const GA = TX.graffitiAtlas();
+  M.graffiti = lam({ map: GA.texture, transparent: true, alphaTest: 0.25, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }, { castShadow: false });
+  M.graffitiRegions = GA.regions;
   M.flatIn = lam({ vertexColors: true, emissive: 0x2a2622 }); // tinta das paredes internas e móveis (levemente iluminados)
   const HA = homeAtlas();
   M.home = night(lam({ map: HA.texture, emissiveMap: HA.texture, emissive: 0xffffff, emissiveIntensity: 0.12 }), 0.12, 0.3);

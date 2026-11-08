@@ -20,9 +20,9 @@ export const CHARACTERS = {
   mystery: { name: 'Pessoa misteriosa', look: { skin: 0x7a5a44, hair: 0x101010, shirt: 0x141416, pants: 0x121214, shoes: 0x0a0a0a, hat: 'hood', hatColor: 0x121214, hairStyle: 'bald', height: 0.98, build: 0.95, longSleeve: true } },
 };
 // grupos
-export function allyGuardLook() { return { ...randomPedestrian(), shirt: 0x1a1a1a, jacket: 0x22252a, pants: 0x1a1a1a, shoes: 0x0a0a0a, hat: null, hairStyle: 'short', build: rr(1.05, 1.15), height: rr(1, 1.05), longSleeve: true }; }
-export function rivalLook() { return { ...randomPedestrian(), shirt: pick([0x7a1a1a, 0x5a1010, 0x8a2a1a]), jacket: rand() < 0.5 ? 0x1a1a1a : null, pants: pick([0x1a1a1a, 0x2a2a3a]), hat: rand() < 0.4 ? 'cap' : null, hatColor: 0x7a1010, hairStyle: 'short', build: rr(1, 1.12) }; }
-export function mansionGuardLook() { return { ...randomPedestrian(), shirt: 0xe8e8e8, jacket: 0x14161a, pants: 0x14161a, shoes: 0x050505, tie: 0x14161a, hairStyle: pick(['short', 'bald']), hat: null, build: rr(1.08, 1.18), height: rr(1, 1.06), longSleeve: true }; }
+export function allyGuardLook() { return { ...randomPedestrian(), female: false, skirt: null, shirt: 0x1a1a1a, jacket: 0x22252a, pants: 0x1a1a1a, shoes: 0x0a0a0a, hat: null, hairStyle: 'short', build: rr(1.05, 1.15), height: rr(1, 1.05), longSleeve: true }; }
+export function rivalLook() { return { ...randomPedestrian(), female: false, skirt: null, shirt: pick([0x7a1a1a, 0x5a1010, 0x8a2a1a]), jacket: rand() < 0.5 ? 0x1a1a1a : null, pants: pick([0x1a1a1a, 0x2a2a3a]), hat: rand() < 0.4 ? 'cap' : null, hatColor: 0x7a1010, hairStyle: 'short', build: rr(1, 1.12) }; }
+export function mansionGuardLook() { return { ...randomPedestrian(), female: false, skirt: null, shirt: 0xe8e8e8, jacket: 0x14161a, pants: 0x14161a, shoes: 0x050505, tie: 0x14161a, hairStyle: pick(['short', 'bald']), hat: null, build: rr(1.08, 1.18), height: rr(1, 1.06), longSleeve: true }; }
 export function corruptCopLook() { return { ...policeLook() }; }
 
 const SKINS = [0xf1c6a5, 0xe0ac86, 0xc68a64, 0xa8714f, 0x8a5a3c, 0x5e3b26, 0xd9a582];
@@ -32,10 +32,13 @@ const PANTS = [0x2c3e50, 0x1c1c1c, 0x4a4030, 0x3a4a6a, 0x5a5a5a, 0x6a5040, 0x2a3
 
 export function randomPedestrian() {
   const female = rand() < 0.5;
+  const skirt = female && rand() < 0.4 ? pick(['short', 'long']) : null;
   return {
+    female, skirt, skirtColor: pick([0x2a2a3a, 0x8a2a3a, 0x3a5a8a, 0x1a1a1a, 0x6a4a7a, 0xc8a070]), lips: pick([0xa83a4a, 0x8a3a3a, 0xc85a6a, 0x9a4a40]), earrings: female && rand() < 0.5,
+    eyes: pick([0x4a3020, 0x2a1a10, 0x3a6a8a, 0x4a6a3a, 0x6a4a2a]),
     skin: pick(SKINS), hair: pick(HAIRS), shirt: pick(SHIRTS), pants: pick(PANTS), shoes: pick([0x1a1a1a, 0x4a3020, 0xe0e0e0, 0x3a3a5a]),
     jacket: rand() < 0.3 ? pick([0x2a2a2a, 0x4a3a2a, 0x2a3a5a, 0x6a2a2a]) : null,
-    hairStyle: female ? pick(['long', 'bun', 'long']) : pick(['short', 'short', 'bald']),
+    hairStyle: female ? pick(['long', 'bun', 'long', 'ponytail', 'bob']) : pick(['short', 'short', 'bald']),
     beard: !female && rand() < 0.25, hat: rand() < 0.1 ? 'cap' : null, hatColor: pick([0xaa2222, 0x2244aa, 0x222222]),
     height: female ? rr(0.92, 0.99) : rr(0.97, 1.06), build: female ? rr(0.88, 0.95) : rr(0.95, 1.12), longSleeve: rand() < 0.4,
   };

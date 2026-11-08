@@ -555,3 +555,30 @@ export function corrugatedTex() {
     return toTex(c);
   });
 }
+
+// Pichações para os becos: 8 desenhos com fundo transparente (atlas 1024x512)
+export function graffitiAtlas() {
+  return cached('graffiti', () => {
+    const [c, g] = canvas(1024, 512);
+    g.clearRect(0, 0, 1024, 512);
+    const words = ['SOMBRA', 'LV 27', 'ZONA', 'CORVO', 'RUA', 'VIBE', 'REI', 'NOIS'];
+    const regions = [];
+    words.forEach((w, i) => {
+      const x = (i % 4) * 256, y = Math.floor(i / 4) * 256;
+      const fill = pick(['#e8302a', '#2ac8e8', '#f2c21a', '#9a3ae8', '#3ae86a', '#f27a1a', '#e83aa8']);
+      const out = pick(['#111', '#fff', '#1a1a5a']);
+      g.save(); g.translate(x + 128, y + 140); g.rotate(rr(-0.18, 0.12));
+      if (i % 3 === 0) { g.fillStyle = 'rgba(30,30,30,0.85)'; g.beginPath(); g.ellipse(0, 0, 118, 70, 0, 0, 7); g.fill(); } // fundo tipo "bomb"
+      let size = 74; g.font = `900 ${size}px Impact, 'Arial Black', sans-serif`; while (g.measureText(w).width > 225) { size -= 4; g.font = `900 ${size}px Impact, 'Arial Black', sans-serif`; }
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+      g.lineWidth = 12; g.strokeStyle = out; g.strokeText(w, 0, 0);
+      const gr = g.createLinearGradient(0, -size / 2, 0, size / 2); gr.addColorStop(0, '#fff'); gr.addColorStop(0.25, fill); gr.addColorStop(1, fill);
+      g.fillStyle = gr; g.fillText(w, 0, 0);
+      g.fillStyle = fill; for (let k = 0; k < 6; k++) { const dx = rr(-100, 100); g.fillRect(dx, size * 0.35, 3, rr(10, 45)); } // escorridos de tinta
+      g.fillStyle = 'rgba(255,255,255,0.7)'; for (let k = 0; k < 3; k++) { g.beginPath(); g.arc(rr(-90, 90), rr(-30, 20), rr(3, 6), 0, 7); g.fill(); }
+      g.restore();
+      regions.push({ u0: (x + 2) / 1024, u1: (x + 254) / 1024, v0: 1 - (y + 254) / 512, v1: 1 - (y + 2) / 512 });
+    });
+    const t = toTex(c, false); return { texture: t, regions };
+  });
+}

@@ -97,17 +97,19 @@ export class Ragdoll {
     B.hips.position.copy(hipWorld.applyMatrix4(inv));
     parent.getWorldQuaternion(_q); B.hips.quaternion.copy(_q.invert().multiply(worldQ));
     for (const k of ['spine', 'chest', 'neck']) B[k].quaternion.identity();
+    for (const b of m.boneList) b.updateMatrix();
     B.hips.updateMatrixWorld(true);
     // membros: cada osso aponta para a próxima articulação
     const aim = (bone, target, rest) => {
       bone.parent.getWorldQuaternion(_q); bone.getWorldPosition(_b);
       _v.subVectors(target, _b).normalize().applyQuaternion(_q.invert());
-      bone.quaternion.setFromUnitVectors(rest, _v); bone.updateMatrixWorld(true);
+      bone.quaternion.setFromUnitVectors(rest, _v); bone.updateMatrix(); bone.updateMatrixWorld(true);
     };
     aim(B.head, P.headTop.pos, UP);
     for (const s of ['L', 'R']) {
       aim(B['shoulder' + s], P['elbow' + s].pos, DOWN); aim(B['elbow' + s], P['hand' + s].pos, DOWN); B['hand' + s].quaternion.identity();
       aim(B['thigh' + s], P['knee' + s].pos, DOWN); aim(B['knee' + s], P['foot' + s].pos, DOWN); B['foot' + s].quaternion.identity();
+      B['hand' + s].updateMatrix(); B['foot' + s].updateMatrix();
     }
   }
   // empurrão extra (tiros em quem já está caído, batidas de carro)
@@ -118,6 +120,6 @@ export class Ragdoll {
 }
 // devolve o esqueleto ao controle da animação (Humanoid.update usa rotation; a posição do quadril é restaurada lá)
 export function endRagdoll(model) {
-  for (const b of Object.values(model.bones)) { b.rotation.set(0, 0, 0); }
+  for (const b of Object.values(model.bones)) { b.rotation.set(0, 0, 0); b.updateMatrix(); }
   for (const k of Object.keys(model.cur)) model.cur[k].set(0, 0, 0);
 }

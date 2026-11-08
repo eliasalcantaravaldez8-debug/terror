@@ -82,6 +82,7 @@ export function shopKind(name) {
   if (/eletr/.test(n)) return 'eletronicos';
   if (/barbearia/.test(n)) return 'barbearia';
   if (/antiqu/.test(n)) return 'antiquario';
+  if (/banco/.test(n)) return 'banco';
   return 'mercado';
 }
 
@@ -671,17 +672,44 @@ export class City {
   mixed(F) {
     const M = this.M; const inner = (BLOCK - SW * 2) / 2 - 0.5;
     // 3 prédios baixos ao sul, estacionamento ao norte
-    const n = 3, w = (inner * 2 - 4) / n;
+    const n = 3, gap = 3.6, w = (inner * 2 - 2 * gap) / n;
     for (let i = 0; i < n; i++) {
-      const x = -inner + w / 2 + i * (w + 2);
+      const x = -inner + w / 2 + i * (w + gap);
       this.building(F, x, -inner + 7, w, 14, Math.floor(rr(2, 5)), pick(['brick', 'plaster', 'concrete', 'apartment']), { storefronts: ['s'] });
     }
+    // becos entre os prédios
+    for (let i = 0; i < n - 1; i++) this.alley(F, -inner + w * (i + 1) + gap * (i + 0.5), -inner, 14, gap);
     this.parkingLot(F, 0, 9, inner * 2 - 2, 18, 0);
     // pequeno jardim
     F.add(plane(inner * 2, 6, 4), M.grass, 0, CURB + 0.01, -inner + 17);
     for (let i = 0; i < 5; i++) this.trees.push([F.x - inner + 4 + i * 12, F.z - inner + 17, rr(0.8, 1.1)]);
   }
 
+  // BECO: lixo, caçamba, caixas, poça, pichações nas paredes e luz fraca. Traficantes são colocados pelo main.js
+  alley(F, ax, z0, len, gap) {
+    const M = this.M, y = CURB; const P = (c) => paint(M.flat, c);
+    const zc = z0 + len / 2;
+    // caçamba de lixo
+    const dz = zc + rr(-2, 2), dx = ax + (rand() < 0.5 ? -1 : 1) * (gap / 2 - 0.75);
+    F.box(P(0x2a5a2a), dx, y, dz, 1.1, 1.15, 1.9, true, 1); F.box(P(0x1a3a1a), dx, y + 1.15, dz, 1.2, 0.08, 2.0, false);
+    // sacos de lixo, caixas de papelão e pallet
+    for (let k = 0; k < 6; k++) F.add(new THREE.IcosahedronGeometry(rr(0.25, 0.4), 0), P(rand() < 0.7 ? 0x141414 : 0x1a2a4a), ax + rr(-gap / 2 + 0.4, gap / 2 - 0.4), y + 0.22, z0 + rr(1, len - 1));
+    for (let k = 0; k < 4; k++) { const bx2 = ax + (rand() < 0.5 ? -1 : 1) * (gap / 2 - 0.45); F.add(box(rr(0.4, 0.7), rr(0.3, 0.6), rr(0.4, 0.7)), P(0x9a7a4a), bx2, y + 0.25, z0 + rr(2, len - 2), rr(0, 1)); }
+    F.add(box(1.2, 0.12, 1.0), P(0x7a5a3a), ax - gap / 2 + 0.7, y + 0.06, z0 + len - 2.5, 0.3);
+    // poça d'água
+    F.add(plane(rr(1, 1.8), rr(0.8, 1.4), 1), M.water, ax + rr(-0.5, 0.5), y + 0.012, z0 + rr(3, len - 3));
+    // pichações nas duas paredes
+    const R = M.graffitiRegions;
+    for (const side of [-1, 1]) for (let k = 0; k < 2; k++) {
+      const gz = z0 + 2.5 + k * (len - 5) / 1 * 0.55 + rr(-1, 1);
+      F.add(plane(2.6, 2.6, 2.6, 2.6).rotateX(Math.PI / 2).rotateY(side * Math.PI / 2), { isSign: true, mat: M.graffiti, region: R[Math.floor(rand() * R.length)] }, ax - side * (gap / 2 - 0.02), y + 1.6, gz);
+    }
+    // luz fraca na parede
+    F.box(P(0x222222), ax - gap / 2 + 0.05, y + 3.2, zc, 0.15, 0.2, 0.4, false); F.add(box(0.05, 0.12, 0.3), M.ceilingLight, ax - gap / 2 + 0.14, y + 3.15, zc);
+    { const [lx, lz] = F.pt(ax - gap / 2 + 0.4, zc); this.lamps.push([lx, y + 3.0, lz]); }
+    const [wx, wz] = F.pt(ax, z0 + len * 0.55), [mx, mz] = F.pt(ax, z0 + 0.8);
+    this.alleys = this.alleys || []; this.alleys.push({ x: wx, z: wz, mouth: [mx, mz], heading: F.ry });
+  }
   parkingLot(F, lx, lz, w, d, ry) {
     const M = this.M;
     const f = new Frame(...F.pt(lx, lz), ry, F.B, this.world);
@@ -889,6 +917,28 @@ export class City {
       }
       this.tableSet(f, gx - 1.4, -d / 2 + 8, y0, 0x2a2a2a);
       left(['barbearia', 'antiquario'], { mat: M.woodDark, levels: 3, h: 1.8 });
+    } else if (kind === 'banco') {
+      f.add(plane(w - 0.5, d - 0.5, 2), M.interiorFloor, 0, y0 + 0.07, 0); // piso acima do asfalto do estacionamento
+      // balcão dos caixas com vidro blindado; passagem à direita leva ao cofre
+      f.box(M.woodDark, w / 4 - 2.2, y0, -d / 2 + 3, w / 2 - 4.4, 1.05, 0.8, true, 1);
+      f.box(M.metalLight, w / 4 - 2.2, y0 + 1.05, -d / 2 + 3, w / 2 - 4.3, 0.05, 0.9, false);
+      f.add(box(w - 4.6, 1.2, 0.03), M.glass, -2.3, y0 + 1.7, -d / 2 + 2.65);
+      for (let i = 0; i < 5; i++) f.box(M.metalLight, -w / 2 + 0.3 + i * ((w - 4.6) / 4), y0 + 1.1, -d / 2 + 2.65, 0.05, 1.2, 0.05, false);
+      f.add(box(8, 0.8, 0.06, 8, 0.8), signMat('BANCO LOS VALLES', { bg: '#0d2a4a', fg: '#e8c860', glow: true, w: 1024, h: 128 }), -w / 4, y0 + H - 1.2, -d / 2 + 0.3);
+      // cofre: porta redonda de aço com volante
+      const vx = w / 2 - 2.2, vz = -d / 2 + 0.32;
+      f.add(new THREE.TorusGeometry(1.25, 0.12, 8, 24), M.metalDark, vx, y0 + 1.45, vz + 0.05);
+      f.add(cyl(1.15, 1.15, 0.3, 24).rotateX(Math.PI / 2), M.metalLight, vx, y0 + 1.45, vz + 0.18);
+      f.add(cyl(0.18, 0.18, 0.2, 12).rotateX(Math.PI / 2), M.metalDark, vx, y0 + 1.45, vz + 0.38);
+      for (let i = 0; i < 3; i++) f.add(box(1.3, 0.06, 0.06), M.metalDark, vx, y0 + 1.45, vz + 0.45, 0, 0, i * Math.PI / 3);
+      for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; f.add(cyl(0.07, 0.07, 0.12, 8).rotateX(Math.PI / 2), M.metalDark, vx + Math.cos(a) * 0.9, y0 + 1.45 + Math.sin(a) * 0.9, vz + 0.36); }
+      // caixas eletrônicos, fila com cordões, cadeiras e plantas
+      for (let i = 0; i < 3; i++) { const az = d / 2 - 2.5 - i * 1.4; f.box(M.metalDark, leftX + 0.1, y0, az, 0.6, 1.6, 0.9, true, 1); f.add(box(0.03, 0.4, 0.5), M.ceilingLight, leftX + 0.42, y0 + 1.25, az); }
+      for (let i = 0; i < 4; i++) { const px = -w / 4 - 2 + i * 1.6; f.add(cyl(0.05, 0.05, 1.0, 8), M.metalLight, px, y0 + 0.5, -d / 2 + 5.4); f.add(cyl(0.18, 0.2, 0.05, 10), M.metalDark, px, y0 + 0.025, -d / 2 + 5.4); if (i < 3) f.add(box(1.6, 0.05, 0.05), paint(M.flat, 0x8a1a1a), px + 0.8, y0 + 0.9, -d / 2 + 5.4); }
+      for (let i = 0; i < 5; i++) { const cx = 1 + i * 1.0; f.box(paint(M.flat, 0x1a3a6a), cx, y0 + 0.42, d / 2 - 2.2, 0.8, 0.08, 0.7, false); f.box(paint(M.flat, 0x1a3a6a), cx, y0 + 0.42, d / 2 - 1.85, 0.8, 0.6, 0.08, false); f.box(M.metalDark, cx, y0, d / 2 - 2.2, 0.08, 0.42, 0.08, false); }
+      f.collide(3, y0, d / 2 - 2.0, 5, 0.9, 0.9);
+      for (const [px, pz] of [[w / 2 - 1, d / 2 - 1.2], [-w / 2 + 1.2, -d / 2 + 4.5]]) { f.add(cyl(0.25, 0.2, 0.5, 10), paint(M.flat, 0xa8582a), px, y0 + 0.25, pz); f.add(new THREE.IcosahedronGeometry(0.45, 0), M.hedge, px, y0 + 0.9, pz); }
+      { const [gx, gz] = f.pt(w / 2 - 3.5, d / 2 - 3); const [vx2, vz2] = f.pt(vx, vz + 1.6); const [tx, tz] = f.pt(-w / 4, -d / 2 + 1.9); this.bank = { guard: [gx, gz], vault: [vx2, vz2], teller: [tx, tz], heading: f.ry + Math.PI }; }
     } else { // antiquário
       this.wallShelf(f, -w / 4, backZ, 0, backL, ['antiquario'], y0, { mat: M.woodDark, levels: 3 });
       this.wallShelf(f, w / 4 - 0.25, backZ, 0, backR, ['antiquario'], y0, { mat: M.woodDark, levels: 3 });
@@ -1020,7 +1070,9 @@ export class City {
   parkingBlock(F) {
     const M = this.M; const inner = (BLOCK - SW * 2) / 2;
     this.parkingLot(F, 0, -13, inner * 2 - 2, 26, 0);
-    this.parkingLot(F, 0, 14, inner * 2 - 2, 24, 0);
+    // BANCO LOS VALLES (com interior, cofre e segurança) no lugar de parte do estacionamento sul
+    this.parkingLot(F, -17, 14, 18, 24, 0);
+    this.shop(F, 11, 15, 30, 18, 5.2, 'Banco Los Valles', 0);
     const f = new Frame(F.x, F.z, 0, F.B, this.world);
     f.box(M.facade.plaster, inner - 3, CURB, 0, 3, 2.6, 2.5, true, 24, 25.6);
     f.box(M.red, inner - 3, CURB + 2.6, 0, 3.4, 0.2, 2.9, false);

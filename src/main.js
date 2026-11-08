@@ -22,7 +22,7 @@ import { PerfMeter } from './perf.js';
 import { Weapons, WEAPONS, WEAPON_ORDER, weaponIcon } from './weapons.js';
 import { itemIcon, handItem } from './products.js';
 import { shopKind } from './city.js';
-import { Vehicle, CAR_COLORS, updateSirens } from './vehicle.js';
+import { Vehicle, CAR_COLORS, updateSirens, MOTO_TYPES, CAR_LIST, CAR_TYPES } from './vehicle.js';
 import { Player } from './player.js';
 import { ThirdPersonCamera } from './camera.js';
 import { NPC } from './npc.js';
@@ -97,9 +97,9 @@ function build() {
   };
   const eh = city.ethanHouse;
   // vitrine: Fúria V12, Besouro e Coupé estacionados na rua em frente à casa
-  const sz = roadC(3) - 4.75; const showcase = [['furia', 0xd8a010, eh.door[0] + 9, sz], ['besouro', 0x6aa8c8, eh.door[0] - 6, sz], ['coupe', 0xb01818, eh.door[0] - 13, sz]];
+  const sz = roadC(3) - 4.75; const showcase = [['furia', 0xd8a010, eh.door[0] + 9, sz], ['besouro', 0x6aa8c8, eh.door[0] - 6, sz], ['coupe', 0xb01818, eh.door[0] - 13, sz], ['moto_esportiva', 0x1a1a1a, eh.door[0] + 15, sz], ['moto_custom', 0x5a1010, eh.door[0] + 17, sz], ['scooter', 0x2a6ab0, eh.door[0] + 19, sz]];
   const cleared = city.parkedCars.filter((pc) => !showcase.some((sc) => Math.hypot(pc.x - sc[2], pc.z - sc[3]) < 7));
-  for (const pc of cleared) { const c = makeCar(pc.type); c.place(pc.x, pc.z, pc.heading); c.parked = true; }
+  for (const pc of cleared) { const c = makeCar(rand() < 0.14 ? pick(MOTO_TYPES) : pc.type); c.place(pc.x, pc.z, pc.heading); c.parked = true; }
   for (const [type, color, x, z] of showcase) { const c = makeCar(type, color); c.place(x, z, -Math.PI / 2); c.parked = true; c.fuel = 1; }
   const ethanCar = makeCar('sedan', 0x1d3f72);
   ethanCar.place(eh.driveway[0], eh.driveway[1], eh.heading + Math.PI);
@@ -115,6 +115,14 @@ function build() {
     const loop = loops[Math.floor(rand() * loops.length)];
     npcs.push(new NPC(scene, world, randomPedestrian(), { name: 'Pedestre', role: 'ped', lines: [pick(PED_LINES)], behavior: 'loop', loop }));
   }
+  // traficantes nos becos (vendedor + vigia) — personagens de ambiente
+  for (const a of city.alleys || []) {
+    const hood = () => ({ ...randomPedestrian(), female: false, skirt: null, hat: rand() < 0.6 ? 'hood' : 'cap', hatColor: pick([0x141416, 0x2a2a2e, 0x3a1a1a]), shirt: pick([0x1a1a1a, 0x2a2a3a, 0x3a3a3a]), pants: pick([0x1a1a1a, 0x2a3a5a]), jacket: rand() < 0.5 ? 0x111111 : null, hairStyle: 'short', longSleeve: true });
+    const d = new NPC(scene, world, hood(), { name: 'Traficante', role: 'dealer', lines: ['Psiu... tá procurando o quê?', 'Aqui é ponto, parceiro. Se não vai comprar, vaza.', 'Tá com cara de polícia, hein.', 'Fala baixo. Tem olho em todo canto.'], x: a.x + 0.6, z: a.z, heading: a.heading + Math.PI, behavior: 'stand' });
+    const l = new NPC(scene, world, hood(), { name: 'Vigia', role: 'dealer', lines: ['Circulando, circulando.', 'Não vi nada, não sei de nada.', 'Olha a viatura, hein...'], x: a.mouth[0] - 0.8, z: a.mouth[1], heading: a.heading + Math.PI, behavior: 'stand' });
+    d.alley = a; l.alley = a; npcs.push(d, l);
+  }
+  if (city.bank) { const B = city.bank; const gd = new NPC(scene, world, { ...policeLook(), hat: null, shirt: 0x1a1a1e, pants: 0x1a1a1e, badge: true }, { name: 'Segurança do banco', role: 'guard', lines: ['Bom dia. Fila à esquerda, por favor.'], x: B.guard[0], z: B.guard[1], heading: B.heading, behavior: 'stand', hp: 90 }); gd.gun = true; gd.gunDmg = 6; gd.onlyPlayer = true; npcs.push(gd); city.bank.guardNpc = gd; }
   for (const n of npcs) world.dynamic.add(n);
   const lights = new TrafficLights();
   const cam = new ThirdPersonCamera(camera, world, settings);
@@ -151,6 +159,7 @@ const keys = new Set();
 const pressed = new Set();
 let locked = false; let started = false; let paused = false;
 window.addEventListener('keydown', (e) => {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) { if (e.code === 'Enter' && e.target.id === 'code-in') G.phone.action('code'); return; } // digitando no celular
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'F3', 'F4'].includes(e.code)) e.preventDefault();
   if (!keys.has(e.code)) pressed.add(e.code);
   keys.add(e.code);
@@ -527,6 +536,7 @@ function enterCarDirect(car) {
   if (p.model.root.parent) p.model.root.parent.remove(p.model.root);
   car.body.add(p.model.root);
   p.model.root.position.copy(car.seat); p.model.root.rotation.set(0, 0, 0);
+  if (!G.jack) doorAnim(car);
   G.cam.setMode('car', car.heading);
   G.story.onEnterCar(car);
 }
@@ -546,7 +556,7 @@ function forceExitCar() {
   }
   if (!spot) spot = car.local(0, car.T.L / 2 + 1.2);
   car.body.remove(p.model.root); scene.add(p.model.root);
-  car.driver = null; car.speed *= 0.3; G.car = null;
+  car.driver = null; car.speed *= 0.3; G.car = null; doorAnim(car);
   p.mode = 'foot';
   p.place(spot[0], spot[1], car.heading);
   G.cam.setMode('foot');
@@ -681,6 +691,7 @@ function updatePolice(dt) {
 function removeOfficers(u) { for (const o of u.officers || []) { o.remove(); const i = G.npcs.indexOf(o); if (i >= 0) G.npcs.splice(i, 1); G.world.dynamic.delete(o); } u.officers = null; }
 function removeCar(c) { c.removed = true; scene.remove(c.group); G.world.dynamic.delete(c); const i = G.cars.indexOf(c); if (i >= 0) G.cars.splice(i, 1); }
 function busted() {
+  if (G.heist) { G.heist = null; G.story.clearObjective(); setTimeout(() => toast('A polícia recuperou o dinheiro do assalto', 3), 1500); }
   W.stars = 0; G.police.forEach((u) => { removeCar(u.car); removeOfficers(u); }); G.police = [];
   const C = G.campaign(); const fine = Math.max(50, Math.round(C.money * 0.1)); G.addMoney(-fine);
   if (G.car) forceExitCar();
@@ -712,6 +723,7 @@ const MENUS = {
 function shopMenu(npc) {
   const kind = shopKind(npc.name);
   let items = (MENUS[kind] || []).map((k) => IT[k]);
+  if (kind === 'banco') return [{ text: G.weapons.current !== 'mao' ? 'Anunciar o ASSALTO (arma em punho)' : 'Assaltar o banco (precisa estar com uma arma na mão — Tab)', heist: true, price: 0 }];
   if (kind === 'ferragens') {
     const inv = G.weapons.inv;
     for (const id of WEAPON_ORDER.slice(1)) {
@@ -722,6 +734,161 @@ function shopMenu(npc) {
   }
   return items.map((it) => ({ ...it, iconUrl: it.wicon ? weaponIcon(it.wicon) : it.icon ? itemIcon(it.icon) : null }));
 }
+// oficina: ronco de teste ao escolher um motor
+let revT = 0; G.previewEngine = () => { revT = 1.4; };
+// turbo: fogo no escapamento ao acelerar forte e estalos ao tirar o pé
+const flameTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 2, 32, 32, 30);
+  gr.addColorStop(0, 'rgba(255,255,230,1)'); gr.addColorStop(0.25, 'rgba(255,200,80,0.95)'); gr.addColorStop(0.6, 'rgba(255,90,20,0.6)'); gr.addColorStop(1, 'rgba(120,20,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const flames = []; let lastThrottle = 0; const _fv = new THREE.Vector3();
+function turboFx(dt, car, thr) {
+  for (const f of flames) if (f.visible) { f.t -= dt; f.material.opacity = Math.max(0, f.t / f.life); f.scale.multiplyScalar(1 + dt * 4); if (f.t <= 0) f.visible = false; }
+  if (!car.mods.turbo || !car.exhausts) { lastThrottle = thr; return; }
+  const pop = lastThrottle > 0.7 && thr < 0.2 && Math.abs(car.speed) > 12; lastThrottle = thr;
+  const burst = pop ? 3 : (thr > 0.75 && Math.abs(car.speed) > 4 && Math.random() < dt * 9) ? 1 : 0;
+  for (let n = 0; n < burst; n++) for (const e of car.exhausts) {
+    let f = flames.find((x) => !x.visible); if (!f) { if (flames.length > 24) break; f = new THREE.Sprite(new THREE.SpriteMaterial({ map: flameTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); scene.add(f); flames.push(f); }
+    _fv.set(e[0], e[1], e[2] - 0.12 - Math.random() * 0.15); car.body.localToWorld(_fv); f.position.copy(_fv);
+    f.life = f.t = pop ? 0.16 : 0.09; f.scale.setScalar(pop ? 0.38 : 0.22 + Math.random() * 0.1); f.visible = true; f.material.opacity = 1;
+    if (pop && n === 0) G.sound('shot');
+  }
+}
+// porta abre e fecha (entrar/sair)
+const doorAnims = new Set();
+function doorAnim(car, dur = 0.8) { if (!car.door) return; car.doorT = dur; car.doorDur = dur; doorAnims.add(car); }
+function updateDoors(dt) {
+  for (const c of doorAnims) { c.doorT -= dt; if (c.doorT <= 0) { c.setDoor(0); doorAnims.delete(c); continue; } c.setDoor(Math.sin(Math.PI * (1 - c.doorT / c.doorDur))); }
+}
+// ROUBO DE CARRO: vai até a porta, abre, tira o motorista, entra e fecha
+function stealCar(car) {
+  const P = G.player;
+  if (Math.abs(car.speed) > 3.5) { toast('O carro está andando — espere ele parar (num semáforo, por exemplo)', 2.5); return; }
+  const di = G.drivers.findIndex((d) => d.car === car); if (di >= 0) G.drivers.splice(di, 1);
+  const pd = driverPool.find((d) => d.car === car); if (pd) pd.busy = true;
+  car.jacked = true; car.driver = 'jack'; car.speed = 0;
+  G.jack = { car, t: 0, phase: 'walk', pool: pd, look: pd ? pd.model.look : randomPedestrian(), x0: P.x, z0: P.z };
+  G.inputLocked = true; if (G.weapons.current !== 'mao') G.weapons.equip('mao');
+}
+function updateJack(dt) {
+  const J = G.jack; if (!J) return; const P = G.player, car = J.car; J.t += dt;
+  const side = car.T.moto ? 0.55 : 1; const [dx, dz] = car.local(car.T.moto ? car.T.W / 2 + 0.45 : car.T.W / 2 + 0.55, car.T.moto ? 0 : -0.35);
+  car.speed = 0;
+  if (J.phase === 'walk') {
+    const k = Math.min(1, J.t / 0.6); P.x = J.x0 + (dx - J.x0) * k; P.z = J.z0 + (dz - J.z0) * k;
+    P.heading = Math.atan2(car.x - P.x, car.z - P.z); P.y = G.world.groundAt(P.x, P.z, 0.3, P.y + 0.3); P.sync();
+    P.model.update(dt, { speed: k < 1 ? 3 : 0, grounded: true, mode: 'foot' });
+    if (J.t >= 0.6) { J.phase = 'open'; J.t = 0; P.heading = car.heading - Math.PI / 2; P.sync(); }
+  } else if (J.phase === 'open') {
+    car.setDoor(Math.min(1, J.t / 0.35)); P.model.update(dt, { speed: 0, grounded: true, mode: 'foot' });
+    if (J.t >= 0.35) { J.phase = 'pull'; J.t = 0; P.model.punch(); }
+  } else if (J.phase === 'pull') {
+    P.model.update(dt, { speed: 0, grounded: true, mode: 'foot' });
+    if (!J.npc) {
+      if (J.pool) { const d = J.pool; if (d.model.root.parent) d.model.root.parent.remove(d.model.root); d.car = null; d.busy = false; car.driverModel = null; }
+      const [ox, oz] = car.local(car.T.W / 2 + 1.2, 0.2);
+      const n = new NPC(scene, G.world, J.look, { name: 'Motorista', role: 'ped', lines: ['Socorro! Roubaram meu carro!', 'Ladrão!'], x: ox, z: oz, heading: car.heading - Math.PI / 2, behavior: 'stand' });
+      G.npcs.push(n); G.world.dynamic.add(n); J.npc = n;
+      const [fx, fz] = [Math.sin(car.heading + Math.PI / 2), Math.cos(car.heading + Math.PI / 2)]; // para fora pela porta (+x local)
+      n.prevBehavior = 'panic'; n.panicFrom = [P.x, P.z]; n.knockDown(3.5, { x: fx * 3.2, y: 1.2, z: fz * 3.2 }, { x: n.x, y: n.y + 1.2, z: n.z });
+      G.sound('punch');
+    }
+    if (J.t >= 0.6) { J.phase = 'enter'; J.t = 0; enterCarDirect(car); }
+  } else if (J.phase === 'enter') {
+    if (J.t >= 0.35) { J.phase = 'close'; J.t = 0; }
+  } else if (J.phase === 'close') {
+    car.setDoor(Math.max(0, 1 - J.t / 0.3));
+    if (J.t >= 0.3) { car.setDoor(0); car.jacked = false; G.jack = null; G.inputLocked = false; witnessCrime(1, 'roubo de carro', J.npc); }
+  }
+}
+G.stealCar = stealCar;
+G.makeHumanoid = (look) => new Humanoid(look ?? randomPedestrian()); G.randomPedestrian = randomPedestrian; G.CHARACTERS = CHARACTERS;
+// ---------------- ASSALTO AO BANCO (atividade livre, não faz parte da história) ----------------
+function startHeist(teller) {
+  const C = G.campaign(), S = G.story, B = G.city.bank;
+  if (G.mission) { toast('Agora não — termine a missão primeiro', 2.5); return; }
+  if (G.weapons.current === 'mao') { toast('Você precisa estar com uma arma na mão (Tab abre o menu de armas)', 3); return; }
+  if (C.flags.heistDay != null && G.state.day - C.flags.heistDay < 2) { toast('O banco ainda está com a segurança reforçada. Volte daqui a alguns dias.', 3); return; }
+  C.flags.heistDay = G.state.day;
+  G.heist = { phase: 'vault', prog: 0, cash: 0 };
+  G.sound('siren', 4); showBanner('ASSALTO!', 'Vá até o cofre e fique perto dele para abrir', false);
+  G.wanted.stars = Math.max(G.wanted.stars, 2); G.crime(1, 'assalto ao banco', teller);
+  const P = G.player;
+  if (B.guardNpc && B.guardNpc.alive) { B.guardNpc.team = 'enemy'; B.guardNpc.behavior = 'hostile'; B.guardNpc.interactable = false; } // o segurança reage
+  for (const n of G.npcs) if (n.alive && !n.inCar && n !== B.guardNpc && Math.hypot(n.x - P.x, n.z - P.z) < 20) {
+    if (n.role === 'ped' || n.role === 'shop') { n.behavior = 'stand'; n.pose = 'handsup'; n.talking = false; }
+  }
+  S.objective('Abra o cofre (fique perto da porta redonda)', B.vault);
+}
+// traficantes fogem da polícia e de quem aponta arma para eles
+let dealerT = 0;
+function updateDealers(dt) {
+  if ((dealerT -= dt) > 0) return; dealerT = 0.5;
+  const P = G.player;
+  for (const n of G.npcs) {
+    if (n.role !== 'dealer' || !n.alive || n.behavior === 'panic') continue;
+    const police = G.police.some((u) => Math.hypot(u.car.x - n.x, u.car.z - n.z) < 40) || G.npcs.some((o) => o.role === 'police' && o.alive && Math.abs(o.x - n.x) < 25 && Math.abs(o.z - n.z) < 25);
+    const threat = P.aiming && Math.hypot(P.x - n.x, P.z - n.z) < 14;
+    if (police || threat) { n.behavior = 'panic'; n.panicFrom = police ? [n.x - Math.sin(n.heading) * 5, n.z - Math.cos(n.heading) * 5] : [P.x, P.z]; n.panicT = 10; if (threat && Math.random() < 0.5) G.toast('"Sujou! Corre!"', 1.5); }
+  }
+}
+function updateHeist(dt) {
+  const H = G.heist; if (!H) return; const S = G.story, P = G.player, B = G.city.bank;
+  if (H.phase === 'vault') {
+    if (P.mode === 'foot' && Math.hypot(P.x - B.vault[0], P.z - B.vault[1]) < 2.2) {
+      H.prog += dt / 12; S.objText = `Abrindo o cofre: ${Math.min(100, Math.round(H.prog * 100))}%`; $('objective').textContent = 'OBJETIVO: ' + S.objText;
+      if (Math.random() < dt * 2) G.sound('page');
+      if (H.prog >= 1) {
+        H.phase = 'escape'; H.cash = 8000 + Math.round(Math.random() * 7000 / 100) * 100;
+        G.wanted.stars = Math.max(G.wanted.stars, 4); G.sound('cash'); toast(`Cofre aberto! R$ ${H.cash.toLocaleString('pt-BR')} na mochila`, 3);
+        S.objective('Fuja da polícia com o dinheiro (despiste todas as estrelas)', null);
+      }
+    }
+    if (Math.hypot(P.x - B.vault[0], P.z - B.vault[1]) > 70) { G.heist = null; S.clearObjective(); toast('Você abandonou o assalto', 2.5); }
+  } else if (H.phase === 'escape' && G.wanted.stars === 0) {
+    G.addMoney(H.cash); S.clearObjective(); showBanner('ASSALTO CONCLUÍDO', `Você ficou com R$ ${H.cash.toLocaleString('pt-BR')}`, false);
+    G.heist = null; SAVE.writeSlot('auto', snapshot());
+  }
+}
+G.startHeist = startHeist;
+// ---------------- CÓDIGOS (app do celular) ----------------
+const spawned = [];
+G.spawnVehicle = (type) => {
+  if (!CAR_TYPES[type]) return;
+  const P = G.player; if (G.car) forceExitCar();
+  const c = new Vehicle(type, pick(CAR_COLORS), G.world); scene.add(c.group); G.world.dynamic.add(c); G.cars.push(c);
+  const fx = Math.sin(P.heading), fz = Math.cos(P.heading); c.place(P.x + fx * 5, P.z + fz * 5, P.heading + Math.PI / 2);
+  c.fuel = 1; c.parked = false; c.owner = G.state.char === 'ryan' ? 'Ryan' : 'Ethan';
+  spawned.push(c); while (spawned.length > 6) { const o = spawned.shift(); if (o !== G.car) removeCar(o); }
+  toast(`${c.T.name} apareceu na sua frente`, 2.5); G.sound('ping');
+};
+G.cheat = (code) => {
+  const k = code.toUpperCase().replace(/[^A-Z0-9]/g, ''); const C = G.campaign();
+  if (k === 'TODOSCARROS') return { msg: 'Escolha um carro:', list: CAR_LIST.map((t) => [t, CAR_TYPES[t].name]) };
+  if (k === 'TODASMOTOS') return { msg: 'Escolha uma moto:', list: MOTO_TYPES.map((t) => [t, CAR_TYPES[t].name]) };
+  if (k === 'SEMFOME') { C.needs.fome = 100; return { msg: 'Fome cheia (continua descendo normalmente).' }; }
+  if (k === 'VIDACHEIA') { G.player.hp = 100; C.needs.dor = 0; return { msg: 'Vida cheia.' }; }
+  if (k === 'SEMPOLICIA') { G.wanted.stars = 0; return { msg: 'Procurado zerado.' }; }
+  return { msg: 'Código inválido.' };
+};
+// motoristas visíveis no trânsito: bonecos reaproveitados, só nos carros mais próximos da câmera
+const driverPool = []; let driverT = 0;
+function updateDriverModels(dt) {
+  if ((driverT -= dt) <= 0) {
+    driverT = 0.3;
+    const cx = camera.position.x, cz = camera.position.z; const d2 = (c) => (c.x - cx) ** 2 + (c.z - cz) ** 2;
+    const want = G.cars.filter((c) => c.driver === 'ai' && !c.removed && !c.storyKey && !c.T.moto && !c.jacked && d2(c) < 55 * 55).sort((a, b) => d2(a) - d2(b)).slice(0, 10);
+    for (const d of driverPool) if (d.car && !d.busy && (!want.includes(d.car) || d.car.driver !== 'ai')) { if (d.model.root.parent) d.model.root.parent.remove(d.model.root); d.car.driverModel = null; d.car = null; }
+    for (const c of want) {
+      if (c.driverModel) continue;
+      const kind = c.T.police ? 'police' : 'civil';
+      let d = driverPool.find((x) => !x.car && !x.busy && x.kind === kind);
+      if (!d) { if (driverPool.length >= 12) continue; d = { kind, model: new Humanoid(kind === 'police' ? policeLook() : randomPedestrian()), car: null }; driverPool.push(d); }
+      c.body.add(d.model.root); d.model.root.position.copy(c.seat); d.model.root.rotation.set(0, 0, 0); d.car = c; c.driverModel = d.model;
+      d.model.update(0.5, { mode: 'sit' });
+    }
+  }
+  for (const d of driverPool) if (d.car) { d.model.root.visible = !d.car.lod; if (!d.car.lod) d.model.update(dt, { mode: 'sit', steer: d.car.steer * 1.5 }); }
+}
+G.driverPool = driverPool;
 // comer/beber: o item aparece na mão do personagem por alguns segundos
 let eatModel = null;
 function eatAnim(kind) {
@@ -748,6 +915,7 @@ async function interactNPC(npc) {
     G.inputLocked = true;
     const i = await S.choose(opts, npc.name);
     G.inputLocked = false;
+    if (i < items.length && items[i].heist) { npc.talking = false; G.inputLocked = false; startHeist(npc); return; }
     if (i < items.length) {
       const it = items[i];
       if (C.money < it.price) toast('Dinheiro insuficiente');
@@ -980,6 +1148,7 @@ function step(dt) {
   if (active && !locked2 && hit('KeyF')) playerPunch();
   punchCd -= dt; pulsoCd -= dt;
   updateEat(dt);
+  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt);
   // interiores das casas: só desenha os que estão perto (o jogador ou a câmera)
   if ((interiorT -= dt) <= 0) { interiorT = 0.25; const cx = G.camera.position.x, cz = G.camera.position.z; for (const it of G.city.interiors) { const dx = it.x - p.x, dz = it.z - p.z, ex = it.x - cx, ez = it.z - cz; it.group.visible = dx * dx + dz * dz < 1600 || ex * ex + ez * ez < 900; } }
   if (active && !locked2 && hit('KeyQ') && G.campaign().tools.pulso) {
@@ -997,12 +1166,18 @@ function step(dt) {
     const nearHosp = lm.find((l) => l.kind === 'hospital' && Math.hypot(l.x - p.x, l.z - p.z) < 5);
     const nearDoor = !G.mission && (Math.hypot(H.door[0] - p.x, H.door[1] - p.z) < 1.8 || (H.bed && Math.hypot(H.bed[0] - p.x, H.bed[1] - p.z) < 2.0));
     const free = active && !locked2 && !S.cut;
-    if (G.storyPrompt) prompt = G.storyPrompt;
+    if (G.jack) prompt = '';
+    else if (G.storyPrompt) prompt = G.storyPrompt;
     else if (startM) { prompt = `[E] Iniciar missão: ${startM.title}`; if (free && G.consumeInteract()) runMission(startM, 0, false); }
     else if (nearDoor) { prompt = '[E] Dormir (8 horas e salvar)'; if (free && G.consumeInteract()) sleep(); }
     else if (nearHosp && !G.mission) { prompt = '[E] Atendimento médico (R$ 150)'; if (free && G.consumeInteract()) service('hospital'); }
     else if (npc && (!car || nd < 1.8) && !G.mission) { prompt = `[E] Falar com ${npc.name}`; if (free && G.consumeInteract()) interactNPC(npc); }
-    else if (car) { prompt = car.driver === 'ai' ? 'Carro ocupado' : `[E] Entrar no carro${car === G.ethanCar ? ' (seu carro)' : ''}`; if (free && G.consumeInteract()) enterCar(car); }
+    else if (car) {
+      const jackable = car.driver === 'ai' && !car.T.police && !car.storyKey && !G.mission && G.drivers.some((d) => d.car === car);
+      const word = car.T.moto ? 'na moto' : 'no carro';
+      prompt = jackable ? `[E] Roubar ${car.T.moto ? 'a moto' : 'o carro'}` : car.driver === 'ai' ? 'Ocupado' : `[E] Entrar ${word}${car === G.ethanCar ? ' (seu carro)' : ''}`;
+      if (free && G.consumeInteract()) { if (jackable) stealCar(car); else enterCar(car); }
+    }
     const input = active && !locked2 ? {
       x: (down('KeyD', 'ArrowRight') ? 1 : 0) - (down('KeyA', 'ArrowLeft') ? 1 : 0),
       z: (down('KeyW', 'ArrowUp') ? 1 : 0) - (down('KeyS', 'ArrowDown') ? 1 : 0),
@@ -1038,8 +1213,10 @@ function step(dt) {
       if (sp0 > 6 && G.police.some((u) => Math.hypot(u.car.x - car.x, u.car.z - car.z) < 6)) witnessCrime(1, 'viatura');
     }
     p.x = car.x; p.z = car.z; p.y = car.y;
-    p.model.update(dt, { mode: 'sit', steer: car.steer * 1.5 });
-    G.audio.update(true, car.speed, input.throttle, car.T.sound);
+    p.model.update(dt, car.T.moto ? { mode: 'moto', steer: car.steer * 1.5, lean: car.T.style === 'esportiva' ? 0.55 : car.T.style === 'custom' ? -0.05 : 0.2 } : { mode: 'sit', steer: car.steer * 1.5 });
+    const rev = revT > 0 ? Math.sin(Math.min(1, revT) * Math.PI) : 0; revT -= dt;
+    G.audio.update(true, rev ? Math.max(Math.abs(car.speed), rev * 22) : car.speed, Math.max(input.throttle, rev), car.soundProfile);
+    turboFx(dt, car, input.throttle);
     if (active && !locked2 && !S.cut && G.consumeInteract()) exitCar();
     else if (active && !locked2 && hit('KeyG')) { if (nearGas) service('posto'); else if (nearShop && !G.mission) G.custom.enter(car); }
   } else G.audio.update(false, 0, 0);
@@ -1064,7 +1241,9 @@ function step(dt) {
   for (const c of G.cars) {
     const d = Math.abs(c.x - p.x) + Math.abs(c.z - p.z);
     c.group.visible = d < (c.driver ? Q.far * 0.7 : Q.far * 0.42);
-    c.setLOD(d > 45 && c.driver !== 'player' && !c.sirenL && !c.storyKey);
+    // carros parados usam o modelo simplificado a partir de 18 m; em movimento, a partir de 45 m
+    const still = !c.driver && Math.abs(c.speed) < 0.1 && !c.awake && !(c.doorT > 0);
+    c.setLOD(c.driver !== 'player' && !c.sirenL && !c.storyKey && !c.jacked && (still ? d > 18 : d > 45));
   }
   // morte
   // atropelado: o jogador vira ragdoll e levanta depois de alguns segundos
@@ -1134,6 +1313,7 @@ function step(dt) {
 }
 async function onDeath() {
   const S = G.story;
+  if (G.heist) { G.heist = null; S.clearObjective(); }
   showBanner('VOCÊ MORREU', 'Voltando ao último salvamento...', true);
   await new Promise((r) => setTimeout(r, 2500));
   const last = SAVE.latestSlot();

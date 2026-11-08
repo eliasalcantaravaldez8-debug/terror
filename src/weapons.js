@@ -21,13 +21,16 @@ const ICON = {};
 export function weaponIcon(id) {
   if (ICON[id]) return ICON[id];
   const c = document.createElement('canvas'); c.width = 160; c.height = 80; const g = c.getContext('2d');
-  g.fillStyle = '#e8e4da'; g.strokeStyle = '#e8e4da'; g.lineJoin = 'round';
-  const R = (x, y, w, h) => g.fillRect(x, y, w, h);
+  const metal = g.createLinearGradient(0, 20, 0, 60); metal.addColorStop(0, '#9aa0aa'); metal.addColorStop(0.45, '#4a4e56'); metal.addColorStop(1, '#22252a');
+  const woodG = g.createLinearGradient(0, 30, 0, 70); woodG.addColorStop(0, '#b8763a'); woodG.addColorStop(1, '#6a3a1a');
+  g.fillStyle = id === 'mao' ? '#e8c8a0' : metal; g.strokeStyle = '#111'; g.lineJoin = 'round';
+  const R = (x, y, w, h) => { g.fillRect(x, y, w, h); g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); };
+  const W = (fn) => { const f = g.fillStyle; g.fillStyle = woodG; fn(); g.fillStyle = f; };
   if (id === 'mao') { g.beginPath(); g.ellipse(80, 44, 22, 18, 0, 0, 7); g.fill(); for (let i = 0; i < 4; i++) { g.beginPath(); g.ellipse(64 + i * 11, 26, 5, 9, 0, 0, 7); g.fill(); } g.beginPath(); g.ellipse(56, 46, 6, 11, -0.6, 0, 7); g.fill(); }
-  else if (id === 'pistola') { R(40, 28, 78, 14); R(48, 40, 18, 6); g.save(); g.translate(52, 42); g.rotate(0.22); R(0, 0, 18, 30); g.restore(); R(74, 42, 10, 3); }
-  else if (id === 'escopeta') { R(14, 30, 112, 7); R(40, 37, 70, 7); g.save(); g.translate(108, 34); g.rotate(0.15); R(0, 0, 40, 14); g.restore(); R(60, 44, 30, 6); }
+  else if (id === 'pistola') { R(40, 28, 78, 14); R(48, 40, 18, 6); g.save(); g.translate(52, 42); g.rotate(0.22); g.fillStyle = '#2a2a2c'; R(0, 0, 18, 30); g.restore(); R(74, 42, 10, 3); g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(44, 30, 70, 2); }
+  else if (id === 'escopeta') { R(14, 30, 112, 7); R(40, 37, 70, 7); W(() => { g.save(); g.translate(108, 34); g.rotate(0.15); R(0, 0, 40, 14); g.restore(); R(52, 37, 34, 9); }); }
   else if (id === 'metralhadora') { R(38, 28, 70, 18); R(108, 32, 26, 6); R(18, 30, 22, 5); R(62, 46, 12, 26); g.save(); g.translate(86, 46); g.rotate(0.2); R(0, 0, 12, 18); g.restore(); }
-  else if (id === 'ak47') { R(40, 30, 64, 14); R(8, 32, 34, 5); R(10, 28, 4, 6); g.save(); g.translate(68, 44); g.rotate(0.35); R(0, 0, 12, 28); g.restore(); g.save(); g.translate(86, 44); g.rotate(0.25); R(0, 0, 10, 18); g.restore(); g.beginPath(); g.moveTo(104, 32); g.lineTo(150, 36); g.lineTo(150, 54); g.lineTo(104, 44); g.fill(); g.fillStyle = '#b8864a'; R(42, 38, 22, 6); }
+  else if (id === 'ak47') { R(40, 30, 64, 14); R(8, 32, 34, 5); R(10, 28, 4, 6); g.save(); g.translate(68, 44); g.rotate(0.35); R(0, 0, 12, 28); g.restore(); g.save(); g.translate(86, 44); g.rotate(0.25); R(0, 0, 10, 18); g.restore(); W(() => { g.beginPath(); g.moveTo(104, 32); g.lineTo(150, 36); g.lineTo(150, 54); g.lineTo(104, 44); g.closePath(); g.fill(); g.stroke(); R(20, 37, 22, 7); }); }
   ICON[id] = c.toDataURL(); return ICON[id];
 }
 
@@ -39,12 +42,22 @@ export class Weapons {
   constructor(G) {
     this.G = G; this.cd = 0; this.reloadT = 0; this.fx = [];
     // modelos das armas (ficam na mão direita)
-    const dark = new THREE.MeshLambertMaterial({ color: 0x1c1c1e }), wood = new THREE.MeshLambertMaterial({ color: 0x5a3a22 });
-    const metal = new THREE.MeshLambertMaterial({ color: 0x3a3c40 });
+    // materiais com textura: aço escovado (com brilho) e madeira
+    const metalTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#3a3c40'; g.fillRect(0, 0, 128, 128);
+      for (let i = 0; i < 900; i++) { const v = 40 + Math.random() * 40; g.fillStyle = `rgba(${v},${v + 2},${v + 6},0.35)`; g.fillRect(Math.random() * 128, Math.random() * 128, 1 + Math.random() * 10, 1); }
+      for (let i = 0; i < 14; i++) { g.strokeStyle = 'rgba(160,165,175,0.25)'; g.beginPath(); const x = Math.random() * 128, y = Math.random() * 128; g.moveTo(x, y); g.lineTo(x + Math.random() * 30, y + Math.random() * 4); g.stroke(); }
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
+    const woodTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, '#7a4a26'); gr.addColorStop(0.5, '#93592e'); gr.addColorStop(1, '#6a3c1e'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+      for (let i = 0; i < 40; i++) { g.strokeStyle = `rgba(50,25,10,${0.15 + Math.random() * 0.25})`; g.lineWidth = 1 + Math.random() * 2; g.beginPath(); const y = Math.random() * 128; g.moveTo(0, y); g.bezierCurveTo(40, y + Math.random() * 8 - 4, 90, y + Math.random() * 8 - 4, 128, y); g.stroke(); }
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+    const dark = new THREE.MeshPhongMaterial({ color: 0x8a8e96, map: metalTex, specular: 0x777777, shininess: 70 });
+    const wood = new THREE.MeshPhongMaterial({ color: 0xffffff, map: woodTex, specular: 0x332211, shininess: 25 });
+    const metal = new THREE.MeshPhongMaterial({ color: 0xb0b4bc, map: metalTex, specular: 0x999999, shininess: 90 });
+    const black = new THREE.MeshPhongMaterial({ color: 0x2a2a2c, specular: 0x333333, shininess: 30 });
     const box = (g, m, w, h, d, x, y, z, rx = 0) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.rotation.x = rx; g.add(o); return o; };
     this.models = {
-      pistola: (() => { const g = new THREE.Group(); box(g, dark, 0.035, 0.05, 0.19, 0, -0.06, 0.07); box(g, dark, 0.03, 0.1, 0.045, 0, -0.1, 0, 0.25); return g; })(),
-      escopeta: (() => { const g = new THREE.Group(); box(g, dark, 0.045, 0.06, 0.75, 0, -0.06, 0.2); box(g, wood, 0.05, 0.1, 0.32, 0, -0.09, -0.2); return g; })(),
+      pistola: (() => { const g = new THREE.Group(); box(g, metal, 0.034, 0.035, 0.19, 0, -0.05, 0.07); box(g, dark, 0.03, 0.025, 0.17, 0, -0.08, 0.065); box(g, black, 0.03, 0.1, 0.045, 0, -0.11, 0, 0.25); box(g, dark, 0.01, 0.012, 0.01, 0, -0.028, 0.15); box(g, dark, 0.005, 0.03, 0.035, 0, -0.1, 0.05); return g; })(),
+      escopeta: (() => { const g = new THREE.Group(); box(g, metal, 0.03, 0.03, 0.75, 0, -0.045, 0.22); box(g, dark, 0.026, 0.026, 0.6, 0, -0.075, 0.2); box(g, wood, 0.05, 0.05, 0.22, 0, -0.08, 0.3); box(g, dark, 0.05, 0.07, 0.2, 0, -0.07, 0.02); box(g, wood, 0.05, 0.1, 0.32, 0, -0.1, -0.22, -0.1); return g; })(),
       metralhadora: (() => { const g = new THREE.Group(); box(g, dark, 0.045, 0.08, 0.3, 0, -0.06, 0.08); box(g, metal, 0.02, 0.02, 0.12, 0, -0.045, 0.28); box(g, dark, 0.03, 0.2, 0.04, 0, -0.17, 0.09, 0.08); box(g, dark, 0.03, 0.1, 0.04, 0, -0.12, -0.02, 0.3); box(g, metal, 0.015, 0.015, 0.16, 0, -0.03, -0.12); return g; })(),
       ak47: (() => { const g = new THREE.Group(); box(g, metal, 0.05, 0.07, 0.36, 0, -0.06, 0.12); box(g, dark, 0.022, 0.022, 0.32, 0, -0.045, 0.45); box(g, wood, 0.05, 0.05, 0.2, 0, -0.07, 0.36);
         box(g, dark, 0.035, 0.18, 0.06, 0, -0.16, 0.16, 0.4); box(g, wood, 0.035, 0.1, 0.045, 0, -0.12, -0.01, 0.3); box(g, wood, 0.045, 0.09, 0.3, 0, -0.08, -0.18, -0.12); box(g, dark, 0.01, 0.04, 0.01, 0, -0.01, 0.58); return g; })(),
@@ -81,6 +94,8 @@ export class Weapons {
     }
     const armed = this.current !== 'mao' && P.mode === 'foot';
     const aim = armed && input.aim;
+    const m = this.models[this.current];
+    if (m) { this.aimK = (this.aimK || 0) + ((aim || (armed && input.fire) ? 1 : 0) - (this.aimK || 0)) * Math.min(1, dt * 14); m.rotation.x = this.aimK * Math.PI / 2; m.position.set(0, -0.02 * this.aimK, 0.03 * this.aimK); }
     G.cam.aim = aim; P.aiming = aim;
     if (armed && (aim || input.fire)) {
       // vira o personagem para onde a câmera aponta

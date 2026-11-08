@@ -37,34 +37,36 @@ export class Humanoid {
     this.look = { ...DEFAULT_LOOK, ...look };
     const L = this.look;
     this.root = new THREE.Group();
-    this.root.name = 'humanoid';
+    this.root.name = 'humanoid'; this.root.isHumanoidRoot = true;
     this.bones = {};
     const B = (name, parent, x, y, z) => {
       const b = new THREE.Bone(); b.name = name; b.position.set(x, y, z);
       if (parent) parent.add(b);
       this.bones[name] = b; return b;
     };
-    const s = L.build;
+    const s = L.build; const F = !!L.female;
     // Esqueleto (unidades em metros, altura ~1.80m)
     const hips = B('hips', null, 0, 0.98, 0);
     const spine = B('spine', hips, 0, 0.12, 0);
     const chest = B('chest', spine, 0, 0.22, 0);
     const neck = B('neck', chest, 0, 0.24, 0);
     const head = B('head', neck, 0, 0.08, 0);
-    const shL = B('shoulderL', chest, 0.19 * s, 0.18, 0);
-    const shR = B('shoulderR', chest, -0.19 * s, 0.18, 0);
+    const shW = (F ? 0.165 : 0.195) * s; // ombros: mais largos no homem
+    const shL = B('shoulderL', chest, shW, F ? 0.17 : 0.18, 0);
+    const shR = B('shoulderR', chest, -shW, F ? 0.17 : 0.18, 0);
     const elL = B('elbowL', shL, 0, -0.29, 0);
     const elR = B('elbowR', shR, 0, -0.29, 0);
     const haL = B('handL', elL, 0, -0.27, 0);
     const haR = B('handR', elR, 0, -0.27, 0);
-    const thL = B('thighL', hips, 0.1 * s, -0.04, 0);
-    const thR = B('thighR', hips, -0.1 * s, -0.04, 0);
+    const thL = B('thighL', hips, (F ? 0.11 : 0.1) * s, -0.04, 0);
+    const thR = B('thighR', hips, -(F ? 0.11 : 0.1) * s, -0.04, 0);
     const knL = B('kneeL', thL, 0, -0.44, 0);
     const knR = B('kneeR', thR, 0, -0.44, 0);
     const ftL = B('footL', knL, 0, -0.44, 0);
     const ftR = B('footR', knR, 0, -0.44, 0);
     const boneList = Object.values(this.bones);
     hips.updateMatrixWorld(true);
+    for (const b of boneList) b.matrixAutoUpdate = false; // atualizadas só quando a animação roda (update/ragdoll)
     const idx = (b) => boneList.indexOf(b);
     const parts = [];
     const wp = (b) => new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
@@ -79,13 +81,18 @@ export class Humanoid {
     const cap = (r, l) => new THREE.CapsuleGeometry(r, l, [2, 3, 4][D], [7, 9, 12][D]);
     const sph = (r) => new THREE.SphereGeometry(r, [9, 12, 16][D], [7, 9, 12][D]);
     const bx = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-    // quadril / pelve
-    add(hips, cap(0.15 * s, 0.08), L.pants, 0, -0.02, 0, 1.15, 1, 0.75, 0, 0, Math.PI / 2);
-    // cinto
-    add(hips, new THREE.CylinderGeometry(0.165 * s, 0.165 * s, 0.05, 12), 0x221a14, 0, 0.06, 0, 1.05, 1, 0.72);
-    // abdômen e tronco
-    add(spine, cap(0.15 * s, 0.12), top, 0, 0.08, 0, 1.15, 1, 0.75);
-    add(chest, cap(0.18 * s, 0.12), top, 0, 0.1, 0, 1.12, 1, 0.72);
+    const sm = (r) => new THREE.SphereGeometry(r, [6, 8, 10][D], [5, 6, 8][D]); // peças pequenas do rosto
+    // quadril / pelve (mais largo na mulher)
+    add(hips, cap(0.15 * s, 0.08), L.pants, 0, -0.02, 0, F ? 1.28 : 1.15, 1, F ? 0.82 : 0.75, 0, 0, Math.PI / 2);
+    if (!L.skirt) add(hips, new THREE.CylinderGeometry(0.165 * s, 0.165 * s, 0.05, 12), 0x221a14, 0, 0.06, 0, F ? 1.12 : 1.05, 1, 0.72); // cinto
+    // abdômen e tronco: cintura fina e busto na mulher; peitoral e ombros largos no homem
+    add(spine, cap(0.15 * s, 0.12), top, 0, 0.08, 0, F ? 0.98 : 1.15, 1, F ? 0.7 : 0.75);
+    add(chest, cap(0.18 * s, 0.12), top, 0, 0.1, 0, F ? 1.0 : 1.18, 1, F ? 0.7 : 0.74);
+    if (F) { for (const x of [-0.062, 0.062]) add(chest, sm(0.062 * s), top, x * s, 0.07, 0.09, 1, 0.9, 0.8); }
+    else { add(chest, cap(0.1 * s, 0.2), top, 0, 0.18, 0.02, 1.0, 1, 0.8, 0, 0, Math.PI / 2); } // trapézio/peitoral
+    if (L.skirt) { // saia ou vestido
+      add(hips, new THREE.CylinderGeometry(0.16 * s, (L.skirt === 'long' ? 0.3 : 0.25) * s, L.skirt === 'long' ? 0.62 : 0.38, [8, 10, 14][D], 1, true), L.skirtColor ?? L.pants, 0, L.skirt === 'long' ? -0.27 : -0.15, 0, 1.1, 1, 0.85);
+    }
     if (L.jacket) {
       // gola e abertura da jaqueta mostrando a camisa
       add(chest, bx(0.1, 0.4, 0.02), L.shirt, 0, 0.02, 0.135);
@@ -94,21 +101,42 @@ export class Humanoid {
     if (L.tie) add(chest, bx(0.05, 0.24, 0.02), L.tie, 0, 0.1, 0.14);
     if (L.badge) add(chest, bx(0.05, 0.06, 0.02), 0xd4af37, 0.09, 0.17, 0.135);
     // pescoço e cabeça
-    add(neck, new THREE.CylinderGeometry(0.055, 0.06, 0.1, 8), L.skin, 0, 0.02, 0);
-    add(head, sph(0.115), L.skin, 0, 0.11, 0.005, 0.92, 1.08, 1);
-    add(head, sph(0.03), L.skin, 0, 0.1, 0.11, 0.8, 1, 0.9); // nariz
-    add(head, sph(0.016), 0xf5f5f5, 0.042, 0.135, 0.095); add(head, sph(0.016), 0xf5f5f5, -0.042, 0.135, 0.095);
-    add(head, sph(0.009), 0x1a1a1a, 0.042, 0.135, 0.108); add(head, sph(0.009), 0x1a1a1a, -0.042, 0.135, 0.108);
-    add(head, bx(0.04, 0.008, 0.01), L.hair, 0.042, 0.163, 0.1); add(head, bx(0.04, 0.008, 0.01), L.hair, -0.042, 0.163, 0.1);
-    add(head, bx(0.045, 0.008, 0.01), 0x8a4a40, 0, 0.055, 0.105); // boca
-    add(head, sph(0.025), L.skin, 0.108, 0.11, 0, 0.5, 1, 0.8); add(head, sph(0.025), L.skin, -0.108, 0.11, 0, 0.5, 1, 0.8);
-    if (L.beard) add(head, sph(0.1), L.hair, 0, 0.06, 0.03, 0.95, 0.6, 0.85);
-    if (L.hairStyle === 'short') add(head, new THREE.SphereGeometry(0.122, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), L.hair, 0, 0.125, -0.008, 0.95, 1.05, 1.05, -0.2);
-    else if (L.hairStyle === 'long') {
-      add(head, new THREE.SphereGeometry(0.125, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.6), L.hair, 0, 0.125, -0.01, 0.97, 1.05, 1.05, -0.15);
-      add(head, bx(0.22, 0.26, 0.06), L.hair, 0, 0.0, -0.08);
+    add(neck, new THREE.CylinderGeometry(F ? 0.045 : 0.058, F ? 0.05 : 0.064, 0.1, 8), L.skin, 0, 0.02, 0);
+    add(head, sph(0.115), L.skin, 0, 0.11, 0.005, F ? 0.9 : 0.93, 1.08, 1); // cabeça
+    if (!F) add(head, sm(0.07), L.skin, 0, 0.05, 0.02, 1.18, 0.75, 1.0); // maxilar mais largo no homem
+    // nariz: ponte apontando para a frente + ponta
+    add(head, new THREE.ConeGeometry(F ? 0.016 : 0.019, 0.045, 6), L.skin, 0, 0.105, 0.112, 1, 1, 0.8, Math.PI / 2 + 0.5);
+    add(head, sm(F ? 0.014 : 0.017), L.skin, 0, 0.088, 0.118);
+    // olhos: branco, íris colorida, pupila e pálpebra por cima
+    const iris = L.eyes ?? 0x4a3020;
+    for (const x of [-0.042, 0.042]) {
+      add(head, sm(0.016), 0xf2f0ea, x, 0.135, 0.097, 1.1, 0.85, 0.8);
+      add(head, sm(0.0085), iris, x, 0.135, 0.1065); add(head, sm(0.0042), 0x050505, x, 0.135, 0.1125);
+      add(head, sm(0.018), L.skin, x, 0.147, 0.099, 1.12, 0.5, 0.82); // pálpebra
+      if (F) add(head, bx(0.034, 0.004, 0.006), 0x111111, x, 0.143, 0.113, 1, 1, 1, 0, 0, x > 0 ? -0.12 : 0.12); // cílios
+      add(head, bx(F ? 0.034 : 0.044, F ? 0.006 : 0.011, 0.012), L.hair, x, 0.164, 0.103, 1, 1, 1, 0, 0, x > 0 ? (F ? -0.18 : -0.06) : (F ? 0.18 : 0.06)); // sobrancelha
+    }
+    // boca: lábios (coloridos na mulher)
+    const lip = F ? (L.lips ?? 0xa83a4a) : new THREE.Color(L.skin).multiplyScalar(0.78).lerp(new THREE.Color(0x9a5a50), 0.25).getHex();
+    add(head, cap(0.007, 0.03), lip, 0, 0.057, 0.106, 1, 1, 0.8, 0, 0, Math.PI / 2);
+    add(head, cap(F ? 0.009 : 0.008, 0.026), lip, 0, 0.048, 0.103, 1, 1, 0.8, 0, 0, Math.PI / 2);
+    add(head, sph(0.025), L.skin, 0.106, 0.11, 0, 0.5, 1, 0.8); add(head, sph(0.025), L.skin, -0.106, 0.11, 0, 0.5, 1, 0.8); // orelhas
+    if (L.earrings) for (const x of [-0.108, 0.108]) add(head, sm(0.008), 0xe8c860, x, 0.085, 0.005);
+    if (L.beard) { add(head, sph(0.085), L.hair, 0, 0.05, 0.035, 1.1, 0.7, 0.95); add(head, cap(0.012, 0.05), L.hair, 0, 0.072, 0.1, 1, 1, 0.8, 0, 0, Math.PI / 2); }
+    const cap0 = (r, open) => new THREE.SphereGeometry(r, [8, 12, 14][D], [6, 8, 10][D], 0, Math.PI * 2, 0, Math.PI * open);
+    if (L.hairStyle === 'short') add(head, cap0(0.122, 0.55), L.hair, 0, 0.125, -0.008, 0.95, 1.05, 1.05, -0.2);
+    else if (L.hairStyle === 'long') { // cabelo longo com volume, caindo atrás e dos lados do rosto
+      add(head, cap0(0.127, 0.55), L.hair, 0, 0.125, -0.01, 0.97, 1.06, 1.07, -0.24);
+      add(head, cap(0.095, 0.24), L.hair, 0, -0.02, -0.065, 1.12, 1, 0.5);
+      for (const x of [-0.098, 0.098]) add(head, cap(0.028, 0.15), L.hair, x, 0.04, -0.01, 1, 1, 0.8);
+    } else if (L.hairStyle === 'ponytail') {
+      add(head, cap0(0.124, 0.55), L.hair, 0, 0.125, -0.01, 0.96, 1.05, 1.05, -0.22);
+      add(head, cap(0.033, 0.18), L.hair, 0, 0.07, -0.15, 1, 1, 1, 0.5, 0, 0);
+    } else if (L.hairStyle === 'bob') {
+      add(head, cap0(0.13, 0.55), L.hair, 0, 0.12, -0.012, 1.0, 1.05, 1.08, -0.28);
+      add(head, cap(0.105, 0.05), L.hair, 0, 0.05, -0.045, 1.1, 1, 0.75);
     } else if (L.hairStyle === 'bun') {
-      add(head, new THREE.SphereGeometry(0.122, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), L.hair, 0, 0.125, -0.008, 0.95, 1.05, 1.05, -0.2);
+      add(head, cap0(0.122, 0.55), L.hair, 0, 0.125, -0.008, 0.95, 1.05, 1.05, -0.2);
       add(head, sph(0.06), L.hair, 0, 0.2, -0.1);
     } else if (L.hairStyle === 'bald') { /* nada */ }
     if (L.hat === 'police') {
@@ -124,16 +152,19 @@ export class Humanoid {
     }
     // braços
     for (const [sh, el, ha, side] of [[shL, elL, haL, 1], [shR, elR, haR, -1]]) {
-      add(sh, sph(0.07 * s), top, 0, 0, 0);
-      add(sh, cap(0.052 * s, 0.2), top, 0, -0.145, 0);
-      add(el, cap(0.045 * s, 0.19), L.jacket ? L.jacket : (L.longSleeve ? L.shirt : L.skin), 0, -0.13, 0);
-      add(ha, sph(0.05), L.skin, 0, -0.04, 0.005, 0.75, 1.15, 0.9);
+      const aw = F ? 0.85 : 1;
+      add(sh, sph(0.07 * s * aw), top, 0, 0, 0);
+      add(sh, cap(0.052 * s * aw, 0.2), top, 0, -0.145, 0);
+      add(el, cap(0.045 * s * aw, 0.19), L.jacket ? L.jacket : (L.longSleeve ? L.shirt : L.skin), 0, -0.13, 0);
+      add(ha, sph(0.05), L.skin, 0, -0.04, 0.005, 0.75 * aw, 1.15, 0.9);
+      if (D > 0) add(ha, bx(0.06 * aw, 0.05, 0.03), L.skin, 0, -0.1, 0.008); // dedos
       add(ha, sph(0.022), L.skin, 0.028 * side, -0.02, 0.03); // polegar
     }
     // pernas
     for (const [th, kn, ft] of [[thL, knL, ftL], [thR, knR, ftR]]) {
-      add(th, cap(0.075 * s, 0.32), L.pants, 0, -0.21, 0);
-      add(kn, cap(0.06 * s, 0.33), L.pants, 0, -0.21, 0);
+      const legC = L.skirt ? L.skin : L.pants; const lw = F ? 0.9 : 1;
+      add(th, cap(0.075 * s * lw, 0.32), L.skirt === 'long' ? L.skirtColor ?? L.pants : legC, 0, -0.21, 0);
+      add(kn, cap(0.06 * s * lw, 0.33), legC, 0, -0.21, 0);
       add(ft, bx(0.1, 0.07, 0.25), L.shoes, 0, -0.02, 0.05);
       add(ft, bx(0.105, 0.02, 0.26), 0x0e0e0e, 0, -0.055, 0.05);
     }
@@ -144,7 +175,7 @@ export class Humanoid {
     geo.boundingSphere.center.set(0, 0.9, 0);
     const mesh = new THREE.SkinnedMesh(geo, sharedMat);
     mesh.add(hips);
-    mesh.bind(new THREE.Skeleton(boneList));
+    mesh.bind(new THREE.Skeleton(boneList)); this.boneList = boneList;
     mesh.castShadow = true;
     mesh.frustumCulled = true;
     this.mesh = mesh;
@@ -190,14 +221,24 @@ export class Humanoid {
     } else if (p.mode === 'binoculars') {
       T.shoulderL = [-1.45, 0, -0.45]; T.shoulderR = [-1.45, 0, 0.45]; T.elbowL = [-1.9, 0, 0]; T.elbowR = [-1.9, 0, 0];
       T.head = [-0.05, 0, 0];
-    } else if (p.mode === 'sit') {
-      T.thighL = [-1.45, 0, 0.05]; T.thighR = [-1.45, 0, -0.05];
-      T.kneeL = [1.2, 0, 0]; T.kneeR = [1.2, 0, 0];
-      T.footL = [0.05, 0, 0]; T.footR = [0.05, 0, 0];
-      T.shoulderL = [-0.95, 0, 0.12 + (p.steer || 0) * 0.25]; T.shoulderR = [-0.95, 0, -0.12 + (p.steer || 0) * 0.25];
-      T.elbowL = [-0.55, 0, 0]; T.elbowR = [-0.55, 0, 0];
-      T.spine = [-0.08, 0, 0]; T.head = [0.05, -(p.steer || 0) * 0.25, 0];
+    } else if (p.mode === 'sit') { // dirigindo: costas no encosto, mãos no volante, pés nos pedais
+      const st = p.steer || 0;
+      T.thighL = [-1.4, 0, 0.08]; T.thighR = [-1.4, 0, -0.08];
+      T.kneeL = [1.05, 0, 0]; T.kneeR = [1.05, 0, 0];
+      T.footL = [-0.15, 0, 0]; T.footR = [-0.15, 0, 0];
+      T.shoulderL = [-1.18 - st * 0.12, 0, 0.18 + st * 0.2]; T.shoulderR = [-1.18 + st * 0.12, 0, -0.18 + st * 0.2];
+      T.elbowL = [-0.42, 0, 0]; T.elbowR = [-0.42, 0, 0];
+      T.spine = [-0.12, 0, 0]; T.chest = [0.02, 0, 0]; T.head = [0.08, -st * 0.25, 0];
       hipY = -0.42; hipZ = -0.05;
+    } else if (p.mode === 'moto') { // pilotando: pernas abertas nas pedaleiras, tronco inclinado, mãos no guidão
+      const lean = p.lean ?? 0.35, st = p.steer || 0;
+      T.thighL = [-1.05, 0, 0.32]; T.thighR = [-1.05, 0, -0.32];
+      T.kneeL = [1.75, 0, 0]; T.kneeR = [1.75, 0, 0];
+      T.footL = [-0.35, 0, 0]; T.footR = [-0.35, 0, 0];
+      T.spine = [lean, 0, 0]; T.chest = [lean * 0.3, 0, 0]; T.head = [-lean * 0.9, -st * 0.2, 0];
+      T.shoulderL = [-1.1 - lean * 0.6 - st * 0.1, 0, 0.32]; T.shoulderR = [-1.1 - lean * 0.6 + st * 0.1, 0, -0.32];
+      T.elbowL = [-0.45, 0, 0]; T.elbowR = [-0.45, 0, 0];
+      hipY = -0.1; hipZ = 0;
     } else if (!p.grounded) {
       const up = p.vy > 0 ? 1 : 0;
       T.thighL = [-0.7 * up - 0.25, 0, 0.05]; T.thighR = [-0.15 - 0.2 * (1 - up), 0, -0.05];
@@ -283,6 +324,7 @@ export class Humanoid {
     this.hipY = damp(this.hipY, hipY, 14, dt);
     this.hipZ = damp(this.hipZ, hipZ, 14, dt);
     this.bones.hips.position.set(this.rest.hips.x, this.rest.hips.y + this.hipY, this.rest.hips.z + this.hipZ);
+    for (const b of this.boneList) b.updateMatrix();
   }
   land(strength) { this.landT = 0.25 * Math.min(1, strength); }
 }

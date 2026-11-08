@@ -1,5 +1,5 @@
 // LOS VALLES CUSTOM — oficina de customização com pré-visualização do carro.
-import { CAR_TYPES, WHEELS } from './vehicle.js';
+import { CAR_TYPES, WHEELS, ENGINES } from './vehicle.js';
 
 const CSS = `
 body.incustom #hud{display:none!important}
@@ -30,10 +30,11 @@ body.incustom #hud{display:none!important}
 #custom .row button{flex:1;font-size:13px;padding:10px 8px;min-width:0;letter-spacing:.08em}
 #custom .buy{background:#ff7a2a;color:#111;border-color:#ff7a2a}
 #custom .hint{position:absolute;left:24px;bottom:22px;font-size:12px;opacity:.7;pointer-events:none}
+#custom input[type=color]{width:100%;height:42px;border:1px solid #444;border-radius:6px;background:#111;padding:2px;cursor:pointer}
 #custom .msg{font-size:12.5px;color:#ffb07a;min-height:16px}
 `;
 const PAINTS = [0xd8d8d8, 0xf4f4f4, 0x1a1a1a, 0x3f4a52, 0x8e1b1b, 0xd01818, 0xe86a10, 0xd8a010, 0xe8d020, 0x2e7a3a, 0x7ac83a, 0x1d3f72, 0x3a7ad8, 0x40c8e8, 0x5a1f7d, 0xd040a0];
-const PRICE = { paint: 300, wheel: 450, spoiler: 450, skirts: 350, tint: [0, 150, 250], neon: 400, xenon: 200, engine: [0, 900, 1800, 3000], brakes: [0, 500, 900, 1500], susp: [0, 400, 800, 1300], turbo: 2500 };
+const PRICE = { paintFree: 450, spoilerStyle: { lip: 250, sport: 450, gt: 900 }, engineType: { quatro: 600, v6: 1500, boxer: 1800, v8: 3500, v12: 6000 }, suspLevel: [500, 0, 500], chassis: { padrao: 0, largo: 2200, offroad: 1800 }, paint: 300, wheel: 450, spoiler: 450, skirts: 350, tint: [0, 150, 250], neon: 400, xenon: 200, engine: [0, 900, 1800, 3000], brakes: [0, 500, 900, 1500], susp: [0, 400, 800, 1300], turbo: 2500 };
 const NEONS = [[null, 'Sem neon'], [0x2a7aff, 'Azul'], [0xff2a9a, 'Rosa'], [0x2aff7a, 'Verde'], [0xff8a1a, 'Laranja'], [0xb02aff, 'Roxo']];
 const hex = (c) => '#' + c.toString(16).padStart(6, '0');
 
@@ -43,6 +44,8 @@ export class CustomShop {
     const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
     this.el = document.createElement('div'); this.el.id = 'custom'; document.body.appendChild(this.el);
     this.el.addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) this.act(b.dataset.a, b.dataset.v); });
+    this.el.addEventListener('input', (e) => { if (e.target.dataset.pick) this.act('paintpick', e.target.value); });
+    this.el.addEventListener('change', (e) => { if (e.target.dataset.pick) this.render(); });
     this.angle = 0.6; this.dragging = false;
     window.addEventListener('mousedown', (e) => { if (this.open && !e.target.closest('#custom .side')) { this.dragging = true; this.lastX = e.clientX; } });
     window.addEventListener('mouseup', () => { this.dragging = false; });
@@ -72,9 +75,12 @@ export class CustomShop {
   }
   cart() {
     const m = this.car.mods, o = this.orig; const items = [];
-    if (m.color !== o.color) items.push(['Pintura', PRICE.paint]);
+    if (m.color !== o.color) items.push(['Pintura', PAINTS.includes(m.color) ? PRICE.paint : PRICE.paintFree]);
     if (m.wheel !== o.wheel) items.push(['Rodas', PRICE.wheel]);
-    if (m.spoiler && !o.spoiler) items.push(['Aerofólio', PRICE.spoiler]);
+    if (m.spoiler !== o.spoiler && m.spoiler) items.push(['Aerofólio ' + ({ lip: 'lábio', sport: 'esportivo', gt: 'GT' }[m.spoiler] || ''), PRICE.spoilerStyle[m.spoiler] || PRICE.spoiler]);
+    if (m.engineType !== o.engineType && m.engineType) items.push(['Motor ' + ENGINES[m.engineType].name, PRICE.engineType[m.engineType]]);
+    if ((m.suspLevel ?? 1) !== (o.suspLevel ?? 1)) items.push(['Altura: ' + ['rebaixado', 'médio', 'alto'][m.suspLevel], PRICE.suspLevel[m.suspLevel]]);
+    if ((m.chassis || 'padrao') !== (o.chassis || 'padrao') && m.chassis !== 'padrao') items.push(['Chassi ' + ({ largo: 'largo (wide body)', offroad: 'off-road' }[m.chassis]), PRICE.chassis[m.chassis]]);
     if (m.skirts && !o.skirts) items.push(['Saias laterais', PRICE.skirts]);
     if (m.tint !== o.tint) items.push(['Película', PRICE.tint[m.tint]]);
     if (m.neon !== o.neon && m.neon != null) items.push(['Neon', PRICE.neon]);
@@ -90,6 +96,11 @@ export class CustomShop {
     const set = (k, val) => { m[k] = val; car.rebuild(); };
     if (a === 'tab') this.tab = v;
     else if (a === 'paint') set('color', +v);
+    else if (a === 'paintpick') { set('color', parseInt(v.slice(1), 16)); return; } // escolhendo a cor livre: não redesenha o painel (mantém o seletor aberto)
+    else if (a === 'spoiler') set('spoiler', v === 'none' ? false : v);
+    else if (a === 'engineType') { set('engineType', v === 'orig' ? null : v); this.G.previewEngine && this.G.previewEngine(this.car); }
+    else if (a === 'suspLevel') set('suspLevel', +v);
+    else if (a === 'chassis') set('chassis', v);
     else if (a === 'wheel') set('wheel', v);
     else if (a === 'toggle') set(v, !m[v]);
     else if (a === 'tint') set('tint', +v);
@@ -116,22 +127,33 @@ export class CustomShop {
     const opt = (a, v, label, price, sel, owned) => `<button class="opt${sel ? ' sel' : ''}${owned ? ' own' : ''}" data-a="${a}" data-v="${v}"><span>${label}</span><small>${owned ? 'instalado' : price ? 'R$ ' + price.toLocaleString('pt-BR') : ''}</small></button>`;
     let list = '';
     switch (this.tab) {
-      case 'pintura': list = `<div class="sw">${PAINTS.map((c) => `<button aria-label="Cor ${hex(c)}" class="${m.color === c ? 'sel' : ''}" style="background:${hex(c)}" data-a="paint" data-v="${c}"></button>`).join('')}</div><div class="car">Pintura completa: R$ ${PRICE.paint}</div>`; break;
+      case 'pintura': list = `<div class="car">Qualquer cor (R$ ${PRICE.paintFree}):</div><input type="color" value="${hex(m.color)}" data-pick="1"><div class="car">Cores de fábrica:</div><div class="sw">${PAINTS.map((c) => `<button aria-label="Cor ${hex(c)}" class="${m.color === c ? 'sel' : ''}" style="background:${hex(c)}" data-a="paint" data-v="${c}"></button>`).join('')}</div><div class="car">Pintura completa: R$ ${PRICE.paint}</div>`; break;
       case 'rodas': list = Object.entries(WHEELS).map(([k, w]) => opt('wheel', k, w.name, PRICE.wheel, m.wheel === k, this.orig.wheel === k)).join(''); break;
       case 'visual':
-        list = opt('toggle', 'spoiler', 'Aerofólio' + (m.spoiler ? ' ✓' : ''), PRICE.spoiler, m.spoiler, this.orig.spoiler)
+        list = [['none', 'Sem aerofólio', 0], ['lip', 'Aerofólio lábio (discreto)', PRICE.spoilerStyle.lip], ['sport', 'Aerofólio esportivo', PRICE.spoilerStyle.sport], ['gt', 'Aerofólio GT (asa alta)', PRICE.spoilerStyle.gt]].map(([k, n, pr]) => opt('spoiler', k, n, pr, (m.spoiler || 'none') === k, (this.orig.spoiler || 'none') === k)).join('')
           + opt('toggle', 'skirts', 'Saias laterais' + (m.skirts ? ' ✓' : ''), PRICE.skirts, m.skirts, this.orig.skirts)
           + opt('toggle', 'xenon', 'Faróis xenon' + (m.xenon ? ' ✓' : ''), PRICE.xenon, m.xenon, this.orig.xenon)
           + [0, 1, 2].map((t) => opt('tint', t, ['Vidros sem película', 'Película média', 'Película escura'][t], PRICE.tint[t], m.tint === t, this.orig.tint === t)).join('')
           + NEONS.map(([c, n]) => opt('neon', String(c), 'Neon: ' + n, c == null ? 0 : PRICE.neon, m.neon === c, this.orig.neon === c)).join('');
         break;
+      case 'motor':
+        list = '<div class="car">O motor muda o som e o desempenho. Toque para ouvir.</div>' + opt('engineType', 'orig', 'Motor original', 0, !m.engineType, !this.orig.engineType)
+          + Object.entries(ENGINES).map(([k, e]) => opt('engineType', k, 'Motor ' + e.name, PRICE.engineType[k], m.engineType === k, this.orig.engineType === k)).join('')
+          + opt('toggle', 'turbo', 'Turbo (mais rápido + fogo no escapamento)' + (m.turbo ? ' ✓' : ''), PRICE.turbo, m.turbo, this.orig.turbo);
+        break;
+      case 'suspensao':
+        list = '<div class="car">Altura do carro:</div>' + [0, 1, 2].map((l) => opt('suspLevel', l, ['Rebaixado', 'Médio (original)', 'Alto'][l], PRICE.suspLevel[l], (m.suspLevel ?? 1) === l, (this.orig.suspLevel ?? 1) === l)).join('')
+          + '<div class="car">Suspensão esportiva (mais aderência):</div>' + [0, 1, 2, 3].map((l) => opt('level', 'susp:' + l, l === 0 ? 'Original' : 'Nível ' + l, PRICE.susp[l], m.susp === l, l === this.orig.susp)).join('');
+        break;
+      case 'chassi':
+        list = [['padrao', 'Chassi original'], ['largo', 'Wide body (mais largo, para-lamas alargados)'], ['offroad', 'Off-road (mais alto, para-lamas de proteção)']].map(([k, n]) => opt('chassis', k, n, PRICE.chassis[k], (m.chassis || 'padrao') === k, (this.orig.chassis || 'padrao') === k)).join('');
+        break;
       case 'desempenho':
-        for (const [k, n] of [['engine', 'Motor'], ['brakes', 'Freios'], ['susp', 'Suspensão']]) for (let l = 0; l <= 3; l++) list += opt('level', k + ':' + l, `${n} — ${l === 0 ? 'original' : 'nível ' + l}`, PRICE[k][l], m[k] === l, l <= this.orig[k] && l === this.orig[k]);
-        list += opt('toggle', 'turbo', 'Turbo' + (m.turbo ? ' ✓' : ''), PRICE.turbo, m.turbo, this.orig.turbo);
+        for (const [k, n] of [['engine', 'Preparação do motor'], ['brakes', 'Freios']]) for (let l = 0; l <= 3; l++) list += opt('level', k + ':' + l, `${n} — ${l === 0 ? 'original' : 'nível ' + l}`, PRICE[k][l], m[k] === l, l <= this.orig[k] && l === this.orig[k]);
         break;
       case 'reparo': list = this.origHealth >= 0.999 ? '<div class="car">O carro está em perfeito estado.</div>' : opt('repair', '1', `Reparar carroceria e motor (estado ${Math.round(this.origHealth * 100)}%)`, this.repairCost(), this.repair, false); break;
     }
-    const tabs = [['pintura', 'Pintura'], ['rodas', 'Rodas'], ['visual', 'Visual'], ['desempenho', 'Desempenho'], ['reparo', 'Reparo']];
+    const tabs = [['pintura', 'Pintura'], ['rodas', 'Rodas'], ['visual', 'Aerofólio e visual'], ['motor', 'Motor e turbo'], ['suspensao', 'Suspensão'], ['chassi', 'Chassi'], ['desempenho', 'Desempenho'], ['reparo', 'Reparo']];
     this.el.innerHTML = `<div class="side">
       <h2>LOS VALLES CUSTOM</h2>
       <div class="car">${T.name}${car.owner ? ' · seu carro' : ''}</div>

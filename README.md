@@ -30,7 +30,7 @@ Missões com marcador azul começam quando você chega nele e aperta **E**. Miss
 | Pular | Espaço |
 | Girar a câmera | Mouse |
 | Aproximar/afastar a câmera | Roda do mouse |
-| Entrar/sair do carro, falar, comprar, interagir | E |
+| Entrar/sair do carro, roubar carro, falar, comprar, interagir | E |
 | Golpear / nocautear por trás (em silêncio) | F |
 | Agachar (furtividade) | C |
 | Celular (mapa, mensagens, banco, VIBE...) | T |
@@ -161,7 +161,41 @@ Popular 1.0, Hatch Pulse, Sedan Aurora, SUV Montana, Picape Bravo, Imperial Luxo
 - **Comer e beber de verdade**: depois da compra, o personagem segura o item (hambúrguer, lata, copo de café, garrafa de água, pão ou caixa de remédio) e leva à boca por alguns segundos.
 - Tudo fica em **uma única textura** (atlas 2048×2048), por isso o desempenho continua igual: medi as mesmas chamadas de desenho e triângulos de antes.
 
-## Visual e otimização (última atualização)
+## Novidades: carros, motos, roubo, oficina, códigos, banco e becos
+
+- **Carros com formato de carro de verdade:** a carroceria afina na frente e na traseira, as laterais são abauladas, o capô tem curvatura e a cabine estreita para cima. Reflexos suaves, grade com moldura, faróis de neblina, para-choques arredondados, molduras nas caixas de roda, limpadores, escapamento e interior (bancos, painel com mostradores, console, volante).
+- **Personagem sentado certinho:** costas no encosto, mãos no volante e pés nos pedais. Na moto, pernas nas pedaleiras e corpo inclinado (mais deitado na esportiva).
+- **Motoristas visíveis:** os carros do trânsito próximos têm um motorista dentro.
+- **Roubar carro:** chegue perto de um carro com motorista e aperte **E**. O personagem vai até a porta, abre, puxa o motorista para fora (ele cai e depois foge), entra e fecha a porta. Ao entrar ou sair de qualquer carro, a porta abre e fecha. Se alguém vir o roubo, você ganha estrela.
+- **Motos:** Esportiva Raio 1000, Custom Estrada, Urbana 160 e Scooter 125. Elas inclinam nas curvas e o piloto acompanha. Há motos estacionadas pela cidade e três na rua da casa.
+- **Códigos no celular** (app **Códigos**, tecla T):
+  - **TODOSCARROS**: menu para escolher qualquer carro, que aparece na sua frente;
+  - **TODASMOTOS**: o mesmo para as motos;
+  - **SEMFOME**: enche a barra de fome, que continua descendo normalmente;
+  - extras: **VIDACHEIA** e **SEMPOLICIA**.
+- **Oficina Los Valles Custom:**
+  - **Cor:** qualquer cor no seletor livre, ou as cores de fábrica.
+  - **Turbo:** deixa o carro bem mais rápido e solta fogo pelo escapamento ao acelerar forte, com estalos ao tirar o pé.
+  - **Motor:** 4 cilindros, V6, V8, Boxer ou V12. Cada um tem som e desempenho próprios, e você ouve o ronco ao escolher.
+  - **Aerofólio:** lábio, esportivo ou GT.
+  - **Suspensão:** rebaixado, médio ou alto (a altura muda de verdade) e suspensão esportiva.
+  - **Chassi:** original, wide body (mais largo, com para-lamas alargados) ou off-road (mais alto, com proteções).
+- **Personagens mais reais:** homens com ombros largos, maxilar e sobrancelhas marcadas. Mulheres com cintura, quadril, busto, lábios coloridos, cílios, brincos, cabelo longo, rabo de cavalo ou chanel, e saia ou vestido. Todos com olhos de íris colorida, pálpebras, nariz e lábios.
+- **Armas:** texturas de metal escovado e madeira, ícones coloridos no menu, e a arma agora aponta para a frente ao mirar (antes ficava em pé, com o cano para cima).
+- **Banco Los Valles** (no Estacionamento Central): interior com caixas atrás de vidro blindado, porta de cofre redonda, caixas eletrônicos, fila e segurança armado.
+  - Com uma arma na mão, fale com o atendente e escolha **Anunciar o assalto**. Todos levantam as mãos, o segurança reage e a polícia vem.
+  - Fique perto do cofre até abrir (12 s) e depois **despiste a polícia** para ficar com o dinheiro (R$ 8.000 a 15.000).
+  - Se for preso ou morrer, perde o dinheiro. Dá para assaltar de novo depois de 2 dias no jogo.
+- **Becos:** entre os prédios dos quarteirões mistos (8 becos), com pichações, caçamba, sacos de lixo, caixas, poças e luz fraca. Cada beco tem um traficante e um vigia de capuz. Eles fogem quando a polícia chega perto ou quando você aponta uma arma para eles.
+- **Otimização:**
+  - Carros iguais compartilham a mesma geometria.
+  - Carros parados longe usam um modelo bem simples (cerca de 740 triângulos, contra mais de 6 mil antes).
+  - As peças de detalhe dos carros longe saem da cena.
+  - A posição das peças só é recalculada quando algo se move.
+  - Os ossos dos personagens só são atualizados quando a animação roda.
+  - Resultado medido: de 34% a 59% menos triângulos, os objetos atualizados por quadro caíram de 12 mil para 5,8 mil, e o tempo de atualização das matrizes de 5–10 ms para cerca de 2 ms.
+
+## Visual e otimização
 
 - **Correção de cor:** cores mais vivas, contraste suave, sombras levemente frias e luzes quentes. É feita dentro do tone mapping de cada material, sem passe extra, então não custa FPS.
 - **Grama 3D:** tufos de grama balançando com o vento nos gramados perto da câmera. Ela evita ruas, calçadas, caminhos, garagens e casas, e some suavemente na distância. Não aparece na qualidade Baixa; na Alta é mais densa e vai mais longe.
