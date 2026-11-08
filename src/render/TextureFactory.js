@@ -519,9 +519,10 @@ export const TextureFactory = {
       const field = new Float32Array(W * W);
       for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
         const f = n.fbm(x / W * 8, y / W * 8, 8, 5);
-        const rust = clamp((f - 0.45) * 3, 0, 1);
+        const rust = clamp((f - 0.52) * 2.2, 0, 1) * 0.55;
+        const soot = 18 + f * 30;
         const i = (y * W + x) * 4;
-        img.data[i] = 25 + rust * 95; img.data[i + 1] = 22 + rust * 45; img.data[i + 2] = 20 + rust * 18; img.data[i + 3] = 255;
+        img.data[i] = soot + rust * 70; img.data[i + 1] = soot * 0.95 + rust * 32; img.data[i + 2] = soot * 0.9 + rust * 12; img.data[i + 3] = 255;
         field[y * W + x] = f;
       }
       ctx.putImageData(img, 0, 0);

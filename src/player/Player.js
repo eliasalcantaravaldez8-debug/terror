@@ -82,7 +82,7 @@ export class Player {
     obj.updateWorldMatrix(true, false);
     obj.getWorldQuaternion(_q);
     _e.setFromQuaternion(_q, 'YXZ');
-    this.yaw = _e.y + this.mountYaw;
+    this.yaw = _e.y + Math.PI + this.mountYaw;
     this.pitch = this.mountPitch;
     this.mount = null;
     this.pos.copy(standPos);
@@ -236,7 +236,8 @@ export class Player {
       const p = this.mount.offset.clone();
       obj.localToWorld(p);
       obj.getWorldQuaternion(_q);
-      _e.set(this.mountPitch + sy, this.mountYaw + sx, sr, 'YXZ');
+      // vehicles face +Z locally while the camera looks down -Z: rotate by PI
+      _e.set(this.mountPitch + sy, Math.PI + this.mountYaw + sx, sr, 'YXZ');
       const local = new THREE.Quaternion().setFromEuler(_e);
       camera.position.copy(p);
       camera.quaternion.copy(_q).multiply(local);

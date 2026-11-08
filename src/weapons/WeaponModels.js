@@ -51,7 +51,7 @@ export function makeRifle(mats, detail = 'high') {
   g.add(box(0.047, 0.11, 0.02, mats.rubber(), 0, -0.005, -0.37));
   // optic: compact red-dot (fictional)
   const optic = new THREE.Group();
-  optic.add(box(0.04, 0.04, 0.09, dark, 0, 0.085, 0.06));
+  optic.add(box(0.028, 0.022, 0.08, dark, 0, 0.083, 0.06));
   const hoodMat = dark.clone(); hoodMat.side = THREE.DoubleSide;
   const hood = cyl(0.024, 0.08, hoodMat, 0, 0.115, 0.06, 20, true); optic.add(hood);
   // front/rear rings so the open tube reads as an optic

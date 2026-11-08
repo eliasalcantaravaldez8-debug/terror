@@ -52,10 +52,11 @@ export class CityBuilder {
   buildGround() {
     const m = this.mats;
     // Huge asphalt ground
-    const ground = new THREE.PlaneGeometry(1400, 1400);
+    const G = 7000;
+    const ground = new THREE.PlaneGeometry(G, G);
     ground.rotateX(-Math.PI / 2);
     const uv = ground.attributes.uv;
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 1400 / 7, uv.getY(i) * 1400 / 7);
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * G / 7, uv.getY(i) * G / 7);
     const gm = new THREE.Mesh(ground, m.asphalt());
     gm.receiveShadow = true;
     gm.matrixAutoUpdate = false;

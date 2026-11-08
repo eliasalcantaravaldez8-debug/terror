@@ -147,10 +147,22 @@ function check(cond, msg) {
           g.input.simulateMouseButton(2, false);
           // move toward the squad anchor / nearest enemy
           let goal = target ? target.e.pos : g.hud.objective?.target;
-          // elevated shooters can't be seen from directly below: back off into the street
-          if (target && target.e.pos.y > 2) {
-            const f = target.e.edgeFace || { x: 0, z: 1 };
-            goal = { x: f.x ? target.e.pos.x + f.x * 24 : target.e.pos.x * -0.3, z: target.e.pos.z + f.z * 26 + 3 };
+          // look for a vantage point with line of sight to any active hostile (like a player flanking)
+          if (target) {
+            if (!g.__vantage || g.__vantageT-- <= 0 || Math.hypot(p.pos.x - g.__vantage.x, p.pos.z - g.__vantage.z) < 0.8) {
+              g.__vantageT = 16;
+              let bestV = null, bestD = 1e9;
+              for (let k = 0; k < 220; k++) {
+                const a = Math.random() * Math.PI * 2, r = 3 + Math.random() * 30;
+                const x = p.pos.x + Math.cos(a) * r, z = p.pos.z + Math.sin(a) * r;
+                if (!g.nav.isWalkable(x, z)) continue;
+                const e2 = { x, y: 1.66 + g.world.groundHeight(x, z, 0.3, 1), z };
+                if (!enemies.some((e) => g.world.lineOfSight(e2, e.hitSpheres[1].c, (b) => b.tag !== 'bounds'))) continue;
+                if (r < bestD) { bestD = r; bestV = { x, z }; }
+              }
+              g.__vantage = bestV;
+            }
+            if (g.__vantage) goal = g.__vantage;
           }
           if (goal) {
             const path = g.nav.findPath(p.pos.x, p.pos.z, goal.x, goal.z);

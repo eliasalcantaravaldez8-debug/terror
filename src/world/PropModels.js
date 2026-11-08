@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 /**
  * Procedural prop geometries (cars, barriers, lamps...). Each builder returns
@@ -112,8 +113,15 @@ export function sandbagWallGeometry(len, rows = 3, rnd = Math.random) {
     const off = (r % 2) * bagL / 2;
     for (let i = 0; i < n - (r % 2); i++) {
       for (const dz of [-0.19, 0.19]) {
-        const g = new THREE.SphereGeometry(0.5, 10, 6);
-        g.scale(bagL * 1.05, bagH * 1.3, bagD * 1.1);
+        const g = new RoundedBoxGeometry(bagL * 1.02, bagH * 1.15, bagD, 2, 0.075);
+        // slumped, lumpy bag: squash the top and jitter vertices
+        const pa = g.attributes.position;
+        for (let v = 0; v < pa.count; v++) {
+          const y = pa.getY(v);
+          pa.setY(v, y > 0 ? y * 0.82 : y);
+          pa.setX(v, pa.getX(v) * (1 + (rnd() - 0.5) * 0.04));
+        }
+        g.computeVertexNormals();
         g.rotateY((rnd() - 0.5) * 0.15);
         g.translate(-len / 2 + off + bagL / 2 + i * bagL + (rnd() - 0.5) * 0.04, bagH / 2 + r * bagH * 0.92, dz * (r === rows - 1 ? 0.5 : 1));
         geoms.push(g);

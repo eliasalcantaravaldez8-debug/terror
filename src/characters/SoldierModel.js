@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { solveTwoBone, aimBone } from './IK.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { makeRifle, makeSniperRifle } from '../weapons/WeaponModels.js';
 import { clamp, lerp, damp, easeInOut } from '../utils/math.js';
 
@@ -19,8 +20,13 @@ function capsule(r, len, mat, y) {
   m.castShadow = true;
   return m;
 }
+const _rbCache = new Map();
 function boxm(w, h, d, mat, x = 0, y = 0, z = 0) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  // rounded edges read far better than hard boxes for soft gear (vests, pouches, boots)
+  const key = `${w}|${h}|${d}`;
+  let g = _rbCache.get(key);
+  if (!g) { g = new RoundedBoxGeometry(w, h, d, 2, Math.min(w, h, d) * 0.28); _rbCache.set(key, g); }
+  const m = new THREE.Mesh(g, mat);
   m.position.set(x, y, z);
   m.castShadow = true;
   return m;
@@ -76,8 +82,21 @@ export class SoldierModel {
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.105, 14, 12), A.skin); face.scale.set(0.9, 1.08, 1.0); face.castShadow = true; this.head.add(face);
     if (A.beard) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.095, 10, 8, 0, Math.PI * 2, Math.PI * 0.55, Math.PI * 0.45), mats.polymer(0x2a1f17)); b.position.set(0, -0.01, 0.012); this.head.add(b); }
     if (!A.balaclava) {
-      // nose and brow to read as a face at distance
-      this.head.add(boxm(0.025, 0.04, 0.03, A.skin, 0, -0.005, 0.1));
+      // facial features: nose, brows, eyes, mouth, ears, jaw
+      this.head.add(boxm(0.026, 0.045, 0.035, A.skin, 0, -0.01, 0.1));
+      const dark = mats.polymer(0x1c1714);
+      for (const sx of [-1, 1]) {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), mats.polymer(0xe8e2d8));
+        eye.position.set(sx * 0.036, 0.022, 0.088); this.head.add(eye);
+        const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.006, 6, 4), dark);
+        pupil.position.set(sx * 0.036, 0.022, 0.098); this.head.add(pupil);
+        this.head.add(boxm(0.038, 0.009, 0.012, dark, sx * 0.037, 0.045, 0.094));
+        const ear = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), A.skin);
+        ear.scale.set(0.5, 1, 0.8); ear.position.set(sx * 0.095, 0.0, 0.0); this.head.add(ear);
+      }
+      this.head.add(boxm(0.045, 0.008, 0.01, mats.polymer(0x6e4a3e), 0, -0.058, 0.093));
+      const jaw = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), A.skin);
+      jaw.scale.set(1, 0.7, 1); jaw.position.set(0, -0.055, 0.02); this.head.add(jaw);
     } else {
       // eye slit
       this.head.add(boxm(0.13, 0.03, 0.02, mats.skin(0x8c6a55), 0, 0.02, 0.095));
@@ -93,7 +112,10 @@ export class SoldierModel {
       for (const sx of [-1, 1]) this.head.add(boxm(0.02, 0.06, 0.12, mats.darkMetal(), sx * 0.13, 0.04, 0)); // rails
     }
     if (A.headset) for (const sx of [-1, 1]) this.head.add(boxm(0.04, 0.07, 0.07, mats.polymer(0x2e2f2a), sx * 0.11, -0.01, 0));
-    if (A.glasses) this.head.add(boxm(0.17, 0.035, 0.02, mats.lens(), 0, 0.02, 0.1));
+    if (A.glasses) {
+      for (const sx of [-1, 1]) this.head.add(boxm(0.055, 0.032, 0.012, mats.lens(), sx * 0.036, 0.022, 0.106));
+      this.head.add(boxm(0.02, 0.008, 0.01, mats.lens(), 0, 0.03, 0.107));
+    }
     if (A.visor) this.head.add(boxm(0.2, 0.06, 0.03, mats.lens(), 0, 0.03, 0.12));
 
     // arms
