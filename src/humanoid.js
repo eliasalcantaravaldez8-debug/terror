@@ -259,6 +259,10 @@ export class Humanoid {
       }
     }
     if (p.aim) { T.shoulderR = [-1.55, 0, 0.05]; T.elbowR = [-0.05, 0, 0]; T.shoulderL = [-1.35, 0, -0.55]; T.elbowL = [-0.55, 0, 0]; T.chest = [0, 0.1, 0]; T.head = [0, -0.1, 0]; }
+    if (p.eat && !p.aim) { // leva o item à boca em mordidas/goles
+      const k = Math.max(0, Math.sin(p.eat * 3.2)) ** 0.6;
+      T.shoulderR = [-0.3 - 0.3 * k, 0, -0.08 + 0.3 * k]; T.elbowR = [-1.45 - 0.95 * k, 0, 0]; T.head = [-0.06 * k + 0.08, 0, 0];
+    }
     if (p.phone) { T.shoulderR = [-0.35, 0, -0.25]; T.elbowR = [-2.4, 0.2, 0]; T.head = [0.05, 0.15, 0.1]; }
     if (this.punchT > 0) {
       this.punchT -= dt;

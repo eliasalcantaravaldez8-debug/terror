@@ -499,12 +499,18 @@ export function shopWindowTex() {
 
 export function tileFloorTex() {
   return cached('tilefloor', () => {
-    const [c, g] = canvas(128, 128);
+    // porcelanato 60x60 com rejunte, leve variação por peça e manchas de uso
+    const [c, g] = canvas(256, 256);
+    g.fillStyle = '#8a857c'; g.fillRect(0, 0, 256, 256);
     for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
-      g.fillStyle = (x + y) % 2 ? '#d8d4cc' : '#b9b3a8';
-      g.fillRect(x * 32, y * 32, 32, 32);
+      const base = (x + y) % 2 ? [232, 222, 204] : [204, 190, 168]; const v = rr(-8, 8);
+      const gr = g.createLinearGradient(x * 64, y * 64, x * 64 + 64, y * 64 + 64);
+      gr.addColorStop(0, `rgb(${base[0] + v + 6},${base[1] + v + 6},${base[2] + v + 6})`); gr.addColorStop(1, `rgb(${base[0] + v - 6},${base[1] + v - 6},${base[2] + v - 6})`);
+      g.fillStyle = gr; g.fillRect(x * 64 + 1.5, y * 64 + 1.5, 61, 61);
+      for (let i = 0; i < 3; i++) { g.strokeStyle = `rgba(150,140,130,${rr(0.05, 0.15)})`; g.lineWidth = rr(0.5, 1.5); g.beginPath(); g.moveTo(x * 64 + rand() * 64, y * 64 + rand() * 64); g.quadraticCurveTo(x * 64 + rand() * 64, y * 64 + rand() * 64, x * 64 + rand() * 64, y * 64 + rand() * 64); g.stroke(); }
     }
-    noise(g, 128, 128, 10);
+    speckle(g, 256, 256, 500, ['rgba(80,70,60,0.12)', 'rgba(255,255,255,0.15)'], 1.5);
+    noise(g, 256, 256, 8);
     return toTex(c);
   });
 }

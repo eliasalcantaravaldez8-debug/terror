@@ -17,6 +17,8 @@ import * as SAVE from './save.js';
 import { CustomShop } from './custom.js';
 import { PerfMeter } from './perf.js';
 import { Weapons, WEAPONS } from './weapons.js';
+import { itemIcon, handItem } from './products.js';
+import { shopKind } from './city.js';
 import { Vehicle, CAR_COLORS, updateSirens } from './vehicle.js';
 import { Player } from './player.js';
 import { ThirdPersonCamera } from './camera.js';
@@ -586,27 +588,56 @@ function busted() {
 }
 
 // ---------------- SOBREVIVÊNCIA, SERVIÇOS ----------------
-const SHOP_ITEMS = {
-  comida: [{ text: 'Lanche — R$ 18', price: 18, fome: 40 }, { text: 'Refeição completa — R$ 35', price: 35, fome: 70, sede: 15 }],
-  bebida: [{ text: 'Água — R$ 5', price: 5, sede: 45 }, { text: 'Refrigerante — R$ 7', price: 7, sede: 30, fome: 5 }],
-  cafe: [{ text: 'Café — R$ 8', price: 8, sono: 15, sede: 10 }],
+// cardápios por tipo de loja (preços e efeitos iguais aos do quadro de cardápio dentro da loja)
+const IT = {
+  sanduiche: { text: 'Sanduíche — R$ 18', price: 18, fome: 40, icon: 'sanduiche', eat: 'lanche' },
+  marmita: { text: 'Marmita — R$ 35', price: 35, fome: 70, sede: 15, icon: 'marmita', eat: 'lanche' },
+  burger: { text: 'X-Burguer — R$ 18', price: 18, fome: 40, icon: 'burger', eat: 'lanche' },
+  prato: { text: 'Prato feito — R$ 35', price: 35, fome: 70, sede: 15, icon: 'prato', eat: 'lanche' },
+  pao: { text: 'Pão na chapa — R$ 10', price: 10, fome: 25, icon: 'pao', eat: 'pao' },
+  sonho: { text: 'Sonho — R$ 9', price: 9, fome: 20, icon: 'sonho', eat: 'sonho' },
+  agua: { text: 'Água — R$ 5', price: 5, sede: 45, icon: 'agua', eat: 'agua' },
+  refri: { text: 'Refrigerante — R$ 7', price: 7, sede: 30, fome: 5, icon: 'refri', eat: 'refri' },
+  cafe: { text: 'Café — R$ 8', price: 8, sono: 15, sede: 10, icon: 'cafe', eat: 'cafe' },
+  cafeleite: { text: 'Café com leite — R$ 8', price: 8, sono: 15, sede: 10, fome: 5, icon: 'cafeleite', eat: 'cafe' },
+  remedio: { text: 'Analgésico — R$ 25', price: 25, dor: -40, icon: 'remedio', eat: 'remedio' },
+};
+const MENUS = {
+  mercado: ['sanduiche', 'marmita', 'agua', 'refri', 'cafe'],
+  lanche: ['burger', 'prato', 'refri', 'cafe'],
+  padaria: ['pao', 'sonho', 'cafeleite', 'agua'],
+  farmacia: ['remedio', 'agua'],
 };
 function shopMenu(npc) {
-  const n = npc.name.toLowerCase();
-  let items = [];
-  if (/mercado|conveni|padaria/.test(n)) items = [...SHOP_ITEMS.comida, ...SHOP_ITEMS.bebida, ...SHOP_ITEMS.cafe];
-  else if (/lanchonete|pizzaria|restaurante|bar|café/.test(n)) items = [...SHOP_ITEMS.comida, SHOP_ITEMS.bebida[1], ...SHOP_ITEMS.cafe];
-  else if (/farmácia/.test(n)) items = [{ text: 'Analgésico — R$ 25', price: 25, dor: -40 }, SHOP_ITEMS.bebida[0]];
-  else if (/ferragens/.test(n)) {
+  const kind = shopKind(npc.name);
+  let items = (MENUS[kind] || []).map((k) => IT[k]);
+  if (kind === 'ferragens') {
     const inv = G.weapons.inv;
     for (const id of ['pistola', 'escopeta']) {
       const W2 = WEAPONS[id];
-      if (!inv[id].owned) items.push({ text: `${W2.name} — R$ ${W2.price}`, price: W2.price, weapon: id });
-      items.push({ text: `Munição de ${W2.name.toLowerCase()} (${W2.ammoPack}) — R$ ${W2.ammoPrice}`, price: W2.ammoPrice, ammo: id });
+      if (!inv[id].owned) items.push({ text: `${W2.name} — R$ ${W2.price}`, price: W2.price, weapon: id, icon: id });
+      items.push({ text: `Munição de ${W2.name.toLowerCase()} (${W2.ammoPack}) — R$ ${W2.ammoPrice}`, price: W2.ammoPrice, ammo: id, icon: 'municao' });
     }
   }
-  return items;
+  return items.map((it) => ({ ...it, iconUrl: it.icon ? itemIcon(it.icon) : null }));
 }
+// comer/beber: o item aparece na mão do personagem por alguns segundos
+let eatModel = null;
+function eatAnim(kind) {
+  const P = G.player; const hand = P.model.bones.handR;
+  if (eatModel) hand.remove(eatModel);
+  eatModel = handItem(kind); eatModel.position.set(0, -0.09, 0.05); eatModel.rotation.set(Math.PI / 2, 0, 0);
+  hand.add(eatModel);
+  for (const m of Object.values(G.weapons.models)) m.visible = false;
+  P.eatT = kind === 'remedio' ? 1.6 : 3.2;
+  G.sound('page');
+}
+function updateEat(dt) {
+  const P = G.player; if (!(P.eatT > 0)) return;
+  P.eatT -= dt;
+  if (P.eatT <= 0 || P.mode !== 'foot') { P.eatT = 0; if (eatModel && eatModel.parent) eatModel.parent.remove(eatModel); eatModel = null; G.weapons.attach(); }
+}
+G.eatAnim = eatAnim;
 async function interactNPC(npc) {
   const S = G.story; const C = G.campaign();
   const items = npc.role === 'shop' ? shopMenu(npc) : [];
@@ -625,6 +656,7 @@ async function interactNPC(npc) {
         if (it.weapon) { const s2 = G.weapons.inv[it.weapon]; s2.owned = true; s2.clip = WEAPONS[it.weapon].mag; s2.ammo += WEAPONS[it.weapon].mag; G.weapons.equip(it.weapon); SAVE.writeSlot('auto', snapshot()); }
         if (it.ammo) G.weapons.inv[it.ammo].ammo += WEAPONS[it.ammo].ammoPack;
         if (it.dor) C.needs.dor = Math.max(0, C.needs.dor + it.dor);
+        if (it.eat) eatAnim(it.eat);
         toast('Comprado: ' + it.text.split(' — ')[0]);
       }
     } else if (i === items.length) { G.inputLocked = true; await S.say(npc, npc.nextLine() || '...'); G.inputLocked = false; S.hideDialog(); }
@@ -823,7 +855,7 @@ function step(dt) {
   // diálogos / escolhas / documentos
   if (active && hit('KeyE', 'Space', 'Enter')) S.advance = true;
   const choosing = $('dialog-choices').children.length > 0;
-  for (let i = 1; i <= 4; i++) if (hit('Digit' + i, 'Numpad' + i)) { if (choosing) S.choice = i - 1; else if (active && !locked2 && !S.cut && i <= 3) G.weapons.equip(['mao', 'pistola', 'escopeta'][i - 1]); }
+  for (let i = 1; i <= 9; i++) if (hit('Digit' + i, 'Numpad' + i)) { if (choosing) S.choice = i - 1; else if (active && !locked2 && !S.cut && i <= 3) G.weapons.equip(['mao', 'pistola', 'escopeta'][i - 1]); }
   if (active && S.cut && hit('KeyX', 'Backspace') && !choosing) { S.skipCut = true; }
   if (hit('F3')) { G.perf.toggle(); settings.showFps = G.perf.visible; saveSettings(); }
   if (hit('F4')) { if (G.perf.session) { const r = G.perf.stopSession(); toast(`Medição: mín ${r.min.toFixed(0)} · méd ${r.avg.toFixed(0)} · máx ${r.max.toFixed(0)} FPS`, 4); } else { G.perf.startSession(); G.perf.toggle(true); toast('Medição de FPS iniciada (F4 para parar)', 2); } }
@@ -839,6 +871,7 @@ function step(dt) {
   if (active && !locked2 && hit('KeyC')) p.crouchToggle = !p.crouchToggle;
   if (active && !locked2 && hit('KeyF')) playerPunch();
   punchCd -= dt; pulsoCd -= dt;
+  updateEat(dt);
   if (active && !locked2 && hit('KeyQ') && G.campaign().tools.pulso) {
     if (pulsoCd > 0) toast('Pulso recarregando: ' + Math.ceil(pulsoCd) + 's', 1);
     else { pulsoCd = 16; let n = 0; for (const c of S.cameras) if (Math.hypot(c.x - p.x, c.z - p.z) < 26) { c.disabled = 8; n++; } toast(n ? `Pulso Eletrônico: ${n} câmera(s) desligada(s) por 8s` : 'Nenhuma câmera por perto', 2); G.sound('ping'); }
@@ -1057,6 +1090,7 @@ G.punch = playerPunch;
 G.setPixelRatio = (pr) => { pixelRatio = pr; renderer.setPixelRatio(pr); renderer.setSize(window.innerWidth, window.innerHeight); };
 G.sim = (seconds, fps = 60) => { const n = Math.round(seconds * fps); for (let i = 0; i < n; i++) { step(1 / fps); pressed.clear(); } };
 G.press = (code) => pressed.add(code);
+G.interactNPC = interactNPC;
 G.makeTestCar = (type, mods) => { const c = new Vehicle(type, 0x8a1a1a, G.world, mods); scene.add(c.group); G.world.dynamic.add(c); G.cars.push(c); c.fuel = 1; return c; };
 G.removeTestCar = (c) => removeCar(c);
 G.__unpause = () => { paused = false; };

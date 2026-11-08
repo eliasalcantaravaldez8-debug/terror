@@ -1,6 +1,7 @@
 // Materiais compartilhados (Lambert/Phong: leves e compatíveis com GPUs fracas / WebGL)
 import * as THREE from 'three';
 import * as TX from './textures.js';
+import { productAtlas, shopWindowCanvas } from './products.js';
 
 export const nightMats = []; // materiais cujo brilho depende da noite: {mat, base, night}
 function lam(opts, ud = {}) { const m = new THREE.MeshLambertMaterial(opts); Object.assign(m.userData, ud); return m; }
@@ -66,9 +67,12 @@ export function mats() {
   M.pool = new THREE.MeshBasicMaterial({ map: TX.lightPoolTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
   M.pool.userData.castShadow = false; M.pool.userData.receiveShadow = false;
   nightMats.push({ mat: M.pool, opacity: true, base: 0, night: 1 });
-  M.shopWin = night(new THREE.MeshPhongMaterial({ map: TX.shopWindowTex(), emissiveMap: TX.shopWindowTex(), emissive: 0xffffff, emissiveIntensity: 0.08, color: 0xbbbbbb, specular: 0x888888, shininess: 90, envMap: envRT.texture, combine: THREE.MixOperation, reflectivity: 0.3 }), 0.08, 0.85);
+  const swt = new THREE.CanvasTexture(shopWindowCanvas()); swt.colorSpace = THREE.SRGBColorSpace; swt.anisotropy = 4;
+  M.shopWin = night(new THREE.MeshPhongMaterial({ map: swt, emissiveMap: swt, emissive: 0xffffff, emissiveIntensity: 0.08, color: 0xbbbbbb, specular: 0x888888, shininess: 90, envMap: envRT.texture, combine: THREE.MixOperation, reflectivity: 0.3 }), 0.08, 0.85);
   M.interior = lam({ color: 0xe8e0d0, emissive: 0x2a2620 });
-  M.interiorFloor = lam({ map: TX.tileFloorTex(), emissive: 0x1a1814 }, { castShadow: false });
+  M.ceiling = lam({ color: 0xf2eee6, emissive: 0x9a968e }, { castShadow: false }); // forro (iluminado pelas luminárias)
+  M.interiorFloor = new THREE.MeshPhongMaterial({ map: TX.tileFloorTex(), emissive: 0x1a1814, specular: 0x2a2826, shininess: 40 }); M.interiorFloor.userData.castShadow = false;
+  M.interiorWood = lam({ map: TX.woodTex(), emissive: 0x1a140e }, { castShadow: false });
   M.ceilingLight = night(lam({ color: 0xffffff, emissive: 0xfff4e0, emissiveIntensity: 0.8 }, { castShadow: false }), 0.8, 1.2);
   M.glass = new THREE.MeshPhongMaterial({ color: 0x9ab8c8, transparent: true, opacity: 0.3, shininess: 120, depthWrite: false, envMap: envRT.texture, combine: THREE.MixOperation, reflectivity: 0.4 });
   M.glass.userData.castShadow = false;
@@ -89,7 +93,18 @@ export function mats() {
   M.flag = lam({ color: 0xffffff, side: THREE.DoubleSide });
   M.signAtlas = TX.signAtlas();
   M.sign = night(lam({ map: M.signAtlas.texture, emissiveMap: M.signAtlas.texture, emissive: 0xffffff, emissiveIntensity: 0.4 }, { castShadow: false }), 0.25, 0.9);
+  M.flat = flat;
+  const PA = productAtlas();
+  M.prod = night(lam({ map: PA.texture, emissiveMap: PA.texture, emissive: 0xffffff, emissiveIntensity: 0.14 }), 0.14, 0.3);
+  M.prodGlow = night(lam({ map: PA.texture, emissiveMap: PA.texture, emissive: 0xffffff, emissiveIntensity: 0.5 }, { castShadow: false }), 0.5, 0.85);
   return M;
+}
+
+// produto/cardápio: região do atlas de produtos (glow = iluminado, como geladeira e cardápio)
+export function prodMat(key, glow = false) {
+  const m = mats(); const r = productAtlas().regions[key];
+  if (!r) console.warn('Produto sem região no atlas: ' + key);
+  return { isSign: true, mat: glow ? m.prodGlow : m.prod, region: r };
 }
 
 // placa: região do atlas (uma textura para todas as placas => 1 material)

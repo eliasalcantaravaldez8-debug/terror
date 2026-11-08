@@ -54,6 +54,13 @@
   #dialog { z-index: 18; }
   #dialog-choices { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
   .choice { text-align: left; font-size: 15px; letter-spacing: 0; padding: 8px 12px; border-color: #555; }
+  #dialog-choices.shop { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  #dialog-choices.shop .choice { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 8px 6px; gap: 3px; }
+  #dialog-choices.shop .choice img { width: 72px; height: 72px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+  #dialog-choices.shop .choice.noicon { justify-content: center; min-height: 60px; }
+  #dialog-choices.shop .ct { font-size: 14px; font-weight: bold; }
+  #dialog-choices.shop .cp { font-size: 14px; color: #f2d060; }
+  #dialog-choices.shop .cx { font-size: 11px; color: #9fc59f; }
   #alert { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); width: min(360px, 80vw); display: none; text-align: center; }
   #alert-bar { height: 8px; background: rgba(255,255,255,.15); border-radius: 4px; overflow: hidden; }
   #alert-fill { height: 100%; width: 0; background: #6aa86a; transition: width .2s; }

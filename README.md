@@ -107,6 +107,25 @@ Popular 1.0, Hatch Pulse, Sedan Aurora, SUV Montana, Picape Bravo, Imperial Luxo
 - **Sombras** suaves, sombra de contato embaixo de carros e pessoas e escurecimento na base das casas e prédios.
 - Árvores com folhagem texturizada e pinheiros, meio-fio de pedra, tampas de bueiro e vinheta de cinema.
 
+## Lojas, comidas e bebidas
+
+- **Produtos desenhados**: cada loja tem prateleiras com embalagens de verdade (marcas fictícias): cereais, leite, sucos, café, arroz, feijão, latas de conserva, salgadinhos, chocolates, produtos de limpeza, refrigerantes em lata e garrafa PET, água, cerveja, remédios, xaropes, shampoos, pães, sonhos, bolos, croissants, hambúrgueres, cachorro-quente, pizza, batata frita, ferramentas, latas de tinta, eletrônicos, roupas dobradas e antiguidades.
+- **Cada tipo de loja tem o seu interior**:
+  - **Mercado, Armazém e Conveniência**: gôndolas com placas de corredor, geladeira de bebidas iluminada com portas de vidro e produtos no caixa.
+  - **Lanchonete**: vitrine com lanches sobre o balcão, quadro de cardápio iluminado com preços, geladeira e mesas com banquinhos.
+  - **Padaria**: vitrine de pães e doces, cardápio, prateleiras de pães e mesinhas.
+  - **Farmácia**: estantes brancas de remédios e de higiene.
+  - **Ferragens**: painéis de ferramentas e latas de tinta.
+  - **Eletrônicos**: parede de TVs ligadas e bancadas com produtos.
+  - **Loja de roupas**: araras com roupas penduradas, prateleiras e espelho.
+  - **Barbearia**: cadeiras de barbeiro, espelho e produtos.
+  - **Antiquário**: estantes e mesas com vasos, relógios, abajures e quadros.
+- Piso de porcelanato com brilho (ou piso de madeira nas lojas mais antigas), forro iluminado e faixa colorida nas paredes internas. As vitrines das lojas de rua também mostram prateleiras com produtos.
+- **Menu de compra com cartões**: ao falar com o atendente aparece a foto de cada item, o preço e o efeito (Fome +40, Sede +30...). Escolha com o número (1 a 9) ou com o clique.
+- **Cardápios por loja**: na lanchonete há X-Burguer, Prato feito, Refrigerante e Café; na padaria, Pão na chapa, Sonho, Café com leite e Água; no mercado, Sanduíche, Marmita, Água, Refrigerante e Café; na farmácia, Analgésico e Água. Os preços batem com o quadro de cardápio dentro da loja.
+- **Comer e beber de verdade**: depois da compra, o personagem segura o item (hambúrguer, lata, copo de café, garrafa de água, pão ou caixa de remédio) e leva à boca por alguns segundos.
+- Tudo fica em **uma única textura** (atlas 2048×2048), por isso o desempenho continua igual: medi as mesmas chamadas de desenho e triângulos de antes.
+
 ## Desempenho (PC fraco)
 
 **Recomendado para Intel UHD 630 (i5-8500):** qualidade **Média** com **Resolução automática** ligada (já vem assim). A resolução automática diminui um pouco a resolução quando o FPS cai abaixo de ~42 e volta a aumentar quando sobra desempenho. No menu (Esc) aparece o nome da sua placa de vídeo e a resolução atual.
@@ -152,6 +171,7 @@ npm run dev       # recompila automaticamente ao salvar
 | `src/traffic.js` | Trânsito com IA e semáforos |
 | `src/city.js` | Geração da cidade de Los Valles |
 | `src/textures.js` / `src/materials.js` | Texturas e materiais procedurais |
+| `src/products.js` | Produtos, comidas e bebidas das lojas (atlas), ícones do menu e item na mão |
 | `src/sky.js` | Céu, sol/lua, dia/entardecer/noite |
 | `src/collision.js` | Colisões |
 

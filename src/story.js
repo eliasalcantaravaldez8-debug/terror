@@ -134,9 +134,21 @@ export class Story {
   }
   async choose(options, title = 'Ethan') {
     $('dialog').style.display = 'block'; $('dialog-name').textContent = title; $('dialog-text').textContent = '';
-    $('dialog-hint').textContent = 'Escolha com 1, 2, 3 ou clique';
+    $('dialog-hint').textContent = 'Escolha com o número (1–' + Math.min(9, options.length) + ') ou clique';
     const box = $('dialog-choices'); box.innerHTML = '';
-    options.forEach((o, i) => { const b = document.createElement('button'); b.className = 'choice'; b.textContent = `${i + 1}. ${o.text}`; b.onclick = () => { this.choice = i; }; box.appendChild(b); });
+    const icons = options.some((o) => o.iconUrl); box.classList.toggle('shop', icons);
+    options.forEach((o, i) => {
+      const b = document.createElement('button'); b.className = 'choice'; b.onclick = () => { this.choice = i; };
+      if (icons) {
+        const [name, price] = o.text.split(' — ');
+        if (o.iconUrl) { const im = document.createElement('img'); im.src = o.iconUrl; im.alt = ''; b.appendChild(im); } else b.classList.add('noicon');
+        const t = document.createElement('span'); t.className = 'ct'; t.textContent = `${i + 1}. ${name}`; b.appendChild(t);
+        if (price) { const pr = document.createElement('span'); pr.className = 'cp'; pr.textContent = price; b.appendChild(pr); }
+        const fx = [o.fome && `Fome +${o.fome}`, o.sede && `Sede +${o.sede}`, o.sono && `Energia +${o.sono}`, o.dor && `Dor ${o.dor}`].filter(Boolean).join(' · ');
+        if (fx) { const e = document.createElement('span'); e.className = 'cx'; e.textContent = fx; b.appendChild(e); }
+      } else b.textContent = `${i + 1}. ${o.text}`;
+      box.appendChild(b);
+    });
     this.choice = -1; this.G.unlockPointer && this.G.unlockPointer();
     const i = await this.until(() => this.choice >= 0 && this.choice < options.length ? this.choice + 1 : false) - 1;
     box.innerHTML = ''; this.hideDialog(); this.G.relockPointer && this.G.relockPointer();
