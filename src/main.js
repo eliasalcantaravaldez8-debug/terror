@@ -10,19 +10,19 @@ import { CHARACTERS, randomPedestrian, shopkeeperLook, policeLook, SHOP_LINES, P
 import { TrafficLights, spawnTraffic } from './traffic.js';
 import { Sky, TIMES } from './sky.js';
 import { EngineAudio } from './audio.js';
-import { rand, pick, setSeed, rr } from './textures.js';
+import { rand, pick, setSeed, rr, glowTex, blobTex } from './textures.js';
 
 // ---------------- CONFIGURAÇÕES ----------------
-const DEFAULTS = { sensitivity: 1.0, invertY: false, quality: 'media', autoFollow: true, fov: 68, showFps: true, time: 'entardecer', sound: true };
+const DEFAULTS = { sensitivity: 1.0, invertY: false, quality: 'media', autoFollow: true, fov: 68, showFps: true, time: 'entardecer', sound: true, adaptive: true };
 function loadSettings() {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('entreSombras.settings') || '{}') }; } catch (e) { return { ...DEFAULTS }; }
 }
 function saveSettings() { try { localStorage.setItem('entreSombras.settings', JSON.stringify(settings)); } catch (e) { /* ignora */ } }
 const settings = loadSettings();
 const QUALITY = {
-  baixa: { label: 'Baixa', pr: 0.75, aa: false, shadows: false, size: 512, extent: 40, peds: 28, traffic: 8, far: 260 },
-  media: { label: 'Média', pr: 1.0, aa: false, shadows: true, size: 1024, extent: 45, peds: 45, traffic: 12, far: 340 },
-  alta: { label: 'Alta', pr: Math.min(window.devicePixelRatio || 1, 1.5), aa: true, shadows: true, size: 2048, extent: 60, peds: 60, traffic: 16, far: 420 },
+  baixa: { label: 'Baixa', pr: 0.75, aa: false, shadows: false, size: 512, extent: 40, peds: 28, traffic: 8, far: 260, lamps: 0, soft: false },
+  media: { label: 'Média', pr: 1.0, aa: false, shadows: true, size: 2048, extent: 42, peds: 45, traffic: 12, far: 340, lamps: 4, soft: false },
+  alta: { label: 'Alta', pr: Math.min(window.devicePixelRatio || 1, 1.5), aa: true, shadows: true, size: 2048, extent: 60, peds: 60, traffic: 16, far: 420, lamps: 8, soft: true },
 };
 const Q = QUALITY[settings.quality] || QUALITY.media;
 
@@ -36,7 +36,11 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = Q.shadows;
-renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.type = Q.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+// identifica a placa de vídeo (mostrado no menu de opções)
+let gpuName = '';
+try { const gl = renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); gpuName = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); } catch (e) { gpuName = ''; }
+let pixelRatio = Q.pr;
 $('game').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(settings.fov, window.innerWidth / window.innerHeight, 0.1, Q.far);
@@ -90,7 +94,19 @@ function build() {
   // farol do carro do jogador (uma única luz, sempre existente para não recompilar shaders)
   const headlight = new THREE.SpotLight(0xfff2d0, 0, 45, 0.55, 0.5, 1.2);
   scene.add(headlight, headlight.target);
-  Object.assign(G, { world, sky, city, cars, drivers, player, npcs, ryan, delegado, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera });
+  // luzes reais dos postes mais próximos (quantidade fixa por qualidade)
+  const lampLights = [];
+  for (let i = 0; i < Q.lamps; i++) { const l = new THREE.PointLight(0xffc98a, 0, 26, 2); scene.add(l); lampLights.push(l); }
+  // brilho (halo) das lâmpadas: um único objeto para todos os postes
+  const gp = new Float32Array(city.lamps.length * 3); city.lamps.forEach((l, i) => gp.set(l, i * 3));
+  const glowGeo = new THREE.BufferGeometry(); glowGeo.setAttribute('position', new THREE.BufferAttribute(gp, 3));
+  const glow = new THREE.Points(glowGeo, new THREE.PointsMaterial({ map: glowTex(), size: 3.2, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xffd9a0, opacity: 0 }));
+  glow.frustumCulled = false; scene.add(glow);
+  // sombras de contato (blob) sob personagens e carros: um único InstancedMesh
+  const blobGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  const blobs = new THREE.InstancedMesh(blobGeo, new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }), npcs.length + cars.length + 1);
+  blobs.frustumCulled = false; blobs.renderOrder = 1; scene.add(blobs);
+  Object.assign(G, { world, sky, city, cars, drivers, player, npcs, ryan, delegado, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera, lampLights, glow, blobs });
   G.audio = new EngineAudio();
   G.objective = 0;
   G.buildMs = performance.now() - t0;
@@ -131,6 +147,8 @@ function syncSettingsUI() {
   $('opt-fov').value = settings.fov; $('opt-fov-v').textContent = settings.fov;
   $('opt-quality').value = settings.quality; $('opt-fps').checked = settings.showFps;
   $('opt-time').value = settings.time; $('opt-sound').checked = settings.sound;
+  $('opt-adaptive').checked = settings.adaptive;
+  $('gpu-info').textContent = (gpuName ? 'Placa de vídeo: ' + gpuName.replace(/ANGLE \(|\)$/g, '') : '') + ' · resolução ' + Math.round(pixelRatio * 100) + '%';
   $('opt-dist').value = G.cam ? G.cam.footDist : 4.2; $('opt-dist-v').textContent = (G.cam ? G.cam.footDist : 4.2).toFixed(1);
 }
 function bindUI() {
@@ -140,6 +158,7 @@ function bindUI() {
   $('opt-fov').oninput = (e) => { settings.fov = +e.target.value; $('opt-fov-v').textContent = settings.fov; G.cam.fovBase = settings.fov; saveSettings(); };
   $('opt-dist').oninput = (e) => { G.cam.footDist = +e.target.value; $('opt-dist-v').textContent = G.cam.footDist.toFixed(1); };
   $('opt-fps').onchange = (e) => { settings.showFps = e.target.checked; saveSettings(); };
+  $('opt-adaptive').onchange = (e) => { settings.adaptive = e.target.checked; saveSettings(); if (!settings.adaptive) { pixelRatio = Q.pr; renderer.setPixelRatio(pixelRatio); renderer.setSize(window.innerWidth, window.innerHeight); } };
   $('opt-sound').onchange = (e) => { settings.sound = e.target.checked; G.audio.enabled = settings.sound; saveSettings(); };
   $('opt-time').onchange = (e) => { settings.time = e.target.value; G.sky.apply(settings.time); saveSettings(); };
   $('opt-quality').onchange = (e) => {
@@ -292,7 +311,7 @@ const tmpV = new THREE.Vector3();
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), 1 / 20);
-  if (!G.manual) step(dt);
+  if (!G.manual) { step(dt); adaptResolution(dt); }
   renderer.render(scene, camera);
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 0.5) { fpsShown = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
@@ -365,7 +384,9 @@ function step(dt) {
   // câmera
   if (p.mode === 'car') G.cam.update(dt, tmpV.set(G.car.x, G.car.y + 1.25, G.car.z), G.car);
   else G.cam.update(dt, tmpV.set(p.x, p.y + 1.55, p.z), null);
-  G.sky.follow(p.x, p.z);
+  G.sky.follow(p.x, p.z); G.sky.tick(dt);
+  updateLighting(dt, p);
+  updateBlobs();
   // farol à noite
   if (G.car && G.sky.night > 0.4) {
     const [fx, fz] = G.car.forward;
@@ -381,6 +402,53 @@ function step(dt) {
   $('fps').textContent = fpsShown + ' FPS';
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').style.opacity = 0; }
   if (started) drawMinimap();
+}
+
+// ---------------- ILUMINAÇÃO NOTURNA E SOMBRAS DE CONTATO ----------------
+let lampTimer = 0;
+const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p3 = new THREE.Vector3(), _s3 = new THREE.Vector3();
+function updateLighting(dt, p) {
+  const n = G.sky.night;
+  G.glow.material.opacity = n > 0.4 ? Math.min(1, n) * 0.9 : 0;
+  lampTimer -= dt;
+  if (lampTimer <= 0 && G.lampLights.length) {
+    lampTimer = 0.35;
+    const on = n > 0.4;
+    // escolhe os postes mais próximos à frente da câmera
+    const cx = G.camera.position.x, cz = G.camera.position.z;
+    const fx = p.x - cx, fz = p.z - cz, fl = Math.hypot(fx, fz) || 1;
+    const scored = G.city.lamps.map((l) => { const dx = l[0] - p.x, dz = l[2] - p.z; const d = Math.hypot(dx, dz); return [d - Math.max(0, (dx * fx + dz * fz) / fl) * 0.4, l]; });
+    scored.sort((a, b) => a[0] - b[0]);
+    G.lampLights.forEach((L, i) => {
+      const l = scored[i] && scored[i][1];
+      L.visible = on && !!l;
+      if (l) { L.position.set(l[0], l[1] - 0.3, l[2]); L.intensity = 90 * n; }
+    });
+  }
+}
+function updateBlobs() {
+  const B = G.blobs; let i = 0;
+  const put = (x, y, z, sx, sz, rot) => {
+    _q.setFromAxisAngle(_p3.set(0, 1, 0), rot); _s3.set(sx, 1, sz);
+    _m4.compose(_p3.set(x, y + 0.03, z), _q, _s3); B.setMatrixAt(i++, _m4);
+  };
+  const p = G.player;
+  if (p.mode === 'foot') put(p.x, G.world.groundFn(p.x, p.z), p.z, 1.1, 1.1, 0);
+  for (const n of G.npcs) if (n.model.root.visible && Math.abs(n.x - p.x) + Math.abs(n.z - p.z) < 60) put(n.x, n.y, n.z, 1.0, 1.0, 0);
+  for (const c of G.cars) if (c.group.visible && Math.abs(c.x - p.x) + Math.abs(c.z - p.z) < 90) put(c.x, c.y, c.z, c.T.W + 0.9, c.T.L + 1.0, c.heading);
+  B.count = i; B.instanceMatrix.needsUpdate = true;
+}
+// resolução automática: mantém o jogo fluido em placas de vídeo integradas
+let adaptAcc = 0, adaptFrames = 0;
+function adaptResolution(dt) {
+  if (!settings.adaptive || !started || paused) return;
+  adaptAcc += dt; adaptFrames++;
+  if (adaptAcc < 2) return;
+  const fps = adaptFrames / adaptAcc; adaptAcc = 0; adaptFrames = 0;
+  let pr = pixelRatio;
+  if (fps < 42 && pr > 0.6) pr = Math.max(0.6, pr - 0.1);
+  else if (fps > 57 && pr < Q.pr) pr = Math.min(Q.pr, pr + 0.05);
+  if (pr !== pixelRatio) { pixelRatio = pr; renderer.setPixelRatio(pr); renderer.setSize(window.innerWidth, window.innerHeight); }
 }
 
 // ---------------- INÍCIO ----------------
@@ -402,6 +470,7 @@ G.enterCar = (c) => enterCar(c || G.ethanCar);
 G.exitCar = () => exitCar();
 G.nearestCar = nearestCar;
 G.step = step;
+G.setPixelRatio = (pr) => { pixelRatio = pr; renderer.setPixelRatio(pr); renderer.setSize(window.innerWidth, window.innerHeight); };
 G.sim = (seconds, fps = 60) => { const n = Math.round(seconds * fps); for (let i = 0; i < n; i++) { step(1 / fps); pressed.clear(); } };
 G.openDialog = openDialog; G.advanceDialog = advanceDialog;
 G.render = () => renderer.render(scene, camera);

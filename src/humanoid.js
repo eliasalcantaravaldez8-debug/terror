@@ -73,8 +73,8 @@ export class Humanoid {
       parts.push(prep(geo, color, M(p.x + x, p.y + y, p.z + z, sx, sy, sz, rx, ry, rz), idx(bone)));
     };
     const top = L.jacket ?? L.shirt;
-    const cap = (r, l) => new THREE.CapsuleGeometry(r, l, 3, 8);
-    const sph = (r) => new THREE.SphereGeometry(r, 12, 9);
+    const cap = (r, l) => new THREE.CapsuleGeometry(r, l, 4, 12);
+    const sph = (r) => new THREE.SphereGeometry(r, 16, 12);
     const bx = (w, h, d) => new THREE.BoxGeometry(w, h, d);
     // quadril / pelve
     add(hips, cap(0.15 * s, 0.08), L.pants, 0, -0.02, 0, 1.15, 1, 0.75, 0, 0, Math.PI / 2);

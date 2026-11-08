@@ -3,6 +3,8 @@
 // casas, prédios, lojas (algumas com interior), delegacia, posto, estacionamentos e parques.
 import * as THREE from 'three';
 import { Batcher, box, plane, gableRoof, cyl, mat } from './geo.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import * as TX from './textures.js';
 import { mats, signMat } from './materials.js';
 import { rand, rr, pick, setSeed } from './textures.js';
 
@@ -52,6 +54,12 @@ class Frame {
     this.B.add(box(w, h, d, tu, tv), material, this.m(lx, y0 + h / 2, lz));
     if (collide) this.collide(lx, y0, lz, w, h, d);
   }
+  // sombra de contato (oclusão ambiente falsa) na base de construções
+  ao(lx, lz, w, d, W = 1.5) {
+    const y = CURB + 0.022, M = mats();
+    for (const [ox, oz, len, ry] of [[0, d / 2 + W / 2, w + W, 0], [0, -d / 2 - W / 2, w + W, Math.PI], [w / 2 + W / 2, 0, d + W, Math.PI / 2], [-w / 2 - W / 2, 0, d + W, -Math.PI / 2]])
+      this.B.add(plane(len, W, len, W), M.ao, this.m(lx + ox, y, lz + oz, ry));
+  }
   collide(lx, y0, lz, w, h, d) {
     const [x, z] = this.pt(lx, lz);
     const swap = Math.abs(this.s) > 0.5;
@@ -66,7 +74,7 @@ export class City {
     this.root = new THREE.Group(); this.root.name = 'LosValles';
     scene.add(this.root);
     this.parkedCars = []; this.npcs = []; this.trees = []; this.shopkeepers = []; this.landmarks = [];
-    this.pedLoops = [];
+    this.pedLoops = []; this.lamps = [];
     world.groundFn = groundHeight;
     this.M = mats();
     this.chunks = new Map();
@@ -99,6 +107,9 @@ export class City {
         B.add(plane(ROAD, len, ROAD, 12), M.road, mat(roadC(a), 0, mid));
         // rua ao longo de X (z = roadC(a))
         B.add(plane(ROAD, len, ROAD, 12), M.road, mat(mid, 0, roadC(a), Math.PI / 2));
+        // tampas de bueiro
+        B.add(new THREE.CylinderGeometry(0.42, 0.42, 0.03, 14), M.metalDark, mat(roadC(a) + (rand() < 0.5 ? -1 : 1) * 1.7, 0.012, mid + rr(-20, 20)));
+        B.add(new THREE.CylinderGeometry(0.42, 0.42, 0.03, 14), M.metalDark, mat(mid + rr(-20, 20), 0.012, roadC(a) + (rand() < 0.5 ? -1 : 1) * 1.7));
         // faixas de pedestres nas pontas
         for (const s of [-1, 1]) {
           B.add(plane(ROAD, 3, 9.6, 3), M.cross, mat(roadC(a), 0.01, mid + s * (len / 2 - 1.8)));
@@ -152,7 +163,10 @@ export class City {
     const B = this.chunk(j, k);
     const F = new Frame(cx, cz, 0, B, this.world);
     // base (calçada + meio-fio)
-    B.add(box(BLOCK, CURB, BLOCK, 2), M.sidewalk, mat(cx, CURB / 2, cz));
+    B.add(box(BLOCK, CURB, BLOCK, 4), M.sidewalk, mat(cx, CURB / 2, cz));
+    // meio-fio de pedra (faixa clara na borda)
+    for (const [ox, oz, w, d] of [[0, BLOCK / 2 - 0.15, BLOCK, 0.3], [0, -BLOCK / 2 + 0.15, BLOCK, 0.3], [BLOCK / 2 - 0.15, 0, 0.3, BLOCK - 0.6], [-BLOCK / 2 + 0.15, 0, 0.3, BLOCK - 0.6]])
+      B.add(box(w + 0.02, CURB + 0.01, d + 0.02, 2), M.concrete, mat(cx + ox, (CURB + 0.01) / 2, cz + oz));
     const inner = BLOCK - SW * 2;
     const ground = { res: M.grass, park: M.grass, apart: M.grass, parking: M.parking, gas: M.concreteFlat }[type] || M.concreteFlat;
     if (type === 'parking') B.add(plane(inner, inner, 3, 5.5), M.parking, mat(cx, CURB + 0.005, cz, Math.PI / 2));
@@ -185,6 +199,7 @@ export class City {
         lf.add(box(0.08, 0.08, 1.8), M.metalDark, lx, CURB + 6.4, lz + 0.85);
         lf.add(box(0.45, 0.14, 0.7), M.metalDark, lx, CURB + 6.35, lz + 1.7);
         lf.add(box(0.36, 0.04, 0.55), M.lamp, lx, CURB + 6.27, lz + 1.7);
+        { const [wx, wz] = lf.pt(lx, lz + 1.7); this.lamps.push([wx, CURB + 6.15, wz]); }
         lf.collide(lx, 0, lz, 0.3, 6.6, 0.3);
         // halo de luz no chão (aditivo, muito leve)
         F.B.add(plane(11, 11), M.pool, lf.m(lx, 0.03, lz + 2.2));
@@ -224,6 +239,7 @@ export class City {
     const y0 = CURB;
     // fundação
     f.box(M.concrete, 0, y0, 0, w + 0.3, 0.45, d + 0.3, false);
+    f.ao(0, 0, w + 0.3, d + 0.3, 1.3);
     f.box(sid, 0, y0 + 0.45, 0, w, wallH, d, false, 3, 3);
     f.collide(0, 0, 0, w + 0.3, wallH + 2, d + 0.3);
     // rodapé e cantoneiras
@@ -352,6 +368,7 @@ export class City {
     const fac = M.facade[kind];
     const f = new Frame(...F.pt(lx, lz), 0, F.B, this.world);
     f.box(fac, 0, y0, 0, w, H, d, true, 24, 25.6);
+    f.ao(0, 0, w + (opts.storefronts?.length ? 0.6 : 0), d + (opts.storefronts?.length ? 0.6 : 0), 1.8);
     // cornija e platibanda
     f.box(M.concrete, 0, y0 + H, 0, w + 0.4, 0.3, d + 0.4, false);
     for (const [ax, az, aw, ad] of [[0, d / 2, w, 0.3], [0, -d / 2, w, 0.3], [w / 2, 0, 0.3, d], [-w / 2, 0, 0.3, d]])
@@ -446,6 +463,7 @@ export class City {
       f.add(cyl(0.08, 0.1, 7, 8), M.metalDark, s * w / 4, CURB + 3.5, 0);
       f.add(box(1.6, 0.15, 0.4), M.metalDark, s * w / 4, CURB + 7, 0);
       f.add(box(1.4, 0.05, 0.3), M.lamp, s * w / 4, CURB + 6.92, 0);
+      { const [wx, wz] = f.pt(s * w / 4, 0); this.lamps.push([wx, CURB + 6.8, wz]); }
       F.B.add(plane(14, 14), M.pool, f.m(s * w / 4, CURB + 0.03, 0));
       f.collide(s * w / 4, 0, 0, 0.3, 7, 0.3);
     }
@@ -471,6 +489,7 @@ export class City {
     // piso, teto
     f.add(plane(w, d, 2), M.interiorFloor, 0, y0 + 0.02, 0);
     f.box(M.concrete, 0, y0 + H, 0, w + 0.2, 0.4, d + 0.2, true, 2);
+    f.ao(0, 0, w, d, 1.4);
     f.add(plane(w - 0.5, d - 0.5, 4), M.interior, 0, y0 + H - 0.01, 0, 0, Math.PI);
     // luminárias
     for (let i = -1; i <= 1; i += 2) f.add(box(w * 0.5, 0.05, 0.4), M.ceilingLight, 0, y0 + H - 0.05, i * d / 4);
@@ -522,6 +541,7 @@ export class City {
     const w = 34, d = 16, H = 7.4;
     const bz = inner - d / 2 - 6; // de frente para +z (Rua)
     f.box(M.facade.concrete, 0, CURB, bz, w, H, d, true, 24, 25.6);
+    f.ao(0, bz, w, d, 1.8);
     f.box(M.blue, 0, CURB + 3.2, bz + d / 2 + 0.02, w, 0.5, 0.05, false);
     f.box(M.concrete, 0, CURB + H, bz, w + 0.6, 0.5, d + 0.6, false);
     // entrada com colunas
@@ -633,6 +653,7 @@ export class City {
     for (const [x, z] of [[2.5, 14], [-2.5, -14], [14, -2.5], [-14, 2.5]]) {
       f.add(cyl(0.06, 0.08, 3.8, 8), M.metalDark, x, CURB + 1.9, z);
       f.add(new THREE.SphereGeometry(0.28, 10, 8), M.lamp, x, CURB + 3.9, z);
+      { const [wx, wz] = f.pt(x, z); this.lamps.push([wx, CURB + 3.9, wz]); }
       F.B.add(plane(7, 7), M.pool, f.m(x, CURB + 0.03, z));
       f.collide(x, 0, z, 0.25, 4, 0.25);
     }
@@ -679,7 +700,7 @@ export class City {
     // floresta ao redor da cidade
     for (let i = 0; i < 260; i++) {
       const a = rand() * Math.PI * 2, r = rr(E + 12, E + 90);
-      this.trees.push([Math.cos(a) * r, Math.sin(a) * r, rr(1.0, 1.8)]);
+      this.trees.push([Math.cos(a) * r, Math.sin(a) * r, rr(1.0, 1.8), rand() < 0.45]);
     }
     // limites invisíveis
     const L = E + 60;
@@ -688,30 +709,52 @@ export class City {
   }
 
   buildTrees() {
-    const n = this.trees.length;
-    const trunkG = new THREE.CylinderGeometry(0.14, 0.22, 3, 6); trunkG.translate(0, 1.5, 0);
-    const leafG = new THREE.IcosahedronGeometry(1, 1);
-    const trunk = new THREE.InstancedMesh(trunkG, this.M.bark, n);
-    const leafMat = new THREE.MeshLambertMaterial({ flatShading: true });
-    const leaves = new THREE.InstancedMesh(leafG, leafMat, n * 3);
-    const m = new THREE.Matrix4(); const c = new THREE.Color();
-    let li = 0;
-    this.trees.forEach(([x, z, s], i) => {
+    // duas espécies: copa arredondada (folhas texturizadas) e pinheiro
+    const round = this.trees.filter((t) => !t[3]), pines = this.trees.filter((t) => t[3]);
+    const trunkG = new THREE.CylinderGeometry(0.12, 0.24, 3.2, 7); trunkG.translate(0, 1.6, 0);
+    const trunk = new THREE.InstancedMesh(trunkG, this.M.bark, this.trees.length);
+    const leafTex = TX.leavesTex();
+    const leafMat = new THREE.MeshLambertMaterial({ map: leafTex, normalMap: TX.normalOf(leafTex, 3, 'leaves') });
+    const leafG = new THREE.IcosahedronGeometry(1, 2);
+    // deforma levemente para não parecer esfera perfeita
+    const pa = leafG.attributes.position;
+    for (let i = 0; i < pa.count; i++) {
+      const v = new THREE.Vector3().fromBufferAttribute(pa, i);
+      const k = 1 + Math.sin(v.x * 5.1) * 0.07 + Math.cos(v.y * 4.3 + v.z * 3.7) * 0.07;
+      pa.setXYZ(i, v.x * k, v.y * k, v.z * k);
+    }
+    leafG.computeVertexNormals();
+    const leaves = new THREE.InstancedMesh(leafG, leafMat, Math.max(1, round.length * 3));
+    const pineParts = [];
+    for (let i = 0; i < 4; i++) { const g = new THREE.ConeGeometry(1.5 - i * 0.3, 2.2, 9); g.translate(0, 2.4 + i * 1.25, 0); pineParts.push(g); }
+    const pineG = mergeGeometries(pineParts);
+    const pine = new THREE.InstancedMesh(pineG, leafMat, Math.max(1, pines.length));
+    const m = new THREE.Matrix4(); const c = new THREE.Color(); const q = new THREE.Quaternion();
+    let li = 0, ti = 0, pi = 0;
+    for (const [x, z, s, isPine] of this.trees) {
       const y = groundHeight(x, z);
-      m.compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(s, s * rr(0.9, 1.3), s));
-      trunk.setMatrixAt(i, m);
-      for (let b = 0; b < 3; b++) {
-        const ox = rr(-0.8, 0.8) * s, oz = rr(-0.8, 0.8) * s, oy = (2.8 + b * 0.9 + rr(-0.3, 0.3)) * s;
-        const ls = s * rr(1.3, 2.0) * (b === 2 ? 0.75 : 1);
-        m.compose(new THREE.Vector3(x + ox, y + oy, z + oz), new THREE.Quaternion().setFromEuler(new THREE.Euler(rand(), rand(), rand())), new THREE.Vector3(ls, ls * 0.85, ls));
-        leaves.setMatrixAt(li, m);
-        c.setHSL(rr(0.22, 0.32), rr(0.35, 0.55), rr(0.2, 0.32));
-        leaves.setColorAt(li, c);
-        li++;
+      m.compose(new THREE.Vector3(x, y, z), q.identity(), new THREE.Vector3(s, s * rr(0.9, 1.3), s));
+      trunk.setMatrixAt(ti++, m);
+      if (isPine) {
+        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rand() * 6);
+        m.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(s, s * rr(1.0, 1.4), s));
+        pine.setMatrixAt(pi, m);
+        c.setHSL(rr(0.28, 0.36), rr(0.3, 0.45), rr(0.2, 0.28)); pine.setColorAt(pi++, c);
+      } else {
+        const hue = rr(0.2, 0.3);
+        for (let b = 0; b < 3; b++) {
+          const ox = rr(-0.8, 0.8) * s, oz = rr(-0.8, 0.8) * s, oy = (2.9 + b * 0.9 + rr(-0.3, 0.3)) * s;
+          const ls = s * rr(1.3, 2.0) * (b === 2 ? 0.75 : 1);
+          q.setFromEuler(new THREE.Euler(rand(), rand(), rand()));
+          m.compose(new THREE.Vector3(x + ox, y + oy, z + oz), q, new THREE.Vector3(ls, ls * 0.85, ls));
+          leaves.setMatrixAt(li, m);
+          c.setHSL(hue + rr(-0.02, 0.02), rr(0.4, 0.6), rr(0.32, 0.45) - b * 0.03 * -1);
+          leaves.setColorAt(li++, c);
+        }
       }
       this.world.addCentered(x, 0, z, 0.5 * s, 3, 0.5 * s);
-    });
-    trunk.castShadow = true; leaves.castShadow = true; leaves.receiveShadow = true;
-    this.scene.add(trunk, leaves);
+    }
+    leaves.count = li; pine.count = pi;
+    for (const o of [trunk, leaves, pine]) { o.castShadow = true; o.receiveShadow = true; this.scene.add(o); }
   }
 }

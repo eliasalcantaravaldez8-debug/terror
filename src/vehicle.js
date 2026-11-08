@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { colorize } from './geo.js';
+import { envRT } from './materials.js';
 
 const damp = (a, b, k, dt) => a + (b - a) * (1 - Math.exp(-k * dt));
 
@@ -17,8 +18,8 @@ export const CAR_TYPES = {
 
 export const CAR_COLORS = [0x8e1b1b, 0x1d3f72, 0xd9d9d9, 0x1a1a1a, 0x3f4a52, 0x6b6f73, 0x2e5a3a, 0x9c7a2c, 0xf2f2f2, 0x5a1f3d, 0x274b5e, 0xb25a1f];
 
-const bodyMat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 70, specular: 0x555555 });
-const glassMat = new THREE.MeshPhongMaterial({ color: 0x1a2530, transparent: true, opacity: 0.42, shininess: 120, specular: 0xaaaaaa, depthWrite: false });
+const bodyMat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 90, specular: 0x666666, envMap: envRT.texture, combine: THREE.MixOperation, reflectivity: 0.22 });
+const glassMat = new THREE.MeshPhongMaterial({ color: 0x1a2530, transparent: true, opacity: 0.5, shininess: 120, specular: 0xaaaaaa, depthWrite: false, envMap: envRT.texture, combine: THREE.MixOperation, reflectivity: 0.45 });
 const wheelMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 const headMat = new THREE.MeshBasicMaterial({ color: 0xfff6d8 });
 const tailMat = new THREE.MeshBasicMaterial({ color: 0x6a0a0a });

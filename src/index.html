@@ -8,6 +8,7 @@
   :root { --fg: #f1ece2; --accent: #e0a050; --panel: rgba(12, 12, 16, 0.82); }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: var(--fg); font-family: 'Segoe UI', Arial, sans-serif; }
   #game canvas { display: block; }
+  #vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.42) 100%); }
   .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; }
   #title { background: radial-gradient(ellipse at center, rgba(20,16,24,0.55), rgba(0,0,0,0.92)); z-index: 10; text-align: center; }
   #title h1 { font-size: clamp(42px, 8vw, 96px); letter-spacing: 0.18em; margin: 0; font-weight: 300; text-shadow: 0 0 30px rgba(224,160,80,0.35); }
@@ -45,6 +46,7 @@
 </head>
 <body>
 <div id="game"></div>
+<div id="vignette"></div>
 <div id="title" class="overlay">
   <h1>ENTRE SOMBRAS</h1>
   <h2>LOS VALLES</h2>
@@ -81,10 +83,12 @@
     <div class="row"><label for="opt-fov">Campo de visão</label><span><input id="opt-fov" type="range" min="55" max="90" step="1"> <span id="opt-fov-v"></span></span></div>
     <div class="row"><label for="opt-follow">Câmera volta para trás do carro</label><input id="opt-follow" type="checkbox"></div>
     <div class="row"><label for="opt-time">Horário</label><select id="opt-time"><option value="dia">Dia</option><option value="entardecer">Entardecer</option><option value="noite">Noite</option></select></div>
-    <div class="row"><label for="opt-quality">Qualidade gráfica</label><select id="opt-quality"><option value="baixa">Baixa (PC fraco)</option><option value="media">Média</option><option value="alta">Alta</option></select></div>
+    <div class="row"><label for="opt-quality">Qualidade gráfica</label><select id="opt-quality"><option value="baixa">Baixa (PC fraco)</option><option value="media">Média (recomendada p/ Intel UHD)</option><option value="alta">Alta</option></select></div>
     <div id="quality-note"></div>
     <div class="row"><label for="opt-sound">Som do motor</label><input id="opt-sound" type="checkbox"></div>
+    <div class="row"><label for="opt-adaptive">Resolução automática (mantém o FPS)</label><input id="opt-adaptive" type="checkbox"></div>
     <div class="row"><label for="opt-fps">Mostrar FPS</label><input id="opt-fps" type="checkbox"></div>
+    <div id="gpu-info" style="font-size:11px;opacity:.6;max-width:340px"></div>
     <div class="row" style="justify-content:center;margin-top:20px"><button id="btn-resume">CONTINUAR</button></div>
   </div>
 </div>

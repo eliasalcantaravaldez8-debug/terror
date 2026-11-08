@@ -39,7 +39,18 @@ Jogo 3D de mundo aberto em terceira pessoa feito com **Three.js (WebGL)**. Roda 
 - **História inicial**: fale com Ryan Cole → vá até a delegacia → fale com o delegado. As falas ficam em `src/characters.js` e são fáceis de editar.
 - **Minimapa** que gira com a câmera e mostra o objetivo (amarelo) e o seu carro (azul).
 
+## Gráficos
+
+- Texturas em alta resolução com **relevo** (normal maps): asfalto com pedrinhas, rachaduras e marcas de pneu, calçada de placas, grama, tijolos, telhas, madeira e casca de árvore.
+- **Reflexos**: janelas dos prédios, vitrines, vidros e pintura dos carros refletem o céu (o prédio de vidro reflete o pôr do sol).
+- **Céu** com nuvens em movimento e brilho do sol. No dia, no entardecer e à noite as cores mudam.
+- **À noite** os postes mais próximos iluminam de verdade a rua, os carros e as pessoas, com halo nas lâmpadas e janelas acesas.
+- **Sombras** suaves, sombra de contato embaixo de carros e pessoas e escurecimento na base das casas e prédios.
+- Árvores com folhagem texturizada e pinheiros, meio-fio de pedra, tampas de bueiro e vinheta de cinema.
+
 ## Desempenho (PC fraco)
+
+**Recomendado para Intel UHD 630 (i5-8500):** qualidade **Média** com **Resolução automática** ligada (já vem assim). A resolução automática diminui um pouco a resolução quando o FPS cai abaixo de ~42 e volta a aumentar quando sobra desempenho. No menu (Esc) aparece o nome da sua placa de vídeo e a resolução atual.
 
 No menu **Esc → Qualidade gráfica**:
 
@@ -47,7 +58,7 @@ No menu **Esc → Qualidade gráfica**:
 - **Média** (padrão): sombras leves.
 - **Alta**: sombras melhores e antisserrilhamento.
 
-Otimizações usadas: materiais leves (Lambert/Phong), cidade agrupada em blocos (poucas chamadas de desenho), atlas único para as placas, árvores instanciadas, carros distantes com modelo simplificado, personagens com 1 malha cada, sem pós-processamento pesado e com neblina limitando a distância de desenho.
+Otimizações usadas: materiais leves (Lambert/Phong, sem PBR pesado), reflexos por mapa de ambiente gerado só quando o horário muda, poucas luzes reais (só os postes mais próximos), cidade agrupada em blocos (poucas chamadas de desenho), atlas único para as placas, árvores instanciadas, carros distantes com modelo simplificado, personagens com 1 malha cada, sem pós-processamento pesado e com neblina limitando a distância de desenho.
 
 ## Para quem quer mexer no código
 
