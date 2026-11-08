@@ -98,7 +98,7 @@ export class Sky {
     this.uniforms.cloudCol.value.copy(lc('cloud')); this.uniforms.cloudShade.value.copy(lc('cloudShade')); this.uniforms.cover.value = ln('cover') + (this.rain || 0) * 0.4;
     this.sun.color.copy(lc('sunColor')); this.sun.intensity = ln('sunI') * (1 - (this.rain || 0) * 0.5);
     this.hemi.color.copy(lc('hemiSky')); this.hemi.groundColor.copy(lc('hemiGround')); this.hemi.intensity = ln('hemiI');
-    this.scene.fog.color.copy(lc('fog')); this.scene.fog.density = ln('fogD') * (1 + (this.rain || 0) * 0.8);
+    this.scene.fog.color.copy(lc('fog')); this.scene.fog.density = ln('fogD') * (1 + (this.rain || 0) * 0.8) * (this.fogMul || 1);
     this.renderer.toneMappingExposure = ln('exposure');
     this.stars.material.opacity = night > 0.9 ? 0.9 : night > 0.4 ? 0.2 : 0;
     this.night = night;

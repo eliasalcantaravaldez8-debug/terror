@@ -7,7 +7,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import * as TX from './textures.js';
 import { mats, signMat } from './materials.js';
 import { rand, rr, pick, setSeed } from './textures.js';
-import { inKeepOut, hillHeight } from './places.js';
+import { inKeepOut, hillHeight, inBlackwood, bwOnRoad } from './places.js';
 
 export const N = 6;            // quarteirões por lado
 export const ROAD = 12;        // largura da rua
@@ -41,6 +41,7 @@ export function onRoadAxis(v) {
 }
 export function groundHeight(x, z) {
   if (Math.abs(x) <= HALF && Math.abs(z) <= HALF) return (onRoadAxis(x) || onRoadAxis(z)) ? 0 : CURB;
+  if (x > 470 && inBlackwood(x, z)) return bwOnRoad(x, z) ? 0 : CURB;
   return CURB + hillHeight(x, z);
 }
 
@@ -159,9 +160,8 @@ export class City {
   }
 
   // ---------------- QUARTEIRÕES ----------------
-  buildBlock(j, k, type) {
-    const M = this.M; const cx = blockC(j), cz = blockC(k);
-    const B = this.chunk(j, k);
+  buildBlock(j, k, type, cx = blockC(j), cz = blockC(k), B = this.chunk(j, k)) {
+    const M = this.M;
     const F = new Frame(cx, cz, 0, B, this.world);
     // base (calçada + meio-fio)
     B.add(box(BLOCK, CURB, BLOCK, 4), M.sidewalk, mat(cx, CURB / 2, cz));
@@ -169,6 +169,15 @@ export class City {
     for (const [ox, oz, w, d] of [[0, BLOCK / 2 - 0.15, BLOCK, 0.3], [0, -BLOCK / 2 + 0.15, BLOCK, 0.3], [BLOCK / 2 - 0.15, 0, 0.3, BLOCK - 0.6], [-BLOCK / 2 + 0.15, 0, 0.3, BLOCK - 0.6]])
       B.add(box(w + 0.02, CURB + 0.01, d + 0.02, 2), M.concrete, mat(cx + ox, (CURB + 0.01) / 2, cz + oz));
     const inner = BLOCK - SW * 2;
+    if (this.extraBuilders && this.extraBuilders[type]) {
+      // tipos de quarteirão de outras cidades (Blackwood)
+      const g2 = this.extraGround && this.extraGround[type];
+      B.add(plane(inner, inner, 4), g2 || M.grass, mat(cx, CURB + 0.005, cz));
+      if (!(this.noFurniture && this.noFurniture[type])) this.streetFurniture(F, j, k, type);
+      this.extraBuilders[type](F, j, k);
+      this.pedLoops.push({ cx, cz, half: BLOCK / 2 - 2.0, type });
+      return;
+    }
     const ground = { res: M.grass, park: M.grass, apart: M.grass, parking: M.parking, gas: M.concreteFlat }[type] || M.concreteFlat;
     if (type === 'parking') B.add(plane(inner, inner, 3, 5.5), M.parking, mat(cx, CURB + 0.005, cz, Math.PI / 2));
     else B.add(plane(inner, inner, type === 'res' || type === 'park' || type === 'apart' ? 4 : 3), ground, mat(cx, CURB + 0.005, cz));
@@ -727,12 +736,14 @@ export class City {
     const E = HALF, R = 560;
     for (const [x, z, w, d] of [[0, (E + R) / 2, 2 * R, R - E], [0, -(E + R) / 2, 2 * R, R - E], [(E + R) / 2, 0, R - E, 2 * E], [-(E + R) / 2, 0, R - E, 2 * E]])
       B.add(plane(w, d, 4), M.grass, mat(x, CURB, z));
+    B.add(plane(300, 1120, 4), M.grass, mat(R + 150, CURB, 0)); // terreno a leste (Blackwood)
     // colinas ao longe (baixo custo, sombreamento plano)
     const hillMat = new THREE.MeshLambertMaterial({ color: 0x3e5a2c, flatShading: true });
     hillMat.userData.castShadow = false;
     for (let i = 0; i < 26; i++) {
       const a = (i / 26) * Math.PI * 2 + rr(-0.1, 0.1), r = rr(470, 520);
       const g = new THREE.ConeGeometry(rr(60, 110), rr(40, 90), 7, 1);
+      if (Math.cos(a) * r > 380 && Math.abs(Math.sin(a) * r) < 330) continue; // lado de Blackwood
       B.add(g, hillMat, mat(Math.cos(a) * r, 0, Math.sin(a) * r));
     }
     B.flush(this.root);
@@ -747,9 +758,9 @@ export class City {
       this.trees.push([x, z, rr(1.0, 1.8), rand() < 0.45]);
     }
     // limites invisíveis
-    const L = 448;
-    this.world.addBox(-L - 2, 0, -L, -L, 50, L); this.world.addBox(L, 0, -L, L + 2, 50, L);
-    this.world.addBox(-L, 0, -L - 2, L, 50, -L); this.world.addBox(-L, 0, L, L, 50, L + 2);
+    const L = 448, LE = 836;
+    this.world.addBox(-L - 2, 0, -L, -L, 50, L); this.world.addBox(LE, 0, -L, LE + 2, 50, L);
+    this.world.addBox(-L, 0, -L - 2, LE, 50, -L); this.world.addBox(-L, 0, L, LE, 50, L + 2);
   }
 
   buildTrees() {

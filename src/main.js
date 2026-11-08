@@ -3,11 +3,13 @@ import * as THREE from 'three';
 import { CollisionWorld } from './collision.js';
 import { City, LAYOUT, N, P, ROAD, HALF, roadC, blockC, BLOCK } from './city.js';
 import { Zones } from './zones.js';
-import { PLACES } from './places.js';
+import { PLACES, BW, bwRoad, bwRoadZ, bwBlock, bwBlockZ, RIVER } from './places.js';
+import { Blackwood, BW_LAYOUT } from './blackwood.js';
 import { Story } from './story.js';
 import { Phone, VIBE } from './phone.js';
 import { ETHAN_MISSIONS } from './missions_ethan.js';
 import { RYAN_MISSIONS } from './missions_ryan.js';
+import { SIDE_MISSIONS } from './missions_side.js';
 import { ChaseDriver } from './drivers.js';
 import { Humanoid } from './humanoid.js';
 import { sfx } from './audio.js';
@@ -74,6 +76,8 @@ function build() {
   city.build();
   const zones = new Zones(scene, world, city);
   zones.build();
+  const blackwood = new Blackwood(scene, world, city);
+  blackwood.build();
   city.buildTrees();
   setSeed(777);
   const cars = []; const drivers = [];
@@ -116,7 +120,7 @@ function build() {
   const blobGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const blobs = new THREE.InstancedMesh(blobGeo, new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }), 900);
   blobs.frustumCulled = false; blobs.renderOrder = 1; scene.add(blobs);
-  Object.assign(G, { world, sky, city, zones, cars, drivers, player, npcs, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera, lampLights, glow, blobs });
+  Object.assign(G, { blackwood, world, sky, city, zones, cars, drivers, player, npcs, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera, lampLights, glow, blobs });
   G.aiDrivers = []; G.police = [];
   G.audio = new EngineAudio();
   G.state = SAVE.newState();
@@ -317,18 +321,19 @@ function syncWorld() {
 }
 
 // ---------------- MISSÕES ----------------
-function missions() { return G.state.char === 'ryan' ? RYAN_MISSIONS : ETHAN_MISSIONS; }
+function missions() { return (G.state.char === 'ryan' ? RYAN_MISSIONS : ETHAN_MISSIONS).concat(SIDE_MISSIONS); }
 function missionStatus(m) {
   const C = G.campaign(); const list = missions(); const i = list.indexOf(m);
-  if (C.done.includes(m.id)) return 'done';
   if (G.mission === m) return 'active';
+  if (m.side) return m.requires(C, G) ? 'available' : 'locked';
+  if (C.done.includes(m.id)) return 'done';
   const prevOk = m.after ? C.done.includes(m.after) : i === 0 || C.done.includes(list[i - 1].id);
   if (!prevOk) return 'locked';
   if (m.requires && !m.requires(C)) return 'locked';
   return 'available';
 }
 G.missionList = () => {
-  const out = missions().map((m) => ({ title: m.title, status: missionStatus(m), hint: m.hint }));
+  const out = missions().map((m) => ({ title: (m.side ? '(Secundária) ' : '') + m.title, status: missionStatus(m), hint: m.hint + (m.side ? ' Repetível.' : '') }));
   out.push({ title: 'Próximos capítulos', status: 'locked', hint: 'Aguardando a definição do autor da história.' });
   if (G.state.char === 'ryan' && G.campaign().flags.contrato1 === 'aceito') out.splice(1, 0, { title: 'Contrato aceito', status: 'locked', hint: 'O conteúdo deste contrato ainda não foi definido pelo autor.' });
   return out;
@@ -343,8 +348,9 @@ function updateStartMarkers() {
   if (!G.mission) for (const m of missions()) {
     if (m.auto || !m.start || missionStatus(m) !== 'available') continue;
     const [x, z] = m.start(G);
-    if (!startMarkers[i]) { const mk = S.makeMarker(); mk.children[0].material = mk.children[0].material.clone(); mk.children[0].material.color.setHex(0x3a9aff); scene.add(mk); startMarkers[i] = mk; }
-    const mk = startMarkers[i++]; mk.visible = true; mk.position.set(x, G.world.groundFn(x, z), z); mk.rotation.y += 0.02;
+    if (!startMarkers[i]) { const mk = S.makeMarker(); mk.children[0].material = mk.children[0].material.clone(); mk.children[1].material = mk.children[1].material.clone(); scene.add(mk); startMarkers[i] = mk; }
+    const mk = startMarkers[i++]; mk.visible = true; mk.side = !!m.side;
+    mk.children[0].material.color.setHex(m.side ? 0x3ad87a : 0x3a9aff); mk.children[1].material.color.setHex(m.side ? 0x5af09a : 0xffd25a); mk.position.set(x, G.world.groundFn(x, z), z); mk.rotation.y += 0.02;
     const d = Math.hypot(G.player.x - x, G.player.z - z);
     if (d < (G.player.mode === 'car' ? 5 : 2.6)) promptM = m;
   }
@@ -354,7 +360,7 @@ function updateStartMarkers() {
 async function runMission(m, from = 0, resumed = false) {
   const S = G.story; const C = G.campaign();
   G.mission = m; C.mission = m.id; syncWorld();
-  showBanner(m.title, 'MISSÃO', false);
+  showBanner(m.title, m.side ? 'MISSÃO SECUNDÁRIA' : 'MISSÃO', false);
   let i = from;
   while (i < m.stages.length) {
     G.missionStage = i; C.stage = i;
@@ -367,10 +373,15 @@ async function runMission(m, from = 0, resumed = false) {
       if (!e.fail) console.error(e);
       await failScreen(e.fail ? e.message : 'Erro na missão: ' + e.message);
       S.cleanup(); G.player.hp = 100; G.campaign().hp = 100; resumed = true; from = i;
+      if (m.side) { S.fadeTarget = 0; S.fade = 0; $('fade').style.opacity = 0; C.mission = null; C.stage = 0; G.mission = null; syncWorld(); return; }
       if (G.car) forceExitCar();
     }
   }
   S.cleanup();
+  if (m.side) {
+    C.mission = null; C.stage = 0; G.mission = null; C.sideDone = C.sideDone || {}; C.sideDone[m.id] = (C.sideDone[m.id] || 0) + 1;
+    showBanner('CONCLUÍDA', m.title, false); syncWorld(); SAVE.writeSlot('auto', snapshot()); return;
+  }
   C.done.push(m.id); C.mission = null; C.stage = 0; G.mission = null;
   if (m.reward) G.addMoney(m.reward);
   showBanner('MISSÃO CONCLUÍDA', m.title, false);
@@ -671,20 +682,27 @@ function renderStats() {
 }
 
 // ---------------- MINIMAPA ----------------
-let mmBase; const MM = 900;
+let mmBase; const MM = 900, MMW = 1300; // largura cobre x de -450 até 850
 function buildMinimap() {
-  mmBase = document.createElement('canvas'); mmBase.width = MM; mmBase.height = MM;
+  mmBase = document.createElement('canvas'); mmBase.width = MMW; mmBase.height = MM;
   const g = mmBase.getContext('2d'); const o = MM / 2;
-  g.fillStyle = '#2d4224'; g.fillRect(0, 0, MM, MM);
-  const colors = { res: '#5d7a4a', park: '#3f7a3a', down: '#8a8580', mixed: '#9a9286', shops: '#a8927a', shops2: '#a8927a', police: '#5a6a9a', gas: '#a87a6a', parking: '#6a6a6a', apart: '#8a8070', hospital: '#c8c8c8' };
+  g.fillStyle = '#2d4224'; g.fillRect(0, 0, MMW, MM);
+  const colors = { res: '#5d7a4a', park: '#3f7a3a', down: '#8a8580', mixed: '#9a9286', shops: '#a8927a', shops2: '#a8927a', police: '#5a6a9a', gas: '#a87a6a', parking: '#6a6a6a', apart: '#8a8070', hospital: '#c8c8c8',
+    bwres: '#4f6a42', bwshops: '#98806a', square: '#a8a090', cemetery: '#4a5a44', bwpolice: '#5a6a9a', motel: '#8a6a5a', bwmixed: '#8a8278', bwgas: '#7a8a6a', factory: '#6a4a3a', bwforest: '#2f5a2a' };
   g.fillStyle = '#3a3a3c'; g.fillRect(o - HALF, o - HALF, HALF * 2, HALF * 2);
   for (let k = 0; k < N; k++) for (let j = 0; j < N; j++) {
     g.fillStyle = '#b9b3a6'; g.fillRect(o + blockC(j) - BLOCK / 2, o + blockC(k) - BLOCK / 2, BLOCK, BLOCK);
     g.fillStyle = colors[LAYOUT[k][j]] || '#888'; g.fillRect(o + blockC(j) - BLOCK / 2 + 4, o + blockC(k) - BLOCK / 2 + 4, BLOCK - 8, BLOCK - 8);
   }
-  // estradas de acesso e locais
+  // Blackwood
+  g.fillStyle = '#3a3a3c'; g.fillRect(o + BW.x - BW.half, o + BW.z - BW.half, BW.half * 2, BW.half * 2);
+  for (let k = 0; k < BW.n; k++) for (let j = 0; j < BW.n; j++) {
+    g.fillStyle = '#a8a296'; g.fillRect(o + bwBlock(j) - BLOCK / 2, o + bwBlockZ(k) - BLOCK / 2, BLOCK, BLOCK);
+    g.fillStyle = colors[BW_LAYOUT[k][j]] || '#888'; g.fillRect(o + bwBlock(j) - BLOCK / 2 + 4, o + bwBlockZ(k) - BLOCK / 2 + 4, BLOCK - 8, BLOCK - 8);
+  }
+  g.fillStyle = '#2a5a7a'; g.fillRect(o + RIVER.x0, 0, RIVER.x1 - RIVER.x0, MM);
   g.strokeStyle = '#3a3a3c'; g.lineWidth = 8;
-  for (const [x0, z0, x1, z1] of [[0, 234, 0, 302], [-234, 76, -306, 76], [234, 0, 440, 0], [330, -75, 330, 75], [300, -20, 410, -20], [300, 22, 410, 22], [-76, -234, -76, -314], [152, -234, 152, -320], [-152, -234, -152, -296]]) { g.beginPath(); g.moveTo(o + x0, o + z0); g.lineTo(o + x1, o + z1); g.stroke(); }
+  for (const [x0, z0, x1, z1] of [[0, 234, 0, 302], [-234, 76, -306, 76], [234, 0, 484, 0], [330, -75, 330, 75], [300, -20, 410, -20], [300, 22, 410, 22], [-76, -234, -76, -314], [152, -234, 152, -320], [-152, -234, -152, -296]]) { g.beginPath(); g.moveTo(o + x0, o + z0); g.lineTo(o + x1, o + z1); g.stroke(); }
   g.strokeStyle = '#7a6448'; g.lineWidth = 5; g.beginPath(); g.moveTo(o + 16, o + 352); g.lineTo(o + 168, o + 352); g.stroke();
   for (const k of ['favela', 'prison', 'industrial', 'abandoned', 'mansion', 'fernando']) {
     const p = PLACES[k]; g.fillStyle = { favela: '#9a7a5a', prison: '#6a6a6a', industrial: '#7a7a88', abandoned: '#5a5040', mansion: '#c8b88a', fernando: '#6a8a6a' }[k];
@@ -696,6 +714,12 @@ function buildMinimap() {
     g.beginPath(); g.moveTo(o + roadC(i), o - HALF); g.lineTo(o + roadC(i), o + HALF); g.stroke();
     g.beginPath(); g.moveTo(o - HALF, o + roadC(i)); g.lineTo(o + HALF, o + roadC(i)); g.stroke();
   }
+  for (let i = 0; i <= BW.n; i++) {
+    g.beginPath(); g.moveTo(o + bwRoad(i), o + BW.z - BW.half); g.lineTo(o + bwRoad(i), o + BW.z + BW.half); g.stroke();
+    g.beginPath(); g.moveTo(o + BW.x - BW.half, o + bwRoadZ(i)); g.lineTo(o + BW.x + BW.half, o + bwRoadZ(i)); g.stroke();
+  }
+  g.setLineDash([]); g.fillStyle = '#ffffff'; g.font = 'bold 22px Arial'; g.textAlign = 'center';
+  g.fillText('LOS VALLES', o, o - HALF - 12); g.fillText('BLACKWOOD', o + BW.x, o + BW.z - BW.half - 12);
   G.mmOrigin = o;
 }
 function mapMarks(g, p, zoom, rel = true) {
@@ -703,7 +727,7 @@ function mapMarks(g, p, zoom, rel = true) {
   for (const d of G.drivers) mark(d.car.x, d.car.z, '#d0d0d0', 2);
   for (const u of G.police) mark(u.car.x, u.car.z, Math.floor(G.story.t * 4) % 2 ? '#ff3030' : '#3060ff', 4);
   if (!G.car) mark(G.ethanCar.x, G.ethanCar.z, '#3a8aff', 4);
-  for (const mk of startMarkers) if (mk.visible) mark(mk.position.x, mk.position.z, '#3a9aff', 6);
+  for (const mk of startMarkers) if (mk.visible) mark(mk.position.x, mk.position.z, mk.side ? '#3ad87a' : '#3a9aff', 6);
   const obj = G.story.objTarget && G.story.resolve(G.story.objTarget);
   if (obj) mark(obj[0], obj[1], '#ffd23a', 6);
 }
@@ -737,7 +761,7 @@ function drawMinimap() {
   g.fillText('N', W2 / 2 + nx, H / 2 + ny + 4);
 }
 G.drawPhoneMap = (cv) => {
-  const g = cv.getContext('2d'); const s = cv.width / MM; g.save(); g.scale(s, s); g.drawImage(mmBase, 0, 0);
+  const g = cv.getContext('2d'); const s = cv.width / MMW; cv.height = Math.round(MM * s); g.save(); g.scale(s, s); g.drawImage(mmBase, 0, 0);
   g.translate(G.mmOrigin, G.mmOrigin); mapMarks(g, { x: 0, z: 0 }, s, false);
   const p = G.car || G.player; const h = G.car ? G.car.heading : G.player.heading;
   g.translate(p.x, p.z); g.rotate(-h + Math.PI); g.fillStyle = '#ff5a3a'; g.beginPath(); g.moveTo(0, -14); g.lineTo(10, 12); g.lineTo(0, 5); g.lineTo(-10, 12); g.closePath(); g.fill(); g.restore();
@@ -919,6 +943,9 @@ function step(dt) {
   }
   if (shakeT > 0) { shakeT -= dt; camera.position.x += (Math.random() - 0.5) * shakeT * 0.6; camera.position.y += (Math.random() - 0.5) * shakeT * 0.6; }
   G.sky.follow(p.x, p.z); G.sky.tick(dt);
+  // Blackwood é mais enevoada
+  const fogT = p.x > 440 ? Math.min(1, (p.x - 440) / 50) : 0;
+  G.sky.fogMul = (G.sky.fogMul || 1) + ((1 + fogT * 1.6) - (G.sky.fogMul || 1)) * Math.min(1, dt * 2);
   updateLighting(dt, p);
   updateBlobs();
   if (G.car && G.sky.night > 0.4) {
@@ -928,7 +955,8 @@ function step(dt) {
     G.headlight.target.position.set(G.car.x + fx * 20, G.car.y - 1.5, G.car.z + fz * 20);
   } else G.headlight.intensity = 0;
   // Blackwood
-  if (p.x > 436 && G.state.blackwood && !G.bwMsg) { G.bwMsg = true; toast('Blackwood: a cidade ainda está sendo construída e chega numa próxima atualização.', 5); }
+  if (p.x > 480 && !G.bwMsg) { G.bwMsg = true; showBanner('BLACKWOOD', 'Uma cidade pequena e antiga, do outro lado do rio', false); }
+  if (p.x < 440) G.bwMsg = false;
   // salvamento automático a cada 5 minutos
   if (started && !G.mission && !paused && performance.now() - lastAutosave > 5 * 60 * 1000) { lastAutosave = performance.now(); SAVE.writeSlot('auto', snapshot()); toast('Salvamento automático', 1.5); }
   // VIBE: publicações aleatórias de vez em quando

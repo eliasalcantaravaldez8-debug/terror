@@ -55,6 +55,19 @@ Missões com marcador azul começam quando você chega nele e aperta **E**. Miss
 - **História inicial**: fale com Ryan Cole → vá até a delegacia → fale com o delegado. As falas ficam em `src/characters.js` e são fáceis de editar.
 - **Minimapa** que gira com a câmera e mostra o objetivo (amarelo) e o seu carro (azul).
 
+## Blackwood (a segunda cidade)
+
+Fica a leste, depois do rio (siga a estrada leste depois da Zona Industrial e atravesse a ponte). A entrada é liberada quando você alcança **2 estrelas de procurado**.
+
+Cidade pequena e antiga, mais enevoada, com: Praça com torre do relógio e igreja, Cemitério, Fábrica abandonada, Motel Pinheiros, Lanchonete 66 e lojas (Armazém, Barbearia Velha, Antiquário Corvo), Delegacia de Blackwood, Posto Blackwood (com conveniência), bairros residenciais antigos e um bosque de pinheiros. Tem pedestres, lojistas, carros estacionados (todos dirigíveis) e postes que acendem à noite.
+
+## Missões secundárias (marcador verde, repetíveis)
+
+- **Corrida de Rua de Blackwood** (Praça de Blackwood): 2 voltas contra 3 corredores, com checkpoints. Prêmio R$ 1.500 / R$ 600 / R$ 250.
+- **Trabalho: Entregas da Lanchonete do Joe** (Los Valles): 3 entregas com tempo; R$ 120 por entrega + gorjeta pela rapidez.
+
+Ethan e Ryan podem fazer as duas, cada um com o próprio dinheiro.
+
 ## Novidades: veículos, oficina, armas e desempenho
 
 **Carros (todos dirigíveis, cada um com direção, aceleração, frenagem, aderência e som de motor próprios):**
@@ -125,6 +138,8 @@ npm run dev       # recompila automaticamente ao salvar
 | `src/drivers.js` | Motoristas com IA (fugas, polícia, escolta) |
 | `src/phone.js` | Celular, VIBE, notícias, mensagens |
 | `src/save.js` | Salvamento automático e manual |
+| `src/blackwood.js` | Cidade de Blackwood |
+| `src/missions_side.js` | Missões secundárias (corrida, entregas) |
 | `src/custom.js` | Oficina Los Valles Custom |
 | `src/weapons.js` | Armas |
 | `src/perf.js` | Medidor de desempenho real |

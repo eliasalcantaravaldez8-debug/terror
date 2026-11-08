@@ -52,11 +52,11 @@ Escrevi frases curtas que **só repetem o que o documento resume**. Você pode t
 1. **Blake depois da interrupção de Victor**: no jogo ele só se cala e fica parado no local. O que acontece com ele?
 2. **Contrato aceito por Ryan**: o documento não diz qual é. No jogo ele aparece como "aceito — aguardando instruções".
 3. **Próximos capítulos** das duas campanhas.
-4. **Conteúdo de Blackwood**: já é desbloqueada com 2 estrelas, mas a cidade em si ainda não foi construída.
+4. **História de Blackwood**: a cidade já existe e é liberada com 2 estrelas, mas o documento não define seus acontecimentos e personagens próprios. Por isso, por enquanto ela só tem missões secundárias (corrida e entregas), sem eventos de história.
 
 ## O que ainda NÃO foi feito (próximas etapas)
 
-- A cidade de **Blackwood** (hoje existem o portão e o desbloqueio).
+- **Missões da história em Blackwood** (aguardando o que você definir).
 - **Comprar e decorar** casas, apartamentos, garagens e galpões.
 - Casas noturnas, boliche, sinuca, fliperama, futebol de rua, corridas, eventos automotivos, shows, trabalhos temporários.
 - Clima com chuva, acidentes aleatórios no trânsito e rotinas completas de NPCs (casa e trabalho).

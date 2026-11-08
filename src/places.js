@@ -37,3 +37,17 @@ export function hillHeight(x, z) {
   if (d2 >= 1) return 0;
   const t = 1 - d2; return H.h * t * t * (3 - 2 * t);
 }
+
+// ---------- BLACKWOOD (cidade menor a leste, depois do rio) ----------
+export const BW = { x: 640, z: 0, n: 4, P: 76, ROAD: 12, BLOCK: 64 };
+BW.half = (BW.n / 2) * BW.P + BW.ROAD / 2; // 158
+export const bwRoad = (i) => BW.x + (i - BW.n / 2) * BW.P;   // x das ruas norte-sul
+export const bwRoadZ = (i) => BW.z + (i - BW.n / 2) * BW.P;  // z das ruas leste-oeste
+export const bwBlock = (j) => bwRoad(j) + BW.P / 2;
+export const bwBlockZ = (k) => bwRoadZ(k) + BW.P / 2;
+export const RIVER = { x0: 446, x1: 476 };
+export function inBlackwood(x, z, pad = 0) { return Math.abs(x - BW.x) <= BW.half + pad && Math.abs(z - BW.z) <= BW.half + pad; }
+export function bwOnRoad(x, z) {
+  const onAxis = (v, c) => { const u = v - (c - BW.half); if (u < 0 || u > BW.n * BW.P + BW.ROAD) return false; return (u % BW.P) < BW.ROAD; };
+  return onAxis(x, BW.x) || onAxis(z, BW.z);
+}
