@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { WEAPONS, WeaponState, damageAtDistance } from '../../src/weapons/WeaponData.js';
+import { WEAPONS, WeaponState, damageAtDistance, newWeaponState } from '../../src/weapons/WeaponData.js';
 
 test('fire consumes ammo and respects fire interval', () => {
   const w = new WeaponState(WEAPONS.vk7, 3, 10);
@@ -37,4 +37,25 @@ test('damage falloff is monotonic and clamped', () => {
   assert.equal(damageAtDistance(d, 5), d.damage);
   assert.equal(damageAtDistance(d, 1000), d.damage * d.minDamageScale);
   assert.ok(damageAtDistance(d, 60) < d.damage && damageAtDistance(d, 60) > d.damage * d.minDamageScale);
+});
+
+test('all weapon definitions are complete and consistent', () => {
+  const required = ['id', 'name', 'type', 'slot', 'magSize', 'reserveMax', 'fireInterval', 'damage', 'range', 'spreadHip', 'spreadAds', 'reloadTime', 'reloadEmptyTime', 'drawTime', 'adsFov'];
+  for (const [id, d] of Object.entries(WEAPONS)) {
+    for (const k of required) assert.ok(d[k] !== undefined, `${id}.${k}`);
+    assert.equal(d.id, id);
+    assert.ok(d.spreadAds <= d.spreadHip, `${id} ADS must be tighter`);
+    assert.ok(d.reloadEmptyTime >= d.reloadTime, `${id} empty reload`);
+  }
+  assert.equal(WEAPONS.brk12.pellets, 9);
+  assert.ok(WEAPONS.lr6.scope);
+});
+
+test('newWeaponState builds a state with default ammo', () => {
+  const s = newWeaponState('mk9');
+  assert.equal(s.def.id, 'mk9');
+  assert.equal(s.mag, 32);
+  assert.ok(s.reserve > 0);
+  assert.equal(newWeaponState('unknown').def.id, 'vk7');
+  assert.deepEqual(newWeaponState('brk12', 3, 10).serialize(), { id: 'brk12', mag: 3, reserve: 10 });
 });

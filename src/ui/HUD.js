@@ -10,6 +10,7 @@ export class HUD {
     const root = document.getElementById('hud');
     this.root = root;
     root.innerHTML = `
+      <div id="scope"><div class="scope-ring"></div><div class="scope-h"></div><div class="scope-v"></div><div class="scope-dot"></div></div>
       <div id="vignette-damage"></div>
       <div id="dmg-indicators"></div>
       <div id="compass"><div id="compass-strip"></div><div id="compass-needle"></div></div>
@@ -73,6 +74,12 @@ export class HUD {
       }
     }
     this.compassStrip.innerHTML = html;
+  }
+
+  setScope(on) {
+    if (on === this._scope) return;
+    this._scope = on;
+    this.el('scope').classList.toggle('visible', on);
   }
 
   show(v) { this.visible = v; this.root.style.display = v ? 'block' : 'none'; }
@@ -161,7 +168,7 @@ export class HUD {
     const dmgAmt = clamp(1 - hp, 0, 1);
     this.vignette.style.opacity = (dmgAmt * dmgAmt * 1.2).toFixed(3);
     // crosshair
-    const showCross = !w.wantLowered && w.adsT < 0.6 && !p.sprinting && w.state !== 'reload';
+    const showCross = !w.scoped && !w.wantLowered && w.adsT < 0.6 && !p.sprinting && w.state !== 'reload';
     this.cross.style.opacity = showCross ? (1 - w.adsT) : 0;
     const gap = 6 + w.spreadNow * 7;
     this.cross.style.setProperty('--gap', gap + 'px');

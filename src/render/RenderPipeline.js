@@ -4,12 +4,13 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 
 export const QUALITY_PRESETS = {
   low: { pixelRatio: 0.75, shadows: true, shadowSize: 1024, shadowRange: 30, post: false, bloom: false, msaa: 0, rain: 700, particles: 0.5, fogBoost: 1.25, farLights: false },
-  medium: { pixelRatio: 1.0, shadows: true, shadowSize: 2048, shadowRange: 45, post: true, bloom: false, msaa: 2, rain: 1600, particles: 0.8, fogBoost: 1.0, farLights: true },
-  high: { pixelRatio: 1.5, shadows: true, shadowSize: 4096, shadowRange: 60, post: true, bloom: true, msaa: 4, rain: 3000, particles: 1.0, fogBoost: 1.0, farLights: true },
+  medium: { pixelRatio: 1.0, shadows: true, shadowSize: 2048, shadowRange: 45, post: true, bloom: true, ao: false, msaa: 2, rain: 1600, particles: 0.8, fogBoost: 1.0, farLights: true },
+  high: { pixelRatio: 1.5, shadows: true, shadowSize: 4096, shadowRange: 60, post: true, bloom: true, ao: true, msaa: 4, rain: 3000, particles: 1.0, fogBoost: 1.0, farLights: true },
 };
 
 /** Cinematic grade: vignette, contrast, subtle desaturation, film grain, damage tint. */
@@ -123,8 +124,8 @@ export class RenderPipeline {
     this.hemi = hemi;
 
     // Viewmodel lighting mirrors the world.
-    this.vmScene.add(new THREE.HemisphereLight(0xb9c6d2, 0x4a4136, 0.9));
-    const vdir = new THREE.DirectionalLight(0xffd2a1, 1.6);
+    this.vmScene.add(new THREE.HemisphereLight(0xc4ced8, 0x5a5044, 1.35));
+    const vdir = new THREE.DirectionalLight(0xffd2a1, 2.2);
     vdir.position.copy(sun);
     this.vmScene.add(vdir);
     this.vmSun = vdir;
@@ -166,12 +167,21 @@ export class RenderPipeline {
     const composer = new EffectComposer(this.renderer, rt);
     const world = new RenderPass(this.scene, this.camera);
     composer.addPass(world);
+    if (q.ao) {
+      // ground-truth ambient occlusion: contact shadows under cars, in corners, around characters
+      const ao = new GTAOPass(this.scene, this.camera, size.x, size.y);
+      ao.output = GTAOPass.OUTPUT.Default;
+      ao.blendIntensity = 0.9;
+      ao.updateGtaoMaterial({ radius: 0.6, distanceExponent: 1.5, thickness: 1.2, scale: 1.0, samples: 12 });
+      composer.addPass(ao);
+      this.ao = ao;
+    }
     const vm = new RenderPass(this.vmScene, this.vmCamera);
     vm.clear = false;
     vm.clearDepth = true;
     composer.addPass(vm);
     if (q.bloom) {
-      this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.35, 0.5, 0.92);
+      this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), q.ao ? 0.35 : 0.25, 0.5, 0.92);
       composer.addPass(this.bloom);
     }
     this.grade = new ShaderPass(GradeShader);

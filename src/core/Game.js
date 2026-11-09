@@ -17,6 +17,7 @@ import { AudioEngine } from '../audio/AudioEngine.js';
 import { Player } from '../player/Player.js';
 import { WeaponController } from '../player/WeaponController.js';
 import { Combat } from '../player/Combat.js';
+import { Pickups } from '../player/Pickups.js';
 import { HUD } from '../ui/HUD.js';
 import { Menus } from '../ui/Menus.js';
 import { Dialogue } from '../ui/Dialogue.js';
@@ -76,6 +77,7 @@ export class Game {
     this.player = new Player(this);
     this.actors.push(this.player);
     this.combat = new Combat(this);
+    this.pickups = new Pickups(this);
     this.weapons = new WeaponController(this);
     this.squad = new Squad(this);
     this.dialogue = new Dialogue(this);
@@ -303,6 +305,12 @@ export class Game {
       const dir = new THREE.Vector3(it.x - eye.x, it.y - eye.y, it.z - eye.z).normalize();
       if (dir.dot(p.forward) < 0.45 && d > 1.2) continue;
       best = it; bestD = d;
+    }
+    const pick = this.pickups.nearest(eye, p.forward, p.pos);
+    if (pick && (!best || bestD > 1.2)) {
+      this.hud.setPrompt(this.pickups.promptFor(pick));
+      if (input.actionPressed('interact')) this.pickups.take(pick);
+      return;
     }
     this.hud.setPrompt(best ? best.prompt : null);
     if (best && input.actionPressed('interact')) {

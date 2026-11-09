@@ -8,8 +8,9 @@ const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { 
 for (let i = 0; i < 60; i++) { try { if ((await fetch(`http://localhost:${PORT}/`)).ok) break; } catch {} await sleep(500); }
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+page.setDefaultTimeout(300000);
 page.on('pageerror', (e) => console.log('pageerror', e.message));
-await page.goto(`http://localhost:${PORT}/?test=1&quality=low`);
+await page.goto(`http://localhost:${PORT}/?test=1&quality=${process.env.QUALITY || "low"}`);
 await page.waitForFunction(() => window.__IRON?.game?.state === 'menu', null, { timeout: 180000 });
 const script = process.argv[2];
 const out = await page.evaluate(script);

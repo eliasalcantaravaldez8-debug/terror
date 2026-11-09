@@ -135,7 +135,7 @@ export class Player {
     }
     // look
     const m = input.consumeMouse();
-    const adsMul = lerp(1, 0.55, this.adsAmount);
+    const adsMul = lerp(1, this.game.weapons?.current?.def.scope ? 0.28 : 0.55, this.adsAmount);
     const sens = 0.0022 * sensitivity * adsMul;
     const dy = (invertY ? -m.y : m.y) * sens;
     if (this.mount) {

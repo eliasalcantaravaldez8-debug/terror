@@ -69,7 +69,7 @@ const WAVES = [
     id: 'w2', zone: { x0: -22, x1: 22, z0: -96, z1: -54 },
     enemies: [
       { id: 'rpg', x: 11.5, y: 13.5, z: -73, static: true, face: [-1, 0] },
-      { x: -1, z: -83 }, { x: 2.5, z: -83.2 }, { x: 7.6, z: -86 }, { x: 3, z: -74 }, { x: -6.3, z: -90.5 },
+      { x: -1, z: -83 }, { x: 2.5, z: -83.2, kind: 'smg' }, { x: 7.6, z: -86 }, { x: 3, z: -74, kind: 'smg' }, { x: -6.3, z: -90.5 },
       { x: -60, z: -62, delay: 2 }, { x: 60, z: -61, delay: 3.5 },
       { balcony: { x: -11, z: -80 } },
     ],
@@ -78,7 +78,7 @@ const WAVES = [
     id: 'w3', zone: { x0: -11, x1: 11, z0: -168, z1: -108 },
     enemies: [
       { x: 0, z: -153.7, kind: 'mg' },
-      { x: -3.5, z: -113.4 }, { x: -6.2, z: -124.9 }, { x: 4.5, z: -138.7 }, { x: -4, z: -147.4 }, { x: 6.5, z: -151.2 },
+      { x: -3.5, z: -113.4, kind: 'smg' }, { x: -6.2, z: -124.9 }, { x: 4.5, z: -138.7, kind: 'shotgun' }, { x: -4, z: -147.4 }, { x: 6.5, z: -151.2 },
       { x: -6, y: 15, z: -168.6, static: true, face: [0, 1] }, { x: 11.4, y: 13.5, z: -150, static: true, face: [-1, 0] },
       { x: -6, z: -164, delay: 6 }, { x: 6, z: -164, delay: 9 },
     ],
@@ -87,16 +87,16 @@ const WAVES = [
     // inside the Halden lobby — dormant until the breach
     id: 'w4', zone: { x0: -23, x1: 23, z0: -186, z1: -169 },
     enemies: [
-      { x: -2, y: 0.4, z: -179.3 }, { x: 2.2, y: 0.4, z: -179.3 }, { x: -7, y: 0.4, z: -183.1 }, { x: 7, y: 0.4, z: -183.1 },
-      { x: -12, y: 0.4, z: -177.2 }, { x: 12, y: 0.4, z: -177.3 }, { x: 6, y: 0.4, z: -184.2 }, { x: -18.4, y: 0.4, z: -181.4 },
+      { x: -2, y: 0.4, z: -179.3, kind: 'shotgun' }, { x: 2.2, y: 0.4, z: -179.3, kind: 'smg' }, { x: -7, y: 0.4, z: -183.1 }, { x: 7, y: 0.4, z: -183.1 },
+      { x: -12, y: 0.4, z: -177.2, kind: 'smg' }, { x: 12, y: 0.4, z: -177.3, kind: 'shotgun' }, { x: 6, y: 0.4, z: -184.2 }, { x: -18.4, y: 0.4, z: -181.4 },
     ],
   },
   {
     // counter-attack while the servers download — they come in through the front door
     id: 'w5', zone: { x0: -23, x1: 23, z0: -196, z1: -169 },
     enemies: [
-      { x: -3, z: -162, delay: 4 }, { x: 3, z: -162, delay: 6 }, { x: 0, z: -160, delay: 11 },
-      { x: -4, z: -161, delay: 16 }, { x: 4, z: -161, delay: 21 }, { x: 0, z: -162, delay: 26 }, { x: -2, z: -160, delay: 31 },
+      { x: -3, z: -162, delay: 4, kind: 'smg' }, { x: 3, z: -162, delay: 6, kind: 'shotgun' }, { x: 0, z: -160, delay: 11 },
+      { x: -4, z: -161, delay: 16 }, { x: 4, z: -161, delay: 21, kind: 'smg' }, { x: 0, z: -162, delay: 26 }, { x: -2, z: -160, delay: 31 },
     ],
   },
 ];
@@ -173,7 +173,7 @@ export class Mission01 {
         if (!spot) continue;
         x = spot.x + 0.2; y = spot.y; z = spot.z; isStatic = true;
       }
-      const s = new Soldier(g, { team: 'enemy', x, y, z, kind: e.kind, static: isStatic, look: { cap: Math.random() < 0.35 && !isStatic }, id: e.id, yaw: 0 });
+      const s = new Soldier(g, { team: 'enemy', x, y, z, kind: e.kind, static: isStatic, look: { cap: Math.random() < 0.3 && !isStatic, mask: Math.random() < 0.25 }, id: e.id, yaw: 0 });
       s.pos.y = y;
       s.groundY = y;
       s.brain = new EnemyBrain(s, { zone: wave.zone });
@@ -205,6 +205,7 @@ export class Mission01 {
     const g = this.game;
     this.clearActors();
     g.combat.reset();
+    g.pickups.clear();
     g.effects.reset();
     g.dialogue.clear();
     g.hud.reset();
@@ -228,6 +229,10 @@ export class Mission01 {
     this.download = null;
     if (carDestroyed) g.effects.addFire({ x: car.x, y: 0.9, z: car.z }, 1.1, true);
 
+    // weapons placed in the level
+    g.pickups.add({ weaponId: 'brk12', position: new THREE.Vector3(-6.2, 1.03, 10.5), yaw: 0.4 });
+    g.pickups.add({ weaponId: 'lr6', position: new THREE.Vector3(9.6, 1.03, -66), yaw: 1.4 });
+    g.pickups.add({ weaponId: 'mk9', position: new THREE.Vector3(-9.5, 1.03, -100), yaw: 2.2 });
     this.spawnSquad();
     g.player.reset(new THREE.Vector3(), PI);
     g.weapons.setLowered(false);

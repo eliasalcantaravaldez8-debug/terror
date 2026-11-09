@@ -10,6 +10,8 @@ export const AI_WEAPONS = {
   rifleman: { name: 'rifle', damage: 11, range: 250, fireInterval: 0.11, burst: [3, 6], mag: 30, reload: 2.6, sound: 'rifle', headMultiplier: 2, falloffStart: 30, falloffEnd: 120, minDamageScale: 0.6, accuracy: 1 },
   ally: { name: 'rifle', damage: 22, range: 300, fireInterval: 0.12, burst: [3, 5], mag: 30, reload: 2.4, sound: 'rifle', headMultiplier: 3, falloffStart: 40, falloffEnd: 120, minDamageScale: 0.6, accuracy: 1 },
   mg: { name: 'mg', damage: 9, range: 250, fireInterval: 0.085, burst: [8, 14], mag: 100, reload: 4, sound: 'mg', headMultiplier: 2, falloffStart: 30, falloffEnd: 120, minDamageScale: 0.6, accuracy: 0.8 },
+  smg: { name: 'smg', damage: 8, range: 150, fireInterval: 0.075, burst: [5, 9], mag: 32, reload: 2.0, sound: 'pistol', headMultiplier: 2, falloffStart: 15, falloffEnd: 60, minDamageScale: 0.5, accuracy: 0.85 },
+  shotgun: { name: 'shotgun', damage: 26, range: 45, fireInterval: 1.0, burst: [1, 2], mag: 7, reload: 3, sound: 'sniper', headMultiplier: 1.5, falloffStart: 6, falloffEnd: 25, minDamageScale: 0.2, accuracy: 1.2 },
   sniper: { name: 'sniper', damage: 58, range: 600, fireInterval: 1.6, burst: [1, 1], mag: 5, reload: 3.5, sound: 'sniper', headMultiplier: 1.5, falloffStart: 300, falloffEnd: 600, minDamageScale: 1, accuracy: 1.6 },
 };
 
@@ -25,7 +27,8 @@ export class Soldier {
     this.id = o.id || this.name;
     this.kind = o.kind || (o.team === 'enemy' ? 'rifleman' : 'ally');
     const appearance = o.appearance || (o.team === 'enemy' ? APPEARANCE.enemy(game.mats, o.look) : APPEARANCE.ally(game.mats, o.look));
-    this.model = new SoldierModel(game.mats, appearance, { weapon: this.kind === 'sniper' ? 'sniper' : 'rifle' });
+    this.weaponModelId = { sniper: 'lr6', smg: 'mk9', shotgun: 'brk12' }[this.kind] || 'vk7';
+    this.model = new SoldierModel(game.mats, appearance, { weapon: this.weaponModelId });
     game.scene.add(this.model.root);
     this.pos = new THREE.Vector3(o.x, o.y || 0, o.z);
     this.yaw = o.yaw ?? 0;
@@ -129,6 +132,10 @@ export class Soldier {
     this.model.baseY = this.pos.y;
     this.model.groundY = this.game.world.groundHeight(this.pos.x, this.pos.z, 0.5, this.pos.y + 0.1);
     this.model.die(dirSign, this.game.scene);
+    if (this.model.weaponDropped && this.team === 'enemy') {
+      const ws = this.weapon;
+      this.game.pickups?.add({ weaponId: this.weaponModelId, mesh: this.model.weapon, mag: Math.max(0, this.ammo), reserve: Math.round(ws.mag * (1 + Math.random())) });
+    }
     this.game.events.emit('soldierKilled', { soldier: this, info });
     this.onKilled?.(this, info);
   }

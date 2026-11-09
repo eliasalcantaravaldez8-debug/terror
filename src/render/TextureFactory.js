@@ -589,6 +589,100 @@ export const TextureFactory = {
     });
   },
 
+  // ------------------------------------------------------------- weapons
+  /**
+   * Weapon finish: base colour with micro-noise, edge/handling wear, scratches,
+   * optional stippling (polymer grips). Returns map / normalMap / roughnessMap.
+   */
+  weaponFinish(kind = 'metal', color = '#26282a', seed = 201) {
+    return this.get('wf' + kind + color + seed, () => {
+      const W = 512;
+      const c = canvas(W, W), ctx = c.getContext('2d');
+      const field = noiseFill(ctx, W, W, color, { seed, period: 32, amount: kind === 'polymer' ? 0.08 : 0.12, speckle: 0.05, large: 0.3 });
+      const [hc, hx] = grayCanvas(W, W, 128);
+      const [rc, rx] = grayCanvas(W, W, kind === 'metal' ? 120 : kind === 'cerakote' ? 160 : 190);
+      const rnd = mulberry32(seed);
+      const base = hexToRgb(color);
+      const light = `rgba(${Math.min(255, base[0] + 90)},${Math.min(255, base[1] + 90)},${Math.min(255, base[2] + 85)},`;
+      if (kind === 'polymer') {
+        // stippled texture
+        for (let i = 0; i < 9000; i++) {
+          const x = rnd() * W, y = rnd() * W, r = 0.8 + rnd() * 1.6;
+          hx.fillStyle = gray(0.35 + rnd() * 0.4); hx.beginPath(); hx.arc(x, y, r, 0, 7); hx.fill();
+        }
+      }
+      // handling wear: lighter blotches where hands rub
+      for (let i = 0; i < 10; i++) {
+        const x = rnd() * W, y = rnd() * W, r = 20 + rnd() * 60;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, light + (kind === 'metal' ? '0.18)' : '0.1)')); g.addColorStop(1, light + '0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+        rx.fillStyle = `rgba(60,60,60,0.25)`; rx.beginPath(); rx.arc(x, y, r * 0.6, 0, 7); rx.fill();
+      }
+      // scratches exposing bare metal
+      for (let i = 0; i < (kind === 'polymer' ? 25 : 90); i++) {
+        const x = rnd() * W, y = rnd() * W, a = rnd() * Math.PI, l = 4 + rnd() * 40;
+        ctx.strokeStyle = kind === 'cerakote' ? 'rgba(70,70,68,0.55)' : 'rgba(170,172,175,0.45)';
+        ctx.lineWidth = 0.6 + rnd();
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
+        rx.strokeStyle = gray(0.2); rx.lineWidth = 1;
+        rx.beginPath(); rx.moveTo(x, y); rx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); rx.stroke();
+        hx.strokeStyle = gray(0.38);
+        hx.beginPath(); hx.moveTo(x, y); hx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); hx.stroke();
+      }
+      // fine machining / grain lines
+      if (kind !== 'polymer') for (let y = 0; y < W; y += 2) { hx.fillStyle = `rgba(255,255,255,${0.02 + rnd() * 0.03})`; hx.fillRect(0, y, W, 1); }
+      // dirt in crevices
+      for (let i = 0; i < 14; i++) {
+        const x = rnd() * W, y = rnd() * W;
+        ctx.fillStyle = 'rgba(40,34,26,0.18)'; ctx.fillRect(x, y, 30 + rnd() * 80, 3 + rnd() * 6);
+      }
+      const n = normalFromHeight(hx, W, W, kind === 'polymer' ? 3.5 : 1.6, field, 0.6);
+      const out = { map: tex(c), normalMap: tex(n, false), roughnessMap: tex(rc, false) };
+      for (const t of Object.values(out)) t.repeat.set(2, 2);
+      return out;
+    });
+  },
+
+  /** Skin with pores, blotches and optional stubble. */
+  skin(tone = '#c29a7b', seed = 301, stubble = false) {
+    return this.get('skin' + tone + seed + stubble, () => {
+      const W = 256;
+      const c = canvas(W, W), ctx = c.getContext('2d');
+      const field = noiseFill(ctx, W, W, tone, { seed, period: 16, amount: 0.07, large: 0.5 });
+      const rnd = mulberry32(seed);
+      for (let i = 0; i < 40; i++) {
+        const x = rnd() * W, y = rnd() * W, r = 6 + rnd() * 18;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, 'rgba(160,70,60,0.08)'); g.addColorStop(1, 'rgba(160,70,60,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+      }
+      if (stubble) for (let i = 0; i < 5000; i++) { ctx.fillStyle = 'rgba(30,22,16,0.25)'; ctx.fillRect(rnd() * W, W * 0.55 + rnd() * W * 0.45, 1, 1); }
+      const [hc, hx] = grayCanvas(W, W, 128);
+      for (let i = 0; i < 3000; i++) { hx.fillStyle = gray(0.4); hx.fillRect(rnd() * W, rnd() * W, 1, 1); }
+      const n = normalFromHeight(hx, W, W, 1.2, field, 0.5);
+      return { map: tex(c), normalMap: tex(n, false) };
+    });
+  },
+
+  /** MOLLE webbing / plate carrier cordura. */
+  webbing(color = '#77704f', seed = 401) {
+    return this.get('web' + color + seed, () => {
+      const W = 256;
+      const c = canvas(W, W), ctx = c.getContext('2d');
+      const field = noiseFill(ctx, W, W, color, { seed, period: 16, amount: 0.12 });
+      const [hc, hx] = grayCanvas(W, W, 128);
+      for (let y = 0; y < W; y += 32) {
+        ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fillRect(0, y + 10, W, 2); ctx.fillRect(0, y + 22, W, 2);
+        hx.fillStyle = gray(0.75); hx.fillRect(0, y + 12, W, 10);
+        for (let x = 0; x < W; x += 24) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(x, y + 12, 2, 10); hx.fillStyle = gray(0.3); hx.fillRect(x, y + 12, 2, 10); }
+      }
+      for (let y = 0; y < W; y += 2) { hx.fillStyle = `rgba(255,255,255,0.06)`; hx.fillRect(0, y, W, 1); }
+      const n = normalFromHeight(hx, W, W, 2.5, field, 0.5);
+      return { map: tex(c), normalMap: tex(n, false) };
+    });
+  },
+
   // ------------------------------------------------------------- particles / decals
   smokeSprite() {
     return this.get('smokeSprite', () => {

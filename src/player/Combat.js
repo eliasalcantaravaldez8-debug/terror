@@ -64,7 +64,7 @@ export class Combat {
       }
     } else if (wh) {
       game.effects.impact(wh.point, wh.normal, wh.surface);
-      game.audio.playImpact(wh.point, wh.surface);
+      if (!opts.quiet) game.audio.playImpact(wh.point, wh.surface);
       // AI awareness: bullets landing near enemies suppress them
       this.suppressNear(wh.point, shooter);
     }

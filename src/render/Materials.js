@@ -71,6 +71,19 @@ export class Materials {
   gunMetal() {
     return this.get('gunMetal', () => new THREE.MeshStandardMaterial({ ...TF.paintedMetal('#2c2d2f', 57, false), roughness: 0.5, metalness: 0.7 }));
   }
+  /** Weapon finishes. kind: metal | polymer | cerakote */
+  weapon(kind = 'metal', color = '#26282a') {
+    return this.get('wpn' + kind + color, () => new THREE.MeshStandardMaterial({
+      ...TF.weaponFinish(kind, color, 201 + color.length * 7 + kind.length),
+      roughness: 1, metalness: kind === 'metal' ? 0.55 : kind === 'cerakote' ? 0.25 : 0.05, envMapIntensity: 1.3,
+    }));
+  }
+  skinTex(tone = '#c29a7b', stubble = false) {
+    return this.get('skinT' + tone + stubble, () => new THREE.MeshStandardMaterial({ ...TF.skin(tone, 301, stubble), roughness: 0.62, metalness: 0 }));
+  }
+  webbing(color = '#77704f') {
+    return this.get('web' + color, () => new THREE.MeshStandardMaterial({ ...TF.webbing(color), roughness: 0.92 }));
+  }
   polymer(color = 0x2b2a27) {
     return this.get('polymer' + color, () => new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0.05 }));
   }

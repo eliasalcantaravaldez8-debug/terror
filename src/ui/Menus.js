@@ -124,7 +124,7 @@ export class Menus {
 
   missionComplete(stats) {
     this.current = 'complete';
-    const acc = stats.shots ? Math.round((stats.hits / stats.shots) * 100) : 0;
+    const acc = stats.shots ? Math.min(100, Math.round((stats.hits / stats.shots) * 100)) : 0;
     this._show(`
       <div class="logo small"><div class="logo-top">MISSÃO 1 CONCLUÍDA</div><div class="logo-main">PRIMEIRO CONTATO</div></div>
       <p class="hint">Os códigos encontrados no Halden pertencem ao próprio Comando da Coalizão.<br>Alguém de dentro está ajudando o VÉRTICE — e a equipe Iron perdeu contato com Bastião.<br><b>Continua na Missão 2 — Sinal Morto.</b></p>

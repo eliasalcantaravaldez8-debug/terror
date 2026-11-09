@@ -141,3 +141,10 @@ table.controls td.k { color: var(--accent); letter-spacing: 1px; width: 45%; }
 
 #obj-progress { display: none; margin-top: 8px; width: 260px; height: 4px; background: rgba(255,255,255,.15); }
 #obj-progress-fill { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+
+#scope { inset: 0; display: none; }
+#scope.visible { display: block; }
+#scope .scope-ring { position: absolute; left: 50%; top: 50%; width: 88vh; height: 88vh; transform: translate(-50%,-50%); border-radius: 50%; box-shadow: 0 0 0 200vmax #000, inset 0 0 60px 20px rgba(0,0,0,.85); }
+#scope .scope-h { position: absolute; left: 50%; top: 50%; width: 88vh; height: 1px; transform: translate(-50%,-50%); background: linear-gradient(90deg, #000 0 30%, rgba(0,0,0,.8) 30% 70%, #000 70%); }
+#scope .scope-v { position: absolute; left: 50%; top: 50%; width: 1px; height: 88vh; transform: translate(-50%,-50%); background: linear-gradient(180deg, #000 0 30%, rgba(0,0,0,.8) 30% 100%); }
+#scope .scope-dot { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: #e3261a; box-shadow: 0 0 4px #e3261a; }
