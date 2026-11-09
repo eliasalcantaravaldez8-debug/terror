@@ -36,6 +36,7 @@ import { TrafficLights, spawnTraffic } from './traffic.js';
 import { Sky, TIMES } from './sky.js';
 import { EngineAudio, crowdAmbience } from './audio.js';
 import { Stadium, ST, TROPHIES } from './stadium.js';
+import { Praca } from './praca.js';
 import { Match, AWAYS } from './football.js';
 import { Fx } from './fx.js';
 import { Pet, BREEDS, DOG_NAMES, CAT_NAMES, warmBreeds, breedReady } from './animals.js';
@@ -1130,6 +1131,7 @@ function updateStoreKeepers(dt) {
 function crowdLook(kind) {
   if (kind === 'priest') return { ...randomPedestrian(), female: false, skirt: null, shirt: 0x141414, jacket: 0x141414, pants: 0x141414, shoes: 0x0a0a0a, hat: null, tie: null, badge: false, hairStyle: pick(['short', 'bald']), longSleeve: true, height: rr(0.98, 1.04) };
   if (kind === 'cop') return policeLook();
+  if (kind === 'kid') return { ...randomPedestrian(), height: rr(0.58, 0.7), build: rr(0.82, 0.92), shirt: pick([0xe84a3a, 0x3a8ae8, 0xf2c23a, 0x4ac86a, 0xe86ac8]), jacket: null, hat: null, tie: null, skirt: null };
   if (kind === 'student') return { ...randomPedestrian(), height: rr(0.76, 0.86), build: rr(0.85, 0.95), shirt: 0xf2f2f2, pants: 0x1a2a5a, jacket: null, hat: null, tie: null };
   return randomPedestrian();
 }
@@ -1141,7 +1143,7 @@ function updateCrowds() {
       c.npcs = [];
       for (const q of c.people) {
         if (!open && q.kind !== 'priest') continue;
-        const n = new NPC(scene, G.world, crowdLook(q.kind), { name: q.name, role: 'ped', lines: q.lines.slice(), x: q.x, z: q.z, y: q.y, heading: q.heading, behavior: q.chair ? 'chair' : 'stand' });
+        const n = new NPC(scene, G.world, crowdLook(q.kind), { name: q.name, role: 'ped', lines: q.lines.slice(), x: q.x, z: q.z, y: q.y, heading: q.heading, behavior: q.behavior || (q.chair ? 'chair' : 'stand'), loop: q.loop });
         if (q.chair) { n.fixedY = true; n.y = q.y; }
         G.npcs.push(n); G.world.dynamic.add(n); c.npcs.push(n);
       }
@@ -1219,7 +1221,7 @@ function updateWesthaven(dt) {
   }
 }
 // ESTÁDIO DE WESTHAVEN: jogos todo dia às 13h e às 20h (horário do jogo). Ingresso R$ 200 na bilheteria.
-G.onWesthavenBuild = (wh) => { wh.onStadium = (B) => { const s = new Stadium(scene, G.world || wh.world, wh.city); s.build(B); s.buildCrowd(Math.round(1400 + (Q.peds || 70) * 22)); G.stadium = s;
+G.onWesthavenBuild = (wh) => { wh.onPraca = (F) => { const pr = new Praca(scene, wh.world, wh.city); pr.build(F); G.praca = pr; }; wh.onStadium = (B) => { const s = new Stadium(scene, G.world || wh.world, wh.city); s.build(B); s.buildCrowd(Math.round(1400 + (Q.peds || 70) * 22)); G.stadium = s;
   wh.city.crowds.push({ x: s.spots.ticketClerk[0], z: s.spots.ticketClerk[1], r: 45, hours: [0, 24], people: [{ kind: 'staff', x: s.spots.ticketClerk[0], z: s.spots.ticketClerk[1], heading: 0, y: CURB, name: 'Bilheteria do Estádio', lines: ['Ingresso para o jogo de hoje: R$ 200.', 'Os portões abrem uma hora antes da partida.'] }] }); }; };
 const MATCH_SLOTS = [13, 20];
 const SD = { match: null, key: null, played: new Set(), amb: null, scoreT: 0, seat: null, trophyT: 0 };
@@ -1732,7 +1734,7 @@ function step(dt) {
   if (active && !locked2 && hit('KeyF')) playerPunch();
   punchCd -= dt; pulsoCd -= dt;
   updateEat(dt);
-  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers(); updateWrecks(dt); updatePets(dt); updateWesthaven(dt); updateStadium(dt);
+  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers(); updateWrecks(dt); updatePets(dt); updateWesthaven(dt); updateStadium(dt); if (G.praca) G.praca.update(dt, G);
   // interiores das casas: só desenha os que estão perto (o jogador ou a câmera)
   if ((interiorT -= dt) <= 0) { interiorT = 0.25; const cx = G.camera.position.x, cz = G.camera.position.z; for (const it of G.city.interiors) { const dx = it.x - p.x, dz = it.z - p.z, ex = it.x - cx, ez = it.z - cz; const R = (it.r || 40) * LODM; it.group.visible = dx * dx + dz * dz < R * R || ex * ex + ez * ez < R * R * 0.56; } }
   if (active && !locked2 && hit('KeyQ') && G.campaign().tools.pulso) {
@@ -1749,12 +1751,13 @@ function step(dt) {
     const H = G.city.ethanHouse; const lm = G.city.landmarks;
     const nearHosp = lm.find((l) => l.kind === 'hospital' && Math.hypot(l.x - p.x, l.z - p.z) < 5);
     const nearDoor = !G.mission && (Math.hypot(H.door[0] - p.x, H.door[1] - p.z) < 1.8 || (H.bed && Math.hypot(H.bed[0] - p.x, H.bed[1] - p.z) < 2.0));
-    const free = active && !locked2 && !S.cut; let stadiumMsg = null;
+    const free = active && !locked2 && !S.cut; let stadiumMsg = null, pracaMsg = null;
     if (G.jack) prompt = '';
     else if (G.storyPrompt) prompt = G.storyPrompt;
     else if (startM) { prompt = `[E] Iniciar missão: ${startM.title}`; if (free && G.consumeInteract()) runMission(startM, 0, false); }
     else if (nearDoor) { prompt = '[E] Dormir (8 horas e salvar)'; if (free && G.consumeInteract()) sleep(); }
     else if (nearHosp && !G.mission) { prompt = '[E] Atendimento médico (R$ 150)'; if (free && G.consumeInteract()) service('hospital'); }
+    else if (!car && G.praca && (pracaMsg = G.praca.prompt(free, G))) { prompt = pracaMsg; }
     else if (npc && (!car || nd < 1.8) && !G.mission) { prompt = `[E] Falar com ${npc.name}`; if (free && G.consumeInteract()) interactNPC(npc); }
     else if (!car && G.stadium && (stadiumMsg = stadiumPrompt(free))) { prompt = stadiumMsg; }
     else if (nearestPet() && !car) { const a = nearestPet(); prompt = `[E] Fazer carinho no ${a.label} (${a.name})`; if (free && G.consumeInteract()) petAnimal(a); }

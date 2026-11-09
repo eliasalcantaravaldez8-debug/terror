@@ -90,6 +90,12 @@ export function sfx(ctx, name, dur = 1) {
     const n2 = name === 'whistle3' ? 3 : 1;
     for (let i = 0; i < n2; i++) { const t0 = t + i * 0.45; const o = osc('sine', 3100); const lfo = osc('square', 28); const lg = ctx.createGain(); lg.gain.value = 120; lfo.connect(lg); lg.connect(o.frequency); const gg = ctx.createGain(); o.connect(gg); gg.connect(out);
       const len = i === n2 - 1 && n2 > 1 ? 0.8 : 0.32; gg.gain.setValueAtTime(0.0001, t0); gg.gain.exponentialRampToValueAtTime(0.09, t0 + 0.02); gg.gain.setValueAtTime(0.09, t0 + len - 0.05); gg.gain.exponentialRampToValueAtTime(0.0001, t0 + len); o.start(t0); lfo.start(t0); o.stop(t0 + len); lfo.stop(t0 + len); }
+  } else if (name === 'bounce') { // bola de basquete quicando
+    const o = osc('sine', 120); o.frequency.exponentialRampToValueAtTime(70, t + 0.06); const n = noise(0.04); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1400; n.connect(f); f.connect(out); o.connect(out);
+    out.gain.setValueAtTime(0.4, t); out.gain.exponentialRampToValueAtTime(0.001, t + 0.09); o.start(t); o.stop(t + 0.1); n.start(t); n.stop(t + 0.05);
+  } else if (name === 'swish') { // bola passando pela rede
+    const n = noise(0.35); const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 2500; n.connect(f); f.connect(out);
+    out.gain.setValueAtTime(0.0001, t); out.gain.exponentialRampToValueAtTime(0.25, t + 0.05); out.gain.exponentialRampToValueAtTime(0.001, t + 0.35); n.start(t); n.stop(t + 0.36);
   } else if (name === 'kick') { // chute na bola
     const o = osc('sine', 160); o.frequency.exponentialRampToValueAtTime(60, t + 0.08); o.connect(out); out.gain.setValueAtTime(0.35, t); out.gain.exponentialRampToValueAtTime(0.001, t + 0.1); o.start(t); o.stop(t + 0.11);
   } else if (name === 'goalHome' || name === 'goalAway') { // explosão da torcida num gol
