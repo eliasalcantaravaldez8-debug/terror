@@ -162,6 +162,53 @@ Popular 1.0, Hatch Pulse, Sedan Aurora, SUV Montana, Picape Bravo, Imperial Luxo
 - **Comer e beber de verdade**: depois da compra, o personagem segura o item (hambúrguer, lata, copo de café, garrafa de água, pão ou caixa de remédio) e leva à boca por alguns segundos.
 - Tudo fica em **uma única textura** (atlas 2048×2048), por isso o desempenho continua igual: medi as mesmas chamadas de desenho e triângulos de antes.
 
+## Novidades: carros que explodem, polícia a pé, animais, igreja, escola e racha
+
+- **Carro destruído:** quando o *Estado* do carro chega a 0%, ele **quebra**: solta fumaça cinza do motor e ainda anda um pouco (devagar e falhando, no máximo ~25 km/h).
+  - **Fogo:** se o carro quebrado bater de novo (ou levar tiros), ele **pega fogo**, com chamas, fumaça preta, faíscas e som de fogo, e o jogo avisa para sair (E).
+  - **Explosão:** uns 5 segundos depois ele **explode**, com clarão, bola de fogo, fumaça preta, estrondo e tremor na tela. A explosão joga longe e fere quem estiver perto, empurra e danifica outros carros (pode virar reação em cadeia) e deixa a carcaça queimada e preta, que continua queimando por um tempo.
+  - **Tiros:** atirar em carros também tira o Estado.
+  - **Motorista da IA:** desce e foge quando o carro quebra.
+  - **Seu carro:** se ele explodir, é guinchado e consertado na garagem de casa quando você se afastar. Durante missões, os carros da história só quebram, não explodem.
+- **Polícia a pé:** as viaturas agora andam pelas ruas (cruzamento por cruzamento) e chegam rápido. Quando a viatura para perto de você, **os policiais descem do carro com a arma na mão**.
+  - **1 estrela:** se você estiver a pé e desarmado, eles apontam e vêm te prender ("Mãos para o alto!"). Se você sacar uma arma ou estiver num carro, eles atiram.
+  - **2 estrelas ou mais:** atiram assim que te veem e contornam o carro para ter linha de tiro.
+  - **Fuga:** se você fugir de carro, eles voltam para a viatura e continuam a perseguição. Os tiros nos carros também estragam o seu carro.
+- **Personagem sentado certinho:** cada carro calcula a altura do banco, a inclinação do encosto e a posição dos pedais e do volante.
+  - **Cabeça:** nunca passa do teto (nos esportivos baixos o motorista vai mais deitado).
+  - **Pés:** ficam no assoalho, nos pedais.
+  - **Mãos:** ficam no aro do volante e giram com a direção.
+  - **Passageiros:** ficam com as mãos no colo, e quem vai no banco de trás senta no banco de trás.
+- **Interior dos carros:** a cabine agora é aberta por dentro, então dá para ver o interior pelas janelas.
+  - **Bancos:** com costura, abas laterais, encosto inclinado e apoio de cabeça.
+  - **Painel:** com 2 mostradores, saídas de ar e rádio com tela.
+  - **Console:** com câmbio e freio de mão.
+  - **Resto da cabine:** forros de porta com apoio de braço e alto-falante, tapetes, pedais, retrovisor interno e para-sóis. A caçamba da picape também é aberta.
+- **Carros mais realistas:** vidros com reflexo de Fresnel (de frente dá para ver dentro, de lado refletem o céu) e pintura com efeito de verniz. Também ganharam borrachas das janelas, grade do para-brisa e **placas com letras de verdade** (padrão Mercosul).
+- **Cachorros e gatos:** andam pelas calçadas, quintais e praças.
+  - **Modelo:** cada animal é uma malha lisa e orgânica (peito, cintura, ancas, joelhos, focinho, olhos com brilho) com pelagem de verdade por raça:
+    - **Cachorros:** vira-lata caramelo, labrador preto e dourado, pastor-alemão com a "sela" preta e beagle tricolor.
+    - **Gatos:** laranja rajado, preto, cinza rajado, frajola e siamês com olhos azuis.
+  - **Animação:** andam (trote), correm (galope), sentam, deitam, respiram, abanam o rabo, ofegam e mexem as orelhas.
+  - **Comportamento:** cachorros latem, olham para você e às vezes te seguem um pouco; gatos miam e levantam o rabo. Os dois fogem de carros e de tiros.
+  - **Carinho:** aperte **E** perto de um animal para fazer carinho. O cachorro senta e abana o rabo, o gato ronrona e deita.
+- **Igreja São José** (Los Valles, quarteirão de cima, de frente para a cidade): torre do sino com cruz, rosácea colorida, vitrais, telhado de duas águas e estacionamento.
+  - **Por dentro:** nave com 20 bancos, tapete vermelho no corredor, colunas, lustres, altar com toalha, cruz grande, castiçais e flores, ambão, confessionário, pias de água benta e quadros.
+  - **Pessoas:** o Padre Anselmo fica no altar e há fiéis rezando sentados nos bancos (das 6h às 21h).
+- **Escola Estadual Los Valles** (quarteirão de baixo):
+  - **Corredor:** armários, mural, bebedouro e 3 salas de aula.
+  - **Salas:** lousa verde, mesa do professor, 16 carteiras, relógio, cartazes e estante.
+  - **Fora:** quadra poliesportiva com traves, cestas e alambrado, parquinho com escorregador e balanços, e mastro com bandeira.
+  - **Pessoas:** professores e alunos sentados nas carteiras das 7h às 17h.
+- **Mais lugares que dá para entrar:**
+  - **Shopping:** as 8 lojas do mezanino (inclui cinema com sala e academia com esteiras).
+  - **Blackwood:** a **delegacia** (com policial de plantão), os **9 quartos do Motel Pinheiros** (cama de casal, criados-mudos, TV, banheiro) e a **fábrica abandonada** (máquinas velhas, esteira, caixas, tambores, feixes de luz).
+  - **Favela:** os **barracos** (cama, mesa, fogão, geladeira, TV, prateleira).
+- **Assalto ao banco paga na hora:** o caixa entrega o dinheiro da gaveta (R$ 1.500–3.000) assim que você anuncia o assalto, e o dinheiro do cofre (R$ 8.000–15.000) vai para o bolso quando ele abre. Se for preso, a polícia toma de volta o que foi roubado.
+- **Racha de Los Valles** (missão secundária que aparece às vezes): só **à noite (18h–3h)** e **uma vez por dia**. Quando abre, chega um aviso no celular e um marcador verde aparece na avenida oeste, com curiosos esperando na largada.
+  - **Corrida:** 2 voltas pelas avenidas contra 3 corredores.
+  - **Prêmio:** **R$ 2.000 (1º), R$ 1.000 (2º) e R$ 500 (3º)**.
+
 ## Novidades: qualidade Ultra, emergências, prédios visitáveis e shopping
 
 - **Qualidade Ultra** (Esc → Qualidade gráfica): veja a seção *Desempenho* abaixo.

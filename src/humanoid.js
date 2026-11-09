@@ -1,6 +1,9 @@
 // Personagem humanoide com esqueleto (SkinnedMesh) e animação procedural com transições suaves.
 // Estados: parado, andando, correndo, pulando/caindo, aterrissando, sentado (dirigindo), conversando.
 import * as THREE from 'three';
+const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THREE.Quaternion(), _q4 = new THREE.Quaternion(), _e1 = new THREE.Euler();
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _v4 = new THREE.Vector3(), _v5 = new THREE.Vector3(), _v6 = new THREE.Vector3(), _v7 = new THREE.Vector3(), _v8 = new THREE.Vector3(), _v9 = new THREE.Vector3();
+const _X = new THREE.Vector3(1, 0, 0), _DOWN = new THREE.Vector3(0, -1, 0);
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { colorize } from './geo.js';
 
@@ -221,6 +224,8 @@ export class Humanoid {
     } else if (p.mode === 'binoculars') {
       T.shoulderL = [-1.45, 0, -0.45]; T.shoulderR = [-1.45, 0, 0.45]; T.elbowL = [-1.9, 0, 0]; T.elbowR = [-1.9, 0, 0];
       T.head = [-0.05, 0, 0];
+    } else if (p.mode === 'sit' && p.cfg) { // dirigindo com o layout do carro: IK de pernas e braços
+      const r = this.sitIK(T, p.cfg, p.steer || 0, p.passenger, p.side || 1); hipY = r[0]; hipZ = r[1];
     } else if (p.mode === 'sit') { // dirigindo: costas no encosto, mãos no volante, pés nos pedais
       const st = p.steer || 0;
       T.thighL = [-1.4, 0, 0.08]; T.thighR = [-1.4, 0, -0.08];
@@ -325,6 +330,56 @@ export class Humanoid {
     this.hipZ = damp(this.hipZ, hipZ, 14, dt);
     this.bones.hips.position.set(this.rest.hips.x, this.rest.hips.y + this.hipY, this.rest.hips.z + this.hipZ);
     for (const b of this.boneList) b.updateMatrix();
+  }
+  // posição sentada calculada: quadril no assento, tronco inclinado para a cabeça caber, pés nos pedais e mãos no volante.
+  // cfg está em coordenadas do carro; a raiz do boneco fica em root.position (também do carro) com escala root.scale.
+  sitIK(T, cfg, st, passenger, side) {
+    const s = this.root.scale.x, rp = this.root.position, R = this.rest;
+    const my = (y) => (y - rp.y) / s, mz = (z) => (z - rp.z) / s, mx = (x) => (x - rp.x) / s;
+    const hy = my(cfg.hipY), hz = mz(cfg.hipZ), th = cfg.recline;
+    // tronco
+    T.spine = [-th * 0.75, 0, 0]; T.chest = [-th * 0.25, 0, 0]; T.neck = [th * 0.2, 0, 0]; T.head = [th * 0.3, passenger ? 0 : -st * 0.25, 0];
+    // pernas (IK de 2 ossos no plano y-z)
+    const a = -R.kneeL.y, b = -R.footL.y;
+    for (const sd of ['L', 'R']) {
+      const ty = hy + R.thighL.y, tz = hz; // articulação da coxa
+      const fy = my(cfg.footY + 0.02) , fz = mz(cfg.footZ - (sd === 'L' ? 0.06 : 0) - (passenger ? 0.05 : 0));
+      let dy = fy - ty, dz = fz - tz; let L = Math.hypot(dy, dz); const Lm = (a + b) * 0.995; if (L > Lm) { dy *= Lm / L; dz *= Lm / L; L = Lm; }
+      const rd = Math.atan2(-dz, -dy);
+      const al = Math.acos(THREE.MathUtils.clamp((a * a + L * L - b * b) / (2 * a * L), -1, 1));
+      const ga = Math.acos(THREE.MathUtils.clamp((a * a + b * b - L * L) / (2 * a * b), -1, 1));
+      const thr = rd - al, kn = Math.PI - ga;
+      T['thigh' + sd] = [thr, 0, sd === 'L' ? 0.07 : -0.07]; T['knee' + sd] = [kn, 0, 0]; T['foot' + sd] = [-(thr + kn) - 0.4, 0, 0];
+    }
+    if (passenger || !cfg.wheel) { // passageiro: mãos no colo
+      T.shoulderL = [-0.55, 0, 0.12]; T.shoulderR = [-0.55, 0, -0.12]; T.elbowL = [-0.95, 0, 0]; T.elbowR = [-0.95, 0, 0];
+      return [hy - R.hips.y, hz - R.hips.z];
+    }
+    // braços: IK até o aro do volante (10h10, girando com a direção)
+    const qs = _q1.setFromEuler(_e1.set(T.spine[0], 0, 0)), qc = _q2.copy(qs).multiply(_q3.setFromEuler(_e1.set(T.chest[0], 0, 0)));
+    const chestPos = _v1.set(0, hy, hz).add(_v2.copy(R.spine).applyQuaternion(_q4.identity())).add(_v3.copy(R.chest).applyQuaternion(qs));
+    const tilt = cfg.wheelTilt, C = _v4.set(mx(cfg.wheel[0]), my(cfg.wheel[1]), mz(cfg.wheel[2]));
+    const up = _v5.set(0, Math.cos(tilt), -Math.sin(tilt)), rimR = 0.17 / s;
+    const toward = _v6.set(0, Math.sin(tilt), Math.cos(tilt)).multiplyScalar(-0.05 / s); // pulso um pouco antes do aro
+    for (const sd of ['L', 'R']) {
+      const sg = sd === 'L' ? 1 : -1;
+      const sh = _v7.copy(R['shoulder' + sd]).applyQuaternion(qc).add(chestPos);
+      const ph = (sd === 'L' ? 0.5 : Math.PI - 0.5) + st * 0.55;
+      const H = _v8.copy(C).addScaledVector(_X, Math.cos(ph) * rimR).addScaledVector(up, Math.sin(ph) * rimR).add(toward);
+      const la = -R.elbowL.y, lb = -R.handL.y + 0.04;
+      const d = _v9.subVectors(H, sh); let Ld = d.length(); const Lmax = (la + lb) * 0.99; if (Ld > Lmax) { H.copy(sh).addScaledVector(d.normalize(), Lmax); d.subVectors(H, sh); Ld = Lmax; }
+      const axis = d.clone().normalize();
+      const xa = (la * la - lb * lb + Ld * Ld) / (2 * Ld), ha = Math.sqrt(Math.max(0, la * la - xa * xa));
+      const pole = new THREE.Vector3(sg * 0.7, -0.75, 0).addScaledVector(axis, -new THREE.Vector3(sg * 0.7, -0.75, 0).dot(axis)).normalize();
+      const E = sh.clone().addScaledVector(axis, xa).addScaledVector(pole, ha);
+      const u = E.clone().sub(sh).normalize().applyQuaternion(_q4.copy(qc).invert());
+      const qSh = new THREE.Quaternion().setFromUnitVectors(_DOWN, u);
+      const f = H.clone().sub(E).normalize().applyQuaternion(_q4.copy(qc).multiply(qSh).invert());
+      const qEl = new THREE.Quaternion().setFromUnitVectors(_DOWN, f);
+      const e1 = new THREE.Euler().setFromQuaternion(qSh), e2 = new THREE.Euler().setFromQuaternion(qEl);
+      T['shoulder' + sd] = [e1.x, e1.y, e1.z]; T['elbow' + sd] = [e2.x, e2.y, e2.z]; T['hand' + sd] = [0.2, 0, sg * -0.3];
+    }
+    return [hy - R.hips.y, hz - R.hips.z];
   }
   land(strength) { this.landT = 0.25 * Math.min(1, strength); }
 }

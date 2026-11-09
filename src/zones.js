@@ -43,24 +43,46 @@ export class Zones {
     road(-152, -234, -152, -296);        // casa de Fernando
   }
   // ---------- FAVELA / ESCONDERIJO ----------
+  // interior simples de barraco (decoração com sorteio próprio para não mudar o resto do mapa)
+  shack(HO) {
+    const M = this.M, { r, w, d, y, GF } = HO; const P = (c) => paint(M.flatIn, c); const R = Math.random, pk = (a) => a[Math.floor(R() * a.length)];
+    r.add(plane(w, d, 2), P(pk([0x8a6a4a, 0x7a7a72, 0xa88a6a])), 0, y + 0.04, 0);
+    // colchão/cama no fundo, mesinha com cadeiras, fogão e geladeira, TV num caixote, prateleira e cortina
+    r.box(M.woodDark, -w / 2 + 1.0, y, -d / 2 + 1.0, 1.4, 0.3, 1.9, true, 1); r.box(P(pk([0xb03a3a, 0x3a5a9a, 0x4a8a5a, 0xd8c070])), -w / 2 + 1.0, y + 0.3, -d / 2 + 1.0, 1.35, 0.14, 1.85, false); r.box(P(0xf2f0e8), -w / 2 + 1.0, y + 0.44, -d / 2 + 0.3, 0.9, 0.1, 0.3, false);
+    r.box(M.wood, w / 2 - 1.0, y + 0.72, 0.2, 0.9, 0.05, 0.7, false, 1); r.box(M.woodDark, w / 2 - 1.0, y, 0.2, 0.08, 0.72, 0.08, false); r.collide(w / 2 - 1.0, y, 0.2, 0.9, 0.78, 0.7);
+    for (const s2 of [-0.55, 0.55]) { r.box(P(pk([0xd03a2a, 0x2a6ad0, 0xf2f2f2])), w / 2 - 1.0, y + 0.42, 0.2 + s2, 0.38, 0.04, 0.38, false); r.box(M.metalDark, w / 2 - 1.0, y, 0.2 + s2, 0.32, 0.42, 0.32, false); }
+    r.box(M.white, w / 2 - 0.45, y, -d / 2 + 0.45, 0.55, 0.85, 0.55, true, 1); r.box(M.metalDark, w / 2 - 0.45, y + 0.86, -d / 2 + 0.45, 0.5, 0.02, 0.5, false); // fogão
+    if (w > 4.2) { r.box(M.white, w / 2 - 1.15, y, -d / 2 + 0.4, 0.6, 1.55, 0.6, true, 1); r.box(M.metalLight, w / 2 - 0.86, y + 0.9, -d / 2 + 0.73, 0.02, 0.4, 0.04, false); }
+    r.box(M.wood, -w / 2 + 0.5, y, d / 2 - 1.2, 0.6, 0.5, 0.5, true, 1); r.box(P(0x111111), -w / 2 + 0.5, y + 0.5, d / 2 - 1.2, 0.5, 0.36, 0.3, false); r.add(box(0.42, 0.28, 0.01), paint(M.glowVC, 0x3a5a8a), -w / 2 + 0.5, y + 0.68, d / 2 - 1.04);
+    r.box(M.wood, 0, y + 1.6, -d / 2 + 0.15, Math.min(1.6, w - 1.5), 0.04, 0.25, false, 1); for (let k = 0; k < 4; k++) r.box(P(pk([0xd8a040, 0xc83a3a, 0x3a8ac8, 0xf2f2f2])), -0.5 + k * 0.32, y + 1.62, -d / 2 + 0.15, 0.12, 0.2, 0.12, false);
+    r.add(plane(1.4, 1.0, 1.4, 1.0), P(pk([0xa8402a, 0x2a6a8a, 0x8a6a2a])), 0, y + 0.05, d / 2 - 1.5);
+    r.add(new THREE.SphereGeometry(0.06, 6, 5), M.lamp, 0, y + GF - 0.25, 0);
+  }
   favela(B) {
     const M = this.M; const P = PLACES.favela;
     B.add(plane(P.w, P.d, 4), M.dirt, mat(P.x, CURB + 0.01, P.z));
     const colors = [0xc9a27a, 0xb5654a, 0x7a9ab0, 0xd8c08a, 0x9a7aa8, 0xb8b8a8, 0xa86a5a, 0x8aa87a];
     const F = this.F(0, 0, 0, B);
+    const favIB = new Batcher(), favRects = [];
     for (let i = 0; i < 40; i++) {
       const x = P.x + rr(-36, 36), z = P.z + rr(-26, 26);
       if (Math.abs(x - PLACES.hideout.x) < 12 && Math.abs(z - PLACES.hideout.z) < 10) continue;
       if (Math.abs(x) < 5 || Math.abs(z - 352) < 5) continue; // vielas
       const w = rr(3.5, 6), d = rr(3.5, 6), h = rr(2.6, 3.2) * (rand() < 0.3 ? 2 : 1);
       const c = pick(colors);
-      F.box(M.wall(c), x, CURB, z, w, h, d, true, 3, 3);
+      // barraco que dá para entrar: térreo oco com porta na frente (+z); interiores de todos num grupo só
+      const gf = Math.min(h, 2.9);
+      const over = favRects.some(([a, b, c2, d2]) => x + w / 2 > a && x - w / 2 < c2 && z + d / 2 > b && z - d / 2 < d2); // encostado em outro: fica fechado
+      if (over) F.box(M.wall(c), x, CURB, z, w, h, d, true, 3, 3);
+      else { const HO = this.city.hollow(F, x, z, w, d, h, M.wall(c), 'n', gf, { door: 0.95, doorX: 0, IB: favIB, tu: 3, tv: 3, doorH: 2.0, wallMat: paint(M.flatIn, c) }); this.shack(HO); }
+      favRects.push([x - w / 2 - 0.3, z - d / 2 - 0.3, x + w / 2 + 0.3, z + d / 2 + 0.3]);
       F.box(M.wall(0x7a7a78), x, CURB + h, z, w + 0.3, 0.15, d + 0.3, false);
-      F.box(M.woodDark, x, CURB, z + d / 2 + 0.02, 0.9, 2, 0.05, false, 1);
+      F.box(M.woodDark, x + 0.45, CURB, z + d / 2 + 0.4, 0.05, 2, 0.8, false, 1); // porta aberta
       F.box(M.winDark, x + w / 4, CURB + h - 1.4, z + d / 2 + 0.02, 0.8, 0.7, 0.05, false);
       F.ao(x, z, w, d, 1);
       if (rand() < 0.4) F.box(M.corr(0x5a7aa0), x, CURB + h + 0.15, z, 1.2, 1, 1.2, false, 2); // caixa d'água
     }
+    { const grp = new THREE.Group(); grp.name = 'interior'; favIB.flush(grp, { castShadow: false }); grp.visible = false; this.city.root.add(grp); this.city.interiors.push({ group: grp, x: P.x, z: P.z, r: 75 }); }
     // casa do esconderijo (interior visitável, porta voltada para +z)
     const H = PLACES.hideout, w = 9, d = 7, h = 3.2, t = 0.2;
     const f = this.F(H.x, H.z, 0, B);

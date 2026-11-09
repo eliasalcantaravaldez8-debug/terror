@@ -26,12 +26,12 @@ export const Z_NAMES = ['Rua Monroe', 'Av. Libertad', 'Rua das Palmeiras', 'Rua 
 
 // layout[k][j] (k = linha em z, j = coluna em x)
 export const LAYOUT = [
-  ['res', 'res', 'res', 'res', 'res', 'res'],
+  ['res', 'res', 'res', 'church', 'res', 'res'],
   ['res', 'park', 'mixed', 'gas', 'mixed', 'res'],
   ['res', 'shops', 'down', 'down', 'apart', 'res'],
   ['res', 'police', 'down', 'down', 'parking', 'res'],
   ['res', 'hospital', 'mixed', 'shops2', 'mall', 'res'],
-  ['res', 'res', 'res', 'res', 'res', 'res'],
+  ['res', 'res', 'school', 'res', 'res', 'res'],
 ];
 
 export function onRoadAxis(v) {
@@ -101,7 +101,7 @@ export class City {
     this.root = new THREE.Group(); this.root.name = 'LosValles';
     scene.add(this.root);
     this.parkedCars = []; this.npcs = []; this.trees = []; this.shopkeepers = []; this.landmarks = [];
-    this.pedLoops = []; this.lamps = []; this.interiors = []; this.grassRects = []; this.storeRooms = [];
+    this.pedLoops = []; this.lamps = []; this.interiors = []; this.grassRects = []; this.storeRooms = []; this.crowds = [];
     world.groundFn = groundHeight;
     this.M = mats();
     Batcher.soft.add(this.M.grass); Batcher.soft.add(this.M.ao);
@@ -215,7 +215,7 @@ export class City {
       shops: () => this.shopsBlock(F, ['Mercado Los Valles', 'Farmácia São Lucas', 'Lanchonete do Joe', 'Ferragens Ramírez']),
       shops2: () => this.shopsBlock(F, ['Loja de Roupas Vega', 'Padaria Aurora', 'Conveniência 24h', 'Eletrônicos Sombra']),
       police: () => this.policeBlock(F), gas: () => this.gasBlock(F), parking: () => this.parkingBlock(F),
-      apart: () => this.apartBlock(F), park: () => this.parkBlock(F), hospital: () => this.hospitalBlock(F), mall: () => this.mallBlock(F),
+      apart: () => this.apartBlock(F), park: () => this.parkBlock(F), hospital: () => this.hospitalBlock(F), mall: () => this.mallBlock(F), church: () => this.churchBlock(F), school: () => this.schoolBlock(F),
     };
     builders[type]();
     // calçada para pedestres
@@ -1267,25 +1267,28 @@ export class City {
   }
 
   // prédio com térreo visitável: andares de cima fechados, paredes com porta na face indicada ('s' = -z, 'n' = +z)
-  hollow(f, cx, cz, w, d, H, mat, face, GF = 4) {
-    const M = this.M, y = CURB, t = 0.3, door = 3;
-    f.box(mat, cx, y + GF, cz, w, H - GF, d, false, 24, 25.6); f.collide(cx, y + GF, cz, w, H - GF, d);
-    const wall = (x, z, ww, dd) => f.box(mat, x, y, z, ww, GF, dd, true, 24, 25.6);
+  // o: { door (largura), doorX (deslocamento da porta, em x do prédio), IB (grupo de interior compartilhado), tu/tv (escala da textura), doorH }
+  hollow(f, cx, cz, w, d, H, mat, face, GF = 4, o = {}) {
+    const M = this.M, y = CURB, t = 0.3, door = o.door || 3, dx = o.doorX || 0, dh = o.doorH || Math.min(3.2, GF - 0.3), tu = o.tu || 24, tv = o.tv || 25.6;
+    if (H > GF) { f.box(mat, cx, y + GF, cz, w, H - GF, d, false, tu, tv); f.collide(cx, y + GF, cz, w, H - GF, d); }
+    const wall = (x, z, ww, dd) => f.box(mat, x, y, z, ww, GF, dd, true, tu, tv);
     const fz = face === 's' ? cz - d / 2 + t / 2 : cz + d / 2 - t / 2, bz = face === 's' ? cz + d / 2 - t / 2 : cz - d / 2 + t / 2;
     wall(cx, bz, w, t); wall(cx - w / 2 + t / 2, cz, t, d); wall(cx + w / 2 - t / 2, cz, t, d);
-    const seg = (w - door) / 2; wall(cx - w / 2 + seg / 2, fz, seg, t); wall(cx + w / 2 - seg / 2, fz, seg, t);
-    f.box(mat, cx, y + 3.2, fz, door, GF - 3.2, t, false, 24, 25.6);
-    const IB = new Batcher(); const r = new Frame(...f.pt(cx, cz), f.ry + (face === 's' ? Math.PI : 0), IB, this.world);
+    const sL = (w / 2 + dx) - door / 2, sR = (w / 2 - dx) - door / 2; // paredes dos dois lados da porta
+    if (sL > 0.02) wall(cx - w / 2 + sL / 2, fz, sL, t); if (sR > 0.02) wall(cx + w / 2 - sR / 2, fz, sR, t);
+    f.box(mat, cx + dx, y + dh, fz, door, GF - dh, t, false, tu, tv);
+    const IB = o.IB || new Batcher(); const r = new Frame(...f.pt(cx, cz), f.ry + (face === 's' ? Math.PI : 0), IB, this.world);
     const iw = w - 0.7, id = d - 0.7;
     r.add(plane(iw, id, 2), M.interiorFloor, 0, y + 0.03, 0);
     r.add(plane(iw, id, 4), M.ceiling, 0, y + GF - 0.03, 0, 0, Math.PI);
     for (let i = 0; i < Math.floor(iw / 6); i++) r.add(box(0.4, 0.05, id * 0.7), M.ceilingLight, -iw / 2 + 3 + i * 6, y + GF - 0.06, 0);
     for (const sx of [-1, 1]) r.box(M.interior, sx * (iw / 2 - 0.01), y, 0, 0.02, GF - 0.1, id, false);
     r.box(M.interior, 0, y, -id / 2 + 0.01, iw, GF - 0.1, 0.02, false);
-    for (const sx of [-1, 1]) r.box(M.interior, sx * (iw / 4 + door / 4), y, id / 2 - 0.01, iw / 2 - door / 2, GF - 0.1, 0.02, false);
-    return { r, IB, w: iw, d: id, y, GF, cx, cz, f };
+    { const ddx = face === 's' ? -dx : dx; const lL = iw / 2 + ddx - door / 2, lR = iw / 2 - ddx - door / 2; // revestimento da parede da porta
+      if (lL > 0.02) r.box(o.wallMat || M.interior, -iw / 2 + lL / 2, y, id / 2 - 0.01, lL, GF - 0.1, 0.02, false); if (lR > 0.02) r.box(o.wallMat || M.interior, iw / 2 - lR / 2, y, id / 2 - 0.01, lR, GF - 0.1, 0.02, false); }
+    return { r, IB, w: iw, d: id, y, GF, cx, cz, f, doorX: face === 's' ? -dx : dx };
   }
-  closeHollow(HO) { const grp = new THREE.Group(); grp.name = 'interior'; HO.IB.flush(grp, { castShadow: false }); grp.visible = false; this.root.add(grp); const [x, z] = HO.f.pt(HO.cx, HO.cz); this.interiors.push({ group: grp, x, z }); }
+  closeHollow(HO, r = 40, at = null) { const grp = new THREE.Group(); grp.name = 'interior'; HO.IB.flush(grp, { castShadow: false }); grp.visible = false; this.root.add(grp); const [x, z] = at || HO.f.pt(HO.cx, HO.cz); this.interiors.push({ group: grp, x, z, r }); }
   hospitalInterior(HO) {
     const M = this.M, { r, w, d, y } = HO; const P = (c) => paint(M.flatIn, c);
     // recepção e espera (perto da porta, +z)
@@ -1327,8 +1330,8 @@ export class City {
     for (let k = 0; k < 5; k++) r.box(P(0x5a6a7a), -w / 2 + 0.5, y, -d / 2 + 1 + k * 0.62, 0.55, 1.9, 0.58, true, 1);
     // quadro de procurados
     r.box(M.woodDark, -w / 4, y + 1.2, -d / 2 + 0.05, 2.6, 1.4, 0.05, false); for (let k = 0; k < 4; k++) r.add(box(0.5, 0.6, 0.01, 0.5, 0.6), homeMat('photo'), -w / 4 - 0.9 + k * 0.6, y + 1.9, -d / 2 + 0.09);
-    const [ox, oz] = r.pt(0, d / 2 - 4.1); this.policeDesk = [ox, oz, r.ry + Math.PI];
-    this.closeHollow(HO);
+    const [ox, oz] = r.pt(0, d / 2 - 4.1); const desk = [ox, oz, r.ry + Math.PI]; if (!this.policeDesk) this.policeDesk = desk;
+    this.closeHollow(HO); return desk;
   }
   bench(f, lx, lz, ry) {
     const M = this.M;
@@ -1495,6 +1498,179 @@ export class City {
     this.mallCenter = [F.x, F.z + fz];
     const grp = new THREE.Group(); grp.name = 'interior'; IB.flush(grp, { castShadow: false }); grp.visible = false; this.root.add(grp);
     this.interiors.push({ group: grp, x: F.x, z: F.z + cz });
+  }
+
+  // IGREJA SÃO JOSÉ: nave com bancos, corredor com tapete, altar, vitrais, lustres, confessionário e torre do sino
+  churchBlock(F) {
+    const M = this.M, y = CURB; const P = (c) => paint(M.flatIn, c); const PO = (c) => paint(M.flat, c);
+    const inner = (BLOCK - SW * 2) / 2;
+    const f = new Frame(F.x, F.z, 0, F.B, this.world);
+    const w = 14, d = 28, H = 9.5, cx = -6, cz = -3, wallC = PO(0xe8e0d0), stone = PO(0xb8ae9c);
+    const HO = this.hollow(f, cx, cz, w, d, H, wallC, 'n', H);
+    // telhado de duas águas, frontão e beirais
+    const tri = new THREE.Shape(); tri.moveTo(-w / 2 - 0.5, 0); tri.lineTo(w / 2 + 0.5, 0); tri.lineTo(0, 4.2); tri.lineTo(-w / 2 - 0.5, 0);
+    const roofG = new THREE.ExtrudeGeometry(tri, { depth: d + 0.8, bevelEnabled: false }); roofG.translate(0, 0, -(d + 0.8) / 2);
+    f.add(roofG, PO(0x8a3a2a), cx, y + H, cz);
+    const gab = new THREE.ShapeGeometry(tri); f.add(gab, wallC, cx, y + H, cz + d / 2 + 0.41); f.add(gab.clone().rotateY(Math.PI), wallC, cx, y + H, cz - d / 2 - 0.41);
+    f.box(stone, cx, y, cz, w + 0.4, 0.6, d + 0.4, false); // soco de pedra
+    for (const s of [-1, 1]) for (let k = 0; k < 6; k++) f.box(stone, cx + s * (w / 2 + 0.15), y, cz - d / 2 + 2 + k * 4.8, 0.5, H, 0.6, false); // contrafortes
+    // vitrais por fora (coloridos) e rosácea no frontão
+    const glassCols = [0x2a4ab0, 0xb02a2a, 0xe0b020, 0x2a9a4a, 0x7a2ab0];
+    for (const s of [-1, 1]) for (let k = 0; k < 5; k++) { const wz = cz - d / 2 + 4.4 + k * 4.8; f.box(PO(0x2a2a2a), cx + s * (w / 2 + 0.02), y + 3, wz, 0.06, 4.2, 1.6, false);
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) f.box(PO(glassCols[(k + r + c) % 5]), cx + s * (w / 2 + 0.05), y + 3.15 + r * 1.35, wz - 0.38 + c * 0.76, 0.03, 1.25, 0.7, false); }
+    f.add(new THREE.CylinderGeometry(1.5, 1.5, 0.1, 24).rotateX(Math.PI / 2), PO(0x2a2a2a), cx, y + 7.3, cz + d / 2 + 0.05);
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; f.add(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 3).rotateX(Math.PI / 2).rotateZ(a), PO(glassCols[i % 5]), cx + Math.cos(a) * 0.85, y + 7.3 + Math.sin(a) * 0.85, cz + d / 2 + 0.1); }
+    f.add(new THREE.CylinderGeometry(0.45, 0.45, 0.07, 12).rotateX(Math.PI / 2), PO(0xe0b020), cx, y + 7.3, cz + d / 2 + 0.12);
+    // portal: arco, portas de madeira abertas e escadaria
+    f.box(stone, cx - 2.2, y, cz + d / 2 + 0.1, 0.6, 4.2, 0.5, false); f.box(stone, cx + 2.2, y, cz + d / 2 + 0.1, 0.6, 4.2, 0.5, false); f.box(stone, cx, y + 3.9, cz + d / 2 + 0.1, 5, 0.6, 0.5, false);
+    for (const s of [-1, 1]) f.box(M.woodDark, cx + s * 2.05, y, cz + d / 2 + 0.75, 0.1, 3.2, 1.4, false);
+    for (let k = 0; k < 3; k++) f.box(stone, cx, y, cz + d / 2 + 1.2 + k * 0.45, 6 - k * 0.0, 0.15 * (3 - k), 0.5, true, 1);
+    f.box(signMat('IGREJA SÃO JOSÉ', { bg: '#f2ead8', fg: '#5a3a1a', border: false, w: 512, h: 96 }), cx, y + 5.0, cz + d / 2 + 0.06, 5.5, 0.8, 0.06, false, 5.5, 0.8);
+    // torre do sino com campanário aberto, telhado em pirâmide e cruz
+    const tx = cx + w / 2 + 2.4, tz = cz + d / 2 - 2.5;
+    f.box(wallC, tx, y, tz, 4.2, 13, 4.2, true, 24, 25.6); f.box(stone, tx, y + 13, tz, 4.6, 0.4, 4.6, false);
+    for (const [ox, oz] of [[-1.85, -1.85], [1.85, -1.85], [-1.85, 1.85], [1.85, 1.85]]) f.box(wallC, tx + ox, y + 13.4, tz + oz, 0.5, 3, 0.5, false);
+    f.box(stone, tx, y + 16.4, tz, 4.6, 0.4, 4.6, false);
+    f.add(new THREE.SphereGeometry(0.7, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.6), PO(0xb08a30), tx, y + 15.6, tz); f.add(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 6), M.metalDark, tx, y + 16.0, tz);
+    f.add(new THREE.ConeGeometry(3.2, 4, 4).rotateY(Math.PI / 4), PO(0x8a3a2a), tx, y + 18.8, tz);
+    f.box(PO(0xd8c070), tx, y + 20.8, tz, 0.16, 1.8, 0.16, false); f.box(PO(0xd8c070), tx, y + 21.9, tz, 0.9, 0.16, 0.16, false);
+    f.box(PO(0xd8c070), cx, y + H + 4.2, cz + d / 2 + 0.2, 0.14, 1.4, 0.14, false); f.box(PO(0xd8c070), cx, y + H + 5.05, cz + d / 2 + 0.2, 0.7, 0.14, 0.14, false);
+    f.ao(cx, cz, w, d, 1.8);
+    // adro: piso de pedra, bancos, canteiros e estacionamento ao lado
+    f.add(plane(16, 12, 2), M.concrete, cx, y + 0.012, cz + d / 2 + 7);
+    for (const s of [-1, 1]) { this.bench(f, cx + s * 5, cz + d / 2 + 6, 0); this.trees.push([F.x + cx + s * 7.5, F.z + cz + d / 2 + 9, rr(0.8, 1.0)]); }
+    this.parkingLot(F, 17, 0, inner * 2 - 6, 18, Math.PI / 2);
+    for (let i = 0; i < 5; i++) this.trees.push([F.x + cx - w / 2 - 3, F.z - inner + 4 + i * 9, rr(0.8, 1.1)]);
+    const [ex, ez] = f.pt(cx, cz + d / 2 + 6); this.landmarks.push({ name: 'Igreja São José', x: ex, z: ez, kind: 'church' });
+
+    // ---- interior ----
+    const { r, w: iw, d: id } = HO;
+    r.add(plane(1.8, id - 6, 1.8, 3), PO(0x8a1a1a), 0, y + 0.04, 1.2); // tapete do corredor
+    // bancos (2 colunas x 10 fileiras) virados para o altar (-z)
+    const seats = [], pew = P(0x7a4a26);
+    for (let k = 0; k < 10; k++) for (const s of [-1, 1]) {
+      const pz = -id / 2 + 8 + k * 1.45, px = s * 3.6, L = 4.4;
+      r.box(pew, px, y + 0.42, pz, L, 0.07, 0.45, false, 1);
+      r.box(pew, px, y + 0.5, pz + 0.24, L, 0.5, 0.06, false, 1);
+      for (const e of [-1, 1]) r.box(pew, px + e * (L / 2 - 0.04), y, pz + 0.05, 0.07, 0.9, 0.6, false);
+      r.box(pew, px, y + 0.15, pz - 0.3, L, 0.06, 0.12, false); // genuflexório
+      r.collide(px, y, pz, L, 0.95, 0.65);
+      if ((k + (s > 0 ? 1 : 0)) % 3 === 0) seats.push(r.pt(px + (k % 2 ? 0.8 : -0.9), pz - 0.05));
+    }
+    // colunas e lustres
+    for (const s of [-1, 1]) for (let k = 0; k < 4; k++) { const cz2 = -id / 2 + 6 + k * 5.5; r.add(cyl(0.3, 0.34, H - 0.2, 12), PO(0xd8d0c0), s * (iw / 2 - 0.6), y + (H - 0.2) / 2, cz2); r.collide(s * (iw / 2 - 0.6), y, cz2, 0.7, H, 0.7); }
+    for (let k = 0; k < 3; k++) { const lz = -id / 2 + 7 + k * 6.5; r.add(cyl(0.015, 0.015, 2.5, 4), M.metalDark, 0, y + H - 1.3, lz); r.add(new THREE.TorusGeometry(0.75, 0.04, 6, 18).rotateX(Math.PI / 2), PO(0xb08a30), 0, y + H - 2.6, lz);
+      for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; r.add(new THREE.SphereGeometry(0.07, 6, 5), M.lamp, Math.cos(a) * 0.75, y + H - 2.5, lz + Math.sin(a) * 0.75); }
+      const [lx, lz2] = r.pt(0, lz); this.lamps.push([lx, y + H - 2.6, lz2]); }
+    // vitrais por dentro
+    for (const s of [-1, 1]) for (let k = 0; k < 5; k++) { const wz = -id / 2 + 4.1 + k * 4.8; r.box(PO(0x2a2a2a), s * (iw / 2 - 0.03), y + 3, wz, 0.04, 4.2, 1.6, false);
+      for (let rr2 = 0; rr2 < 3; rr2++) for (let c = 0; c < 2; c++) r.add(box(0.03, 1.25, 0.7), paint(M.glowVC, glassCols[(k + rr2 + c + 2) % 5]), s * (iw / 2 - 0.06), y + 3.78 + rr2 * 1.35, wz - 0.38 + c * 0.76); }
+    // presbitério: degraus, altar com toalha, cruz grande, castiçais, flores, ambão e cadeira do padre
+    const az = -id / 2;
+    r.box(PO(0xc8bca8), 0, y, az + 2.6, iw - 1.2, 0.45, 5.2, true, 1); r.box(PO(0xc8bca8), 0, y, az + 5.45, 6, 0.22, 0.5, true, 1);
+    r.box(PO(0x8a1a1a), 0, y + 0.451, az + 2.6, iw - 1.4, 0.005, 5, false);
+    r.box(PO(0xe8e0d0), 0, y + 0.45, az + 2.4, 2.6, 1.0, 1.1, true, 1); r.box(PO(0xffffff), 0, y + 1.45, az + 2.4, 2.8, 0.03, 1.2, false); r.box(PO(0xd8b040), 0, y + 1.0, az + 2.97, 2.62, 0.22, 0.01, false);
+    r.box(M.woodDark, 0, y + 2.2, az + 0.12, 0.35, 5.0, 0.2, false); r.box(M.woodDark, 0, y + 5.6, az + 0.12, 2.4, 0.35, 0.2, false);
+    r.box(PO(0xd8b040), 0, y + 7.6, az + 0.06, 3.0, 0.5, 0.05, false);
+    for (const s of [-1, 1]) { r.add(cyl(0.05, 0.08, 0.35, 8), PO(0xd8b040), s * 1.1, y + 1.65, az + 2.4); r.add(cyl(0.035, 0.035, 0.25, 8), PO(0xf8f4e8), s * 1.1, y + 1.95, az + 2.4); r.add(new THREE.SphereGeometry(0.03, 6, 5), M.lamp, s * 1.1, y + 2.1, az + 2.4);
+      r.add(cyl(0.25, 0.2, 0.5, 10), PO(0xd8d0c0), s * 3.4, y + 0.7, az + 1.2); r.add(new THREE.IcosahedronGeometry(0.42, 1), M.hedge, s * 3.4, y + 1.2, az + 1.2); for (let i = 0; i < 6; i++) r.add(new THREE.IcosahedronGeometry(0.08, 0), PO(pick([0xf2f2f2, 0xe83a6a, 0xf2d21a])), s * 3.4 + rr(-0.3, 0.3), y + 1.45 + rr(0, 0.2), az + 1.2 + rr(-0.3, 0.3)); }
+    r.box(M.woodDark, 3.0, y + 0.45, az + 4.4, 0.8, 1.2, 0.6, true, 1); r.box(M.woodDark, 3.0, y + 1.6, az + 4.25, 0.9, 0.06, 0.5, false, 1); // ambão
+    r.box(PO(0x6a1a1a), -3.2, y + 0.45, az + 1.0, 0.7, 0.5, 0.6, false); r.box(PO(0x6a1a1a), -3.2, y + 0.95, az + 0.7, 0.7, 1.1, 0.1, false);
+    // confessionário, pia de água benta e quadros da via-sacra
+    const cfz = id / 2 - 2.2; r.box(M.woodDark, -iw / 2 + 1.2, y, cfz, 1.8, 2.5, 1.4, true, 1); r.box(PO(0x5a1a1a), -iw / 2 + 1.2, y + 0.2, cfz + 0.71, 0.7, 2.0, 0.02, false); r.box(M.woodDark, -iw / 2 + 1.2, y + 2.5, cfz, 2.0, 0.15, 1.6, false);
+    for (const s of [-1, 1]) { r.add(cyl(0.12, 0.22, 1.0, 10), PO(0xd8d0c0), s * 2.6, y + 0.5, id / 2 - 1.2); r.add(cyl(0.3, 0.2, 0.15, 12), PO(0xd8d0c0), s * 2.6, y + 1.05, id / 2 - 1.2); r.add(cyl(0.26, 0.26, 0.02, 12), M.water, s * 2.6, y + 1.12, id / 2 - 1.2); }
+    for (const s of [-1, 1]) for (let k = 0; k < 4; k++) r.add(box(0.03, 0.6, 0.5, 0.5, 0.6), homeMat('art' + ((k + (s > 0 ? 4 : 0)) % 8)), s * (iw / 2 - 0.05), y + 2.0, -id / 2 + 6.8 + k * 4.8 + 2.4, s > 0 ? -Math.PI / 2 : Math.PI / 2);
+    this.closeHollow(HO);
+    // pessoas: padre no altar, fiéis sentados nos bancos (aparecem só de perto)
+    const [px2, pz2] = r.pt(0, az + 3.3);
+    this.crowds.push({ x: F.x + cx, z: F.z + cz, r: 42, hours: [6, 21], people: [
+      { kind: 'priest', x: px2, z: pz2, heading: r.ry, y: y + 0.45, name: 'Padre Anselmo', lines: ['Que a paz esteja com você, meu filho.', 'A missa é às sete da noite. Todos são bem-vindos.', 'Se precisar conversar, o confessionário fica ali no fundo.'] },
+      ...seats.slice(0, 9).map(([sx, sz]) => ({ kind: 'fiel', x: sx, z: sz, heading: r.ry + Math.PI, y, chair: true, name: 'Fiel', lines: ['(rezando em silêncio)', 'Shh... estamos na igreja.'] })),
+    ] });
+  }
+
+  // ESCOLA ESTADUAL LOS VALLES: corredor com armários, 3 salas de aula, quadra e parquinho
+  schoolBlock(F) {
+    const M = this.M, y = CURB; const P = (c) => paint(M.flatIn, c); const PO = (c) => paint(M.flat, c);
+    const inner = (BLOCK - SW * 2) / 2;
+    const f = new Frame(F.x, F.z, 0, F.B, this.world);
+    const w = 40, d = 16, H = 8, cz = -inner + d / 2 + 5;
+    const HO = this.hollow(f, 0, cz, w, d, H, M.facade.plaster, 's');
+    f.box(PO(0x2a5a9a), 0, y + 3.9, cz - d / 2 - 0.08, w + 0.2, 0.35, 0.2, false); // faixa azul
+    f.box(PO(0xf2f2f2), 0, y + H, cz, w + 0.5, 0.5, d + 0.5, false);
+    f.box(signMat('ESCOLA ESTADUAL LOS VALLES', { bg: '#2a5a9a', fg: '#ffffff', border: false, w: 1024, h: 128 }), 0, y + 5.0, cz - d / 2 - 0.1, 12, 1.1, 0.08, false, 12, 1.1);
+    f.box(PO(0xf2f2f2), 0, y + 3.3, cz - d / 2 - 2, 8, 0.3, 4, false); for (const s of [-1, 1]) f.box(M.metalLight, s * 3.8, y, cz - d / 2 - 3.8, 0.2, 3.3, 0.2, true);
+    // mastro com bandeira e bicicletário
+    f.add(cyl(0.05, 0.07, 8, 8), M.metalLight, -9, y + 4, cz - d / 2 - 3); f.box(PO(0x2a5a9a), -8.4, y + 7.0, cz - d / 2 - 3, 1.2, 0.8, 0.02, false);
+    for (let k = 0; k < 6; k++) f.box(M.metalLight, 8 + k * 0.7, y, cz - d / 2 - 2.5, 0.05, 0.7, 0.8, false);
+    f.ao(0, cz, w, d, 1.8);
+    // quadra poliesportiva atrás da escola
+    const qz = cz + d / 2 + 12, qw = 30, qd = 16;
+    f.add(plane(qw, qd, 4), PO(0x3a7a5a), 0, y + 0.03, qz);
+    const line = PO(0xf2f2f2);
+    for (const s of [-1, 1]) { f.add(plane(qw, 0.08, 1), line, 0, y + 0.04, qz + s * (qd / 2 - 0.1)); f.add(plane(0.08, qd, 1), line, s * (qw / 2 - 0.1), y + 0.04, qz); }
+    f.add(plane(0.08, qd, 1), line, 0, y + 0.04, qz); f.add(new THREE.RingGeometry(2.2, 2.3, 32).rotateX(-Math.PI / 2), line, 0, y + 0.041, qz);
+    for (const s of [-1, 1]) { // traves de futsal e tabelas de basquete
+      const gx = s * (qw / 2 - 0.3);
+      for (const e of [-1.5, 1.5]) f.box(PO(0xf2f2f2), gx, y, qz + e, 0.08, 2, 0.08, true); f.box(PO(0xf2f2f2), gx, y + 2, qz, 0.08, 0.08, 3.1, false);
+      f.box(PO(0xf2f2f2), gx + s * 0.6, y, qz, 0.12, 3.2, 0.12, true); f.box(PO(0xf2f2f2), gx, y + 3.0, qz, 0.05, 1.0, 1.6, false); f.add(new THREE.TorusGeometry(0.23, 0.02, 6, 14).rotateX(Math.PI / 2), PO(0xd06a1a), gx - s * 0.3, y + 3.05, qz);
+    }
+    // alambrado
+    { const fx0 = qw / 2 + 1, fz0 = qd / 2 + 1, rail = M.metalLight; // alambrado: postes, telas finas e corrimão (com abertura para entrar)
+      for (const sd of [-1, 1]) {
+        for (let x = -fx0; x <= fx0 + 0.01; x += 2.5) f.box(rail, x, y, qz + sd * fz0, 0.06, 3, 0.06, false);
+        for (let z = -fz0; z <= fz0 + 0.01; z += 2.5) f.box(rail, sd * fx0, y, qz + z, 0.06, 3, 0.06, false);
+        for (const hy of [0.1, 1.5, 2.95]) { f.box(rail, 0, y + hy, qz + sd * fz0, fx0 * 2, 0.04, 0.04, false); f.box(rail, sd * fx0, y + hy, qz, 0.04, 0.04, fz0 * 2, false); }
+        f.collide(sd * fx0, y, qz, 0.1, 3, fz0 * 2); }
+      f.collide(-fx0 / 2 - 1.5, y, qz - fz0, fx0 - 3, 3, 0.1); f.collide(fx0 / 2 + 1.5, y, qz - fz0, fx0 - 3, 3, 0.1); f.collide(0, y, qz + fz0, fx0 * 2, 3, 0.1); }
+    // parquinho: escorregador, balanços e gangorra
+    const px = -inner + 5, pz = cz + d / 2 + 4;
+    f.box(PO(0xd03a2a), px, y, pz, 1.2, 1.6, 1.2, true, 1); f.add(box(0.7, 0.05, 2.6), PO(0xf2c21a), px + 1.2, y + 0.85, pz, 0, 0, -0.55);
+    for (const s of [-1, 1]) f.add(cyl(0.05, 0.05, 2.6, 6), M.metalDark, px + 4, y + 1.3, pz + s * 1.5); f.add(cyl(0.05, 0.05, 3.2, 6).rotateX(Math.PI / 2), M.metalDark, px + 4, y + 2.6, pz);
+    for (const s of [-0.7, 0.7]) { f.box(PO(0x2a6ad0), px + 4, y + 0.5, pz + s, 0.4, 0.05, 0.3, false); }
+    this.trees.push([F.x + inner - 4, F.z + cz - d / 2 - 3, 1.0], [F.x - inner + 3, F.z + qz + 6, 0.9]);
+    const [ex, ez] = f.pt(0, cz - d / 2 - 5); this.landmarks.push({ name: 'Escola Estadual Los Valles', x: ex, z: ez, kind: 'school' });
+
+    // ---- interior: corredor junto à fachada (+z local = lado da porta) e 3 salas no fundo ----
+    const { r, w: iw, d: id } = HO;
+    const corZ = id / 2 - 3.2; // parede entre corredor e salas
+    const rooms = [-13, 0, 13], wallC = P(0xf0ead8);
+    for (let i = 0; i < 4; i++) { // divisórias entre as salas
+      const x = -iw / 2 + i * (iw / 3); if (i > 0 && i < 3) r.box(wallC, x, y, (corZ - id / 2) / 2, 0.15, 3.9, corZ + id / 2, true, 2);
+    }
+    for (const rx of rooms) { // parede do corredor com porta em cada sala
+      const doorX = rx + 4, seg1 = (doorX - 0.6) - (rx - iw / 6), seg2 = (rx + iw / 6) - (doorX + 0.6);
+      r.box(wallC, rx - iw / 6 + seg1 / 2, y, corZ, seg1, 3.9, 0.15, true, 2); r.box(wallC, doorX + 0.6 + seg2 / 2, y, corZ, seg2, 3.9, 0.15, true, 2);
+      r.box(wallC, doorX, y + 2.3, corZ, 1.2, 1.6, 0.15, false); r.box(M.woodDark, doorX + 0.62, y, corZ + 0.35, 0.05, 2.2, 0.7, false); // porta aberta
+      r.add(box(0.8, 0.22, 0.03, 0.8, 0.22), signMat('SALA ' + (rooms.indexOf(rx) + 1), { bg: '#2a5a9a', fg: '#fff', w: 256, h: 64 }), doorX, y + 2.55, corZ + 0.09);
+      // lousa, mesa do professor, carteiras em fileiras, relógio, cartazes e estante
+      const bz = -id / 2;
+      r.box(PO(0x3a2a1a), rx, y + 0.9, bz + 0.05, 5.2, 1.5, 0.06, false); r.box(PO(0x1f4a32), rx, y + 0.95, bz + 0.09, 5.0, 1.4, 0.02, false);
+      r.box(PO(0xe8e8e8), rx, y + 0.88, bz + 0.15, 5.0, 0.04, 0.1, false); r.add(box(1.2, 0.05, 0.01, 1.2, 0.05), PO(0xf2f2f2), rx - 1, y + 1.9, bz + 0.105);
+      r.add(cyl(0.18, 0.18, 0.03, 16).rotateX(Math.PI / 2), PO(0xf2f2f2), rx + 3.4, y + 3.0, bz + 0.07); r.add(box(0.02, 0.14, 0.01), PO(0x111111), rx + 3.4, y + 3.05, bz + 0.09);
+      r.box(M.wood, rx - 2.4, y + 0.74, bz + 1.6, 1.6, 0.06, 0.8, false, 1); r.box(M.woodDark, rx - 2.4, y, bz + 1.6, 1.5, 0.74, 0.7, true, 1); r.add(box(0.3, 0.06, 0.22, 0.3, 0.22), homeMat('books'), rx - 2.2, y + 0.8, bz + 1.6);
+      for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++) {
+        const dx = rx - 3.3 + col * 2.2, dz = bz + 3.3 + row * 1.55;
+        r.box(PO(0xc8a878), dx, y + 0.7, dz, 0.7, 0.04, 0.5, false); r.box(M.metalDark, dx, y, dz, 0.6, 0.7, 0.04, false);
+        r.box(PO(0x2a5a9a), dx, y + 0.42, dz + 0.45, 0.42, 0.04, 0.4, false); r.box(PO(0x2a5a9a), dx, y + 0.44, dz + 0.65, 0.42, 0.42, 0.04, false); r.box(M.metalDark, dx, y, dz + 0.45, 0.38, 0.42, 0.04, false);
+        r.collide(dx, y, dz + 0.2, 0.75, 0.75, 0.9);
+        if ((row + col) % 2 === 0 || row === 0) (this._school = this._school || []).push([...r.pt(dx, dz + 0.5), rx]);
+      }
+      for (let k = 0; k < 3; k++) r.add(box(0.03, 0.7, 0.5, 0.5, 0.7), homeMat('art' + ((k + rooms.indexOf(rx) * 3) % 8)), (k % 2 ? 1 : -1) * 0 + rx + (k - 1) * 3.6, y + 2.2, corZ - 0.09, Math.PI);
+      r.box(M.woodDark, rx + 5.4, y, bz + 1.2, 0.5, 1.8, 1.4, true, 1); r.add(box(0.3, 1.5, 1.2, 1.2, 1.5), homeMat('books'), rx + 5.15, y + 0.95, bz + 1.2, -Math.PI / 2);
+    }
+    // corredor: armários, mural, bebedouro e troféus
+    for (let k = 0; k < 14; k++) { const lx = -iw / 2 + 1 + k * 0.62; if (Math.abs(lx) < 2) continue; r.box(PO(k % 2 ? 0x2a6aa0 : 0x2a5a90), lx, y, id / 2 - 0.35, 0.58, 1.9, 0.5, true, 1); r.add(box(0.12, 0.02, 0.01), M.metalLight, lx + 0.15, y + 1.0, id / 2 - 0.6); }
+    for (let k = 0; k < 14; k++) { const lx = iw / 2 - 1 - k * 0.62; if (Math.abs(lx) < 2) continue; r.box(PO(k % 2 ? 0x2a6aa0 : 0x2a5a90), lx, y, id / 2 - 0.35, 0.58, 1.9, 0.5, true, 1); }
+    r.box(M.woodDark, -3.2, y + 1.3, corZ + 0.09, 2.4, 1.3, 0.04, false); for (let k = 0; k < 5; k++) r.add(box(0.4, 0.5, 0.01, 0.4, 0.5), homeMat('photo'), -4.1 + k * 0.45, y + 1.95, corZ + 0.12);
+    r.box(M.metalLight, 3.2, y, corZ + 0.3, 0.5, 1.0, 0.4, true, 1); r.box(M.glass, 3.2, y + 1.0, corZ + 0.3, 0.4, 0.4, 0.3, false);
+    this.closeHollow(HO);
+    // professores e alunos (dias de semana de dia; aparecem só de perto)
+    const people = [];
+    for (const rx of rooms) { const [tx, tz] = r.pt(rx - 1.0, -id / 2 + 2.4); people.push({ kind: 'teacher', x: tx, z: tz, heading: r.ry, y, name: 'Professor(a)', lines: ['Silêncio, turma! Página 42.', 'Se veio buscar alguém, a secretaria fica no corredor.', 'Amanhã tem prova, hein!'] }); }
+    for (const [sx, sz] of (this._school || []).slice(0, 18)) people.push({ kind: 'student', x: sx, z: sz, heading: r.ry + Math.PI, y, chair: true, name: 'Aluno(a)', lines: ['Que horas é o intervalo?', 'Psiu, a professora tá olhando.'] });
+    this._school = null;
+    this.crowds.push({ x: F.x, z: F.z + cz, r: 44, hours: [7, 17], people });
   }
 
   // ---------- ESTACIONAMENTO NA RUA ----------

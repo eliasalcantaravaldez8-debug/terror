@@ -22,12 +22,9 @@ function raceRoute() {
   return [[x0 - L, z0 + 20], [x0 - L, z1 - 12], [x0 + 12, z1 + L], [x1 - 12, z1 + L], [x1 + L, z1 - 12], [x1 + L, z0 + 12], [x1 - 12, z0 - L], [x0 + 12, z0 - L], [x0 - L, z0 + 12]];
 }
 
-export const SIDE_MISSIONS = [
-  {
-    id: 'corrida_bw', side: true, title: 'Corrida de Rua de Blackwood', hint: 'Praça de Blackwood. 2 voltas contra 3 corredores. Prêmio: R$ 1.500 (1º), R$ 600 (2º), R$ 250 (3º).',
-    requires: (C, G) => G.state.blackwood, start: (G) => G.blackwood.spots.raceStart,
-    stages: [{ name: 'corrida', async run(S, G) {
-      const route = raceRoute(); const laps = 2;
+// corrida de rua genérica: rota em volta de quarteirões, 3 rivais, checkpoints e prêmio pela colocação
+async function runRace(S, G, o) {
+      const route = o.route(); const laps = o.laps || 2;
       const [sx, sz] = route[0];
       // carro do jogador: usa o atual ou empresta um Coupé
       let car = G.car;
@@ -66,12 +63,32 @@ export const SIDE_MISSIONS = [
       } finally { G.scene.remove(mk); S.failChecks = null; }
       // colocação: rivais que já terminaram ou estão à frente
       for (const r of rivals) if (r.drv.done || r.drv.i > next + 0.5) place++;
-      const prize = [1500, 600, 250, 0][place - 1];
+      const prize = [...o.prizes, 0][place - 1];
       S.clearObjective();
       G.addMoney(prize);
       await S.card(place === 1 ? 'VOCÊ VENCEU!' : `${place}º LUGAR`, prize ? `Prêmio: R$ ${prize.toLocaleString('pt-BR')} · Tempo ${(S.t - t0).toFixed(1)} s` : `Tempo ${(S.t - t0).toFixed(1)} s`, 3);
-      G.phone.addPost({ user: 'bw_rachas', tag: 'RUMOR', text: `Racha de madrugada nas ruas de Blackwood. Dizem que ${place === 1 ? 'um desconhecido levou a melhor' : 'teve gente nova correndo'}.`, notify: false });
-    } }],
+      if (o.post) G.phone.addPost({ user: o.post[0], tag: 'RUMOR', text: o.post[1](place), notify: false });
+}
+
+// Los Valles: volta pelas avenidas de fora (cruzamentos 1 e 5 da grade)
+const LV_ROAD = (i) => (i - 3) * 76;
+function lvRaceRoute() {
+  const L = 1.75; const x0 = LV_ROAD(1), x1 = LV_ROAD(5), z0 = LV_ROAD(1), z1 = LV_ROAD(5);
+  return [[x0 - L, z0 + 20], [x0 - L, z1 - 12], [x0 + 12, z1 + L], [x1 - 12, z1 + L], [x1 + L, z1 - 12], [x1 + L, z0 + 12], [x1 - 12, z0 - L], [x0 + 12, z0 - L], [x0 - L, z0 + 12]];
+}
+// o racha de Los Valles aparece às vezes: só à noite (18h–3h) e uma vez por dia de jogo
+export function rachaOpen(C, G) { const h = G.state.hour ?? 12; return (h >= 18 || h < 3) && C.flags.rachaDay !== G.state.day; }
+
+export const SIDE_MISSIONS = [
+  {
+    id: 'corrida_bw', side: true, title: 'Corrida de Rua de Blackwood', hint: 'Praça de Blackwood. 2 voltas contra 3 corredores. Prêmio: R$ 1.500 (1º), R$ 600 (2º), R$ 250 (3º).',
+    requires: (C, G) => G.state.blackwood, start: (G) => G.blackwood.spots.raceStart,
+    stages: [{ name: 'corrida', run: (S, G) => runRace(S, G, { route: raceRoute, prizes: [1500, 600, 250], post: ['bw_rachas', (place) => `Racha de madrugada nas ruas de Blackwood. Dizem que ${place === 1 ? 'um desconhecido levou a melhor' : 'teve gente nova correndo'}.`] }) }],
+  },
+  {
+    id: 'racha_lv', side: true, title: 'Racha de Los Valles (só à noite)', hint: 'Aparece às vezes, à noite (18h–3h), uma vez por dia. Avenida oeste de Los Valles. 2 voltas pelas avenidas contra 3 corredores. Prêmio: R$ 2.000 (1º), R$ 1.000 (2º), R$ 500 (3º).',
+    requires: (C, G) => rachaOpen(C, G), start: () => { const r = lvRaceRoute(); return [r[0][0], r[0][1] - 2]; },
+    stages: [{ name: 'corrida', run: (S, G) => { const C = G.campaign(); C.flags.rachaDay = G.state.day; return runRace(S, G, { route: lvRaceRoute, prizes: [2000, 1000, 500], post: ['lv_rachas', (place) => `Racha nas avenidas de Los Valles ontem à noite. ${place === 1 ? 'Um carro desconhecido chegou na frente de todo mundo.' : 'A galera dos rachas comentou um piloto novo.'}`] }); } }],
   },
   {
     id: 'entregas', side: true, title: 'Trabalho: Entregas da Lanchonete do Joe', hint: 'Lanchonete do Joe (Los Valles). Leve 3 pedidos dentro do tempo. R$ 120 por entrega + gorjeta.',

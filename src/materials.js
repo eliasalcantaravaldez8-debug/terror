@@ -98,6 +98,7 @@ export function mats() {
   M.graffiti = lam({ map: GA.texture, transparent: true, alphaTest: 0.25, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }, { castShadow: false });
   M.graffitiRegions = GA.regions;
   M.flatIn = lam({ vertexColors: true, emissive: 0x2a2622 }); // tinta das paredes internas e móveis (levemente iluminados)
+  M.glowVC = new THREE.MeshBasicMaterial({ vertexColors: true }); M.glowVC.userData.castShadow = false; // vitrais, telas (cor por vértice, sem luz)
   const HA = homeAtlas();
   M.home = night(lam({ map: HA.texture, emissiveMap: HA.texture, emissive: 0xffffff, emissiveIntensity: 0.12 }), 0.12, 0.3);
   M.homeGlow = night(lam({ map: HA.texture, emissiveMap: HA.texture, emissive: 0xffffff, emissiveIntensity: 0.55 }, { castShadow: false }), 0.55, 0.8);

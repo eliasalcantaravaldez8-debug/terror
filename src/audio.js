@@ -72,6 +72,39 @@ export function sfx(ctx, name, dur = 1) {
     const len = name === 'crash' ? 1.1 : name === 'shot' ? 0.35 : 0.12;
     out.gain.setValueAtTime(name === 'punch' ? 0.25 : 0.5, t); out.gain.exponentialRampToValueAtTime(0.001, t + len);
     n.start(t); n.stop(t + len);
+  } else if (name === 'bark' || name === 'yelp') { // latido: 2 "au" (ruído filtrado + tom que cai); ganido: agudo e curto
+    const n2 = name === 'yelp' ? 1 : 2;
+    for (let i = 0; i < n2; i++) {
+      const t0 = t + i * 0.28; const o = osc('sawtooth', name === 'yelp' ? 900 : 420); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = name === 'yelp' ? 1400 : 700; f.Q.value = 1.2;
+      const gg = ctx.createGain(); o.connect(f); f.connect(gg); gg.connect(out);
+      o.frequency.setValueAtTime(name === 'yelp' ? 1100 : 480, t0); o.frequency.exponentialRampToValueAtTime(name === 'yelp' ? 700 : 260, t0 + 0.14);
+      gg.gain.setValueAtTime(0.0001, t0); gg.gain.exponentialRampToValueAtTime(name === 'yelp' ? 0.12 : 0.22, t0 + 0.015); gg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+      o.start(t0); o.stop(t0 + 0.18);
+    }
+    out.gain.value = 0.9;
+  } else if (name === 'meow') { // miado: vogal "mi-au" com vibrato
+    const o = osc('triangle', 520); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1100; f.Q.value = 2; o.connect(f); f.connect(out);
+    o.frequency.setValueAtTime(520, t); o.frequency.linearRampToValueAtTime(820, t + 0.18); o.frequency.linearRampToValueAtTime(560, t + 0.55);
+    const lfo = osc('sine', 7); const lg = ctx.createGain(); lg.gain.value = 18; lfo.connect(lg); lg.connect(o.frequency);
+    out.gain.setValueAtTime(0.0001, t); out.gain.linearRampToValueAtTime(0.16, t + 0.06); out.gain.linearRampToValueAtTime(0.0001, t + 0.6);
+    o.start(t); lfo.start(t); o.stop(t + 0.62); lfo.stop(t + 0.62);
+  } else if (name === 'hiss') {
+    const n = noise(0.5); const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 3000; n.connect(f); f.connect(out);
+    out.gain.setValueAtTime(0.12, t); out.gain.linearRampToValueAtTime(0, t + 0.45); n.start(t); n.stop(t + 0.5);
+  } else if (name === 'purr') { // ronronar: ruído grave pulsando ~25 Hz
+    const n = noise(dur); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 180; n.connect(f); const am = ctx.createGain(); f.connect(am); am.connect(out);
+    const lfo = osc('sine', 24); const lg = ctx.createGain(); lg.gain.value = 0.5; am.gain.value = 0.5; lfo.connect(lg); lg.connect(am.gain);
+    out.gain.setValueAtTime(0.0001, t); out.gain.linearRampToValueAtTime(0.35, t + 0.3); out.gain.linearRampToValueAtTime(0.0001, t + dur);
+    n.start(t); lfo.start(t); n.stop(t + dur); lfo.stop(t + dur);
+  } else if (name === 'explosion') { // estrondo grave + chiado longo
+    const n = noise(2.4); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(2200, t); f.frequency.exponentialRampToValueAtTime(180, t + 2.2); n.connect(f); f.connect(out);
+    const o = osc('sine', 70); const og = ctx.createGain(); o.connect(og); og.connect(ctx.destination); o.frequency.exponentialRampToValueAtTime(28, t + 1.2);
+    og.gain.setValueAtTime(0.9, t); og.gain.exponentialRampToValueAtTime(0.001, t + 1.3);
+    out.gain.setValueAtTime(0.95, t); out.gain.exponentialRampToValueAtTime(0.001, t + 2.3); n.start(t); n.stop(t + 2.3); o.start(t); o.stop(t + 1.3);
+  } else if (name === 'fire') { // estalos de fogo
+    const n = noise(dur); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 0.6; n.connect(f); f.connect(out);
+    out.gain.setValueAtTime(0.0, t); for (let i = 0; i < dur * 12; i++) out.gain.setValueAtTime(0.03 + Math.random() * 0.12, t + i / 12);
+    out.gain.linearRampToValueAtTime(0, t + dur); n.start(t); n.stop(t + dur);
   } else if (name === 'screech') {
     const o = osc('sawtooth', 1200); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2200; o.connect(f); f.connect(out);
     out.gain.setValueAtTime(0.04, t); out.gain.linearRampToValueAtTime(0, t + 0.9); o.frequency.linearRampToValueAtTime(900, t + 0.9); o.start(t); o.stop(t + 0.9);

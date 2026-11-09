@@ -105,3 +105,36 @@ export class FollowDriver {
     this.dist = st.dist;
   }
 }
+
+// PoliceDriver: perseguição que respeita as ruas. Longe do alvo segue os cruzamentos da grade (caminho em "L"),
+// perto (ou fora da grade da cidade) parte direto para cima do alvo.
+export class PoliceDriver {
+  constructor(car, getTarget, opts = {}) {
+    this.car = car; this.getTarget = getTarget; this.max = opts.speed || 24; this.grid = opts.grid;
+    this.chase = new ChaseDriver(car, getTarget, opts); this.rd = null; this.goal = null; car.driver = 'ai';
+  }
+  idx(v) { const g = this.grid; return clamp(Math.round(v / g.P + g.N / 2), 0, g.N); }
+  update(dt, ctx) {
+    const car = this.car, t = this.getTarget(), g = this.grid;
+    if (!t) { car.update(dt, { brake: 1 }, ctx.cars); return; }
+    const d = Math.hypot(t.x - car.x, t.z - car.z); this.dist = d;
+    const inGrid = g && Math.max(Math.abs(car.x), Math.abs(car.z), Math.abs(t.x), Math.abs(t.z)) < g.half;
+    if (!inGrid || d < 32) { this.rd = null; this.chase.update(dt, ctx); return; }
+    const pa = this.idx(t.x), pb = this.idx(t.z);
+    if (!this.rd || this.rd.done || !this.goal || this.goal[0] !== pa || this.goal[1] !== pb) {
+      // primeiro cruzamento: o mais próximo à frente do carro
+      const hx = Math.sin(car.heading), hz = Math.cos(car.heading);
+      let a = this.idx(car.x), b = this.idx(car.z);
+      const ahead = (g.roadC(a) - car.x) * hx + (g.roadC(b) - car.z) * hz;
+      if (ahead < -2) { if (Math.abs(hx) > Math.abs(hz)) a = clamp(a + Math.sign(hx), 0, g.N); else b = clamp(b + Math.sign(hz), 0, g.N); }
+      const route = [[g.roadC(a), g.roadC(b)]];
+      const xFirst = Math.abs(hx) > Math.abs(hz);
+      const stepA = () => { while (a !== pa) { a += Math.sign(pa - a); route.push([g.roadC(a), g.roadC(b)]); } };
+      const stepB = () => { while (b !== pb) { b += Math.sign(pb - b); route.push([g.roadC(a), g.roadC(b)]); } };
+      if (xFirst) { stepA(); stepB(); } else { stepB(); stepA(); }
+      route.push([t.x, t.z]);
+      this.rd = new RouteDriver(car, route, { speed: this.max, rubber: false }); this.goal = [pa, pb];
+    }
+    this.rd.update(dt, ctx);
+  }
+}

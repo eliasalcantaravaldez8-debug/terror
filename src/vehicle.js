@@ -18,7 +18,7 @@ export const CAR_TYPES = {
   luxo: { L: 5.15, W: 1.92, wheelBase: 3.1, wr: 0.36, belt: 0.98, roof: 1.47, ws: [1.25, 0.35], rw: [-1.2, -2.0], maxSpeed: 60, accel: 9, brake: 15, grip: 9.5, drift: 0.8, steer: 0.58, tank: 80, chrome: true, sound: 'v8', name: 'Imperial Luxo' },
   coupe: { L: 4.45, W: 1.9, wheelBase: 2.65, wr: 0.35, belt: 0.84, roof: 1.27, ws: [0.95, 0.05], rw: [-0.85, -1.85], maxSpeed: 68, accel: 11.5, brake: 16, grip: 10.8, drift: 1.2, steer: 0.6, tank: 60, twoDoor: true, sound: 'v8', name: 'Coupé GT Sombra' },
   classico: { L: 5.05, W: 1.95, wheelBase: 3.0, wr: 0.36, belt: 0.92, roof: 1.4, ws: [1.05, 0.3], rw: [-1.15, -1.75], maxSpeed: 42, accel: 6, brake: 9, grip: 7.2, drift: 1.3, steer: 0.55, tank: 70, chrome: true, fins: true, whitewall: true, sound: 'v8', name: 'Clássico 1965' },
-  besouro: { L: 4.08, W: 1.58, wheelBase: 2.4, wr: 0.33, belt: 0.86, roof: 1.5, ws: [0.78, 0.15], rw: [-0.95, -1.15], maxSpeed: 34, accel: 4.4, brake: 9.5, grip: 8.2, drift: 1.2, steer: 0.64, tank: 40, shape: 'besouro', chrome: true, sound: 'boxer', name: 'Besouro 1300 (clássico)' },
+  besouro: { L: 4.08, W: 1.58, wheelBase: 2.4, wr: 0.33, belt: 0.86, roof: 1.5, ws: [0.78, 0.15], rw: [-0.95, -1.15], maxSpeed: 34, accel: 4.4, brake: 9.5, grip: 8.2, drift: 1.2, steer: 0.64, tank: 40, shape: 'besouro', chrome: true, rearEngine: true, sound: 'boxer', name: 'Besouro 1300 (clássico)' },
   furia: { L: 4.65, W: 2.02, wheelBase: 2.72, wr: 0.36, belt: 0.78, roof: 1.12, ws: [0.75, -0.15], rw: [-0.95, -2.0], maxSpeed: 94, accel: 16, brake: 19, grip: 12.5, drift: 1.1, steer: 0.58, tank: 90, shape: 'wedge', spoiler: true, twoDoor: true, sound: 'v12', name: 'Fúria V12 (superesportivo)' },
   moto_esportiva: { L: 2.05, W: 0.75, wheelBase: 1.42, wr: 0.31, belt: 0.9, roof: 1.2, ws: [0.6, 0.3], rw: [-0.5, -0.8], maxSpeed: 75, accel: 15, brake: 15, grip: 10, drift: 1, steer: 0.5, tank: 18, moto: true, style: 'esportiva', sound: 'moto', name: 'Moto Esportiva Raio 1000' },
   moto_custom: { L: 2.35, W: 0.85, wheelBase: 1.65, wr: 0.33, belt: 0.8, roof: 1.2, ws: [0.6, 0.3], rw: [-0.5, -0.8], maxSpeed: 52, accel: 9, brake: 11, grip: 9, drift: 1, steer: 0.45, tank: 20, moto: true, style: 'custom', sound: 'v8', name: 'Moto Custom Estrada' },
@@ -56,8 +56,19 @@ export function defaultMods(type, color) {
   return { color, wheel: T.whitewall ? 'classica' : type === 'furia' ? 'esportiva' : 'padrao', spoiler: T.spoiler ? 'gt' : false, skirts: false, tint: 0, neon: null, xenon: false, engine: 0, brakes: 0, susp: 0, turbo: false, suspLevel: 1, chassis: 'padrao', engineType: null };
 }
 
-const bodyMat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 90, specular: 0x666666, envMap: envRT.texture, combine: THREE.MixOperation, reflectivity: 0.22 });
-const glassMat = new THREE.MeshPhongMaterial({ color: 0x1a2530, transparent: true, opacity: 0.5, shininess: 120, specular: 0xaaaaaa, depthWrite: false, envMap: envRT.texture, combine: THREE.MixOperation, reflectivity: 0.45 });
+const bodyMat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 90, specular: 0x666666, envMap: envRT.texture, combine: THREE.MixOperation, reflectivity: 0.42 });
+const glassMat = new THREE.MeshPhongMaterial({ color: 0x121a22, transparent: true, opacity: 0.58, shininess: 140, specular: 0xbbbbbb, depthWrite: false, envMap: envRT.texture, combine: THREE.MixOperation, reflectivity: 0.75 });
+// reflexo de Fresnel: de frente quase não reflete (dá para ver dentro), de lado reflete o céu forte (vidro e verniz de verdade)
+function fresnel(mat, base, edgeAlpha = 0) {
+  mat.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <envmap_fragment>', `
+      float fres = ${base.toFixed(2)} + ${(1 - base).toFixed(2)} * pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 3.0);
+      ` + THREE.ShaderChunk.envmap_fragment.replace(/reflectivity/g, '(reflectivity * fres)')
+      + (edgeAlpha ? `\n      diffuseColor.a = mix(diffuseColor.a, 1.0, fres * ${edgeAlpha.toFixed(2)});` : ''));
+  };
+  mat.customProgramCacheKey = () => 'fres' + base + edgeAlpha;
+}
+fresnel(glassMat, 0.12, 0.5); fresnel(bodyMat, 0.3);
 const wheelMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 const headMat = new THREE.MeshBasicMaterial({ color: 0xfff6d8 });
 const xenonMat = new THREE.MeshBasicMaterial({ color: 0xcfe4ff });
@@ -96,6 +107,21 @@ function wheelGeo(r, style = 'padrao', moto = false) {
   return g;
 }
 
+// tira a "tampa" de cima da carroceria numa faixa (cabine ou caçamba): assim dá para ver o interior pelas janelas
+function cutTop(g, z0, z1, yMin, xHalf) {
+  const pos = g.attributes.position, keep = [];
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i += 3) {
+    a.fromBufferAttribute(pos, i); b.fromBufferAttribute(pos, i + 1); c.fromBufferAttribute(pos, i + 2);
+    n.crossVectors(e1.subVectors(b, a), e2.subVectors(c, a)).normalize();
+    const cy = (a.y + b.y + c.y) / 3, cz = (a.z + b.z + c.z) / 3, cx = (a.x + b.x + c.x) / 3;
+    if (n.y > 0.45 && cy > yMin && cz > z0 && cz < z1 && Math.abs(cx) < xHalf) continue;
+    keep.push(i);
+  }
+  const out = new THREE.BufferGeometry();
+  for (const [name, attr] of Object.entries(g.attributes)) { const sz = attr.itemSize, arr = new attr.array.constructor(keep.length * 3 * sz); keep.forEach((v, k) => { for (let j = 0; j < 3 * sz; j++) arr[k * 3 * sz + j] = attr.array[v * sz + j]; }); out.setAttribute(name, new THREE.BufferAttribute(arr, sz)); }
+  return out;
+}
 function extrudeProfile(points, width, bevel = 0.05, segs = 2) {
   const sh = new THREE.Shape();
   sh.moveTo(points[0][0], points[0][1]);
@@ -154,7 +180,7 @@ function buildGeo(T, m, color) {
     const p = [[-hl + 0.1, bottom + 0.1], [-wb - ar, bottom], { arc: [-wb, wr, ar] }, [wb - ar, bottom], { arc: [wb, wr, ar] }, [hl - 0.1, bottom + 0.05],
       [hl, bottom + 0.22], [hl - 0.04, 0.6], [hl - 0.25, 0.76], [hl - 0.6, 0.84], [T.ws[0] + 0.1, belt],
       [T.rw[1] - 0.05, belt], [-hl + 0.55, 0.82], [-hl + 0.22, 0.68], [-hl + 0.05, 0.5]];
-    parts.push(nonIdx(shapeCar(extrudeProfile(p, Wb - 0.1, 0.1, 3), shp), color)); lowProfile = [p, Wb - 0.1];
+    parts.push(cutTop(nonIdx(shapeCar(extrudeProfile(p, Wb - 0.1, 0.1, 3), shp), color), T.rw[1] + 0.1, T.ws[0] - 0.03, belt - 0.15, (Wb - 0.1) / 2 - 0.1)); lowProfile = [p, Wb - 0.1];
     glass = shapeCar(extrudeProfile([[T.ws[0], belt - 0.01], [0.45, 1.28], [0.12, 1.44], [-0.45, 1.46], [-0.82, 1.3], [T.rw[1], belt - 0.01]], Wb - 0.24, 0), { ...shp, glass: true });
     parts.push(nonIdx(new THREE.SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), color, M(0, 1.3, -0.18, 0, 0, 0, Wb / 2 - 0.2, 0.2, 0.62)));
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.push(nonIdx(new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), color, M(sx * (Wb / 2 - 0.1), wr + 0.04, sz * wb, 0, 0, 0, 0.26, 0.44, 0.58)));
@@ -170,7 +196,11 @@ function buildGeo(T, m, color) {
       if (T.bed) p.push([T.rw[0] - 0.05, belt], [-hl + 0.02, belt], [-hl, bottom + 0.1]);
       else p.push([T.rw[1] - 0.05, belt], [-hl + 0.25, belt - 0.03], [-hl + 0.05, belt - 0.15], [-hl - 0.01, belt - 0.3], [-hl, bottom + 0.15]);
     }
-    parts.push(nonIdx(shapeCar(extrudeProfile(p, Wb, 0.1, 3), shp), color)); lowProfile = [p, Wb];
+    { let bodyG = nonIdx(shapeCar(extrudeProfile(p, Wb, 0.1, 3), shp), color);
+      const rear = T.shape === 'wedge' ? T.rw[1] + 0.25 : T.bed ? T.rw[0] + 0.02 : T.rw[1] + 0.08;
+      bodyG = cutTop(bodyG, rear, T.ws[0] - 0.03, T.shape === 'wedge' ? 0.6 : belt - 0.15, Wb / 2 - 0.1);
+      if (T.bed) bodyG = cutTop(bodyG, -hl + 0.12, T.rw[0] - 0.12, belt - 0.15, Wb / 2 - 0.1); // caçamba aberta
+      parts.push(bodyG); } lowProfile = [p, Wb];
     const gp = T.shape === 'wedge' ? [[T.ws[0], belt - 0.01], [T.ws[1], T.roof], [T.rw[0], T.roof - 0.02], [T.rw[1] + 0.2, 0.86]] : [[T.ws[0], belt - 0.01], [T.ws[1], T.roof], [T.rw[0], T.roof], [T.rw[1], belt - 0.01]];
     glass = shapeCar(extrudeProfile(gp, Wb - (T.shape === 'wedge' ? 0.42 : 0.16), 0.0), { ...shp, glass: true });
     // teto (acompanha o estreitamento da cabine) e colunas inclinadas
@@ -221,28 +251,48 @@ function buildGeo(T, m, color) {
     parts.push(nonIdx(new THREE.BoxGeometry(0.02, 0.085, 0.07), 0xa8b8c8, M(s * (sideX + 0.07), belt + 0.06, T.ws[0] - 0.205)));
     if (m.skirts) parts.push(nonIdx(new THREE.BoxGeometry(0.08, 0.12, wb * 2 - 0.85), darker, M(s * (sideX * 0.97 + 0.02), bottom + 0.02, 0)));
   }
-  // placas
-  parts.push(nonIdx(new THREE.BoxGeometry(0.5, 0.13, 0.02), 0xeeeeee, M(0, bottom + 0.3, -hl - 0.03)));
-  parts.push(nonIdx(new THREE.BoxGeometry(0.5, 0.13, 0.02), 0xeeeeee, M(0, bottom + 0.15, hl + 0.11)));
-  // interior: bancos com assento e encosto, painel com mostradores, console, tapete
-  const seatC = T.chrome || T.shape === 'wedge' ? 0x5a2a1e : 0x2a2a2e, dashC = 0x1e1e20;
-  for (const sx of [0.38, -0.38]) {
-    parts.push(nonIdx(new THREE.CapsuleGeometry(0.07, 0.36, 2, 8), seatC, M(sx, bottom + 0.12, -0.12, 0, 0, Math.PI / 2, 1, 1, 3.4)));
-    parts.push(nonIdx(new THREE.BoxGeometry(0.46, 0.6, 0.12), seatC, M(sx, bottom + 0.48, -0.42, -0.18, 0, 0)));
-    parts.push(nonIdx(new THREE.BoxGeometry(0.24, 0.17, 0.1), seatC, M(sx, bottom + 0.88, -0.5, -0.12, 0, 0)));
+  // placas (padrão Mercosul, com texto de verdade) e borrachas das janelas
+  parts.push(nonIdx(new THREE.BoxGeometry(0.52, 0.15, 0.02), 0x1a1a1a, M(0, bottom + 0.3, -hl - 0.03)));
+  parts.push(nonIdx(new THREE.BoxGeometry(0.52, 0.15, 0.02), 0x1a1a1a, M(0, bottom + 0.15, hl + 0.11)));
+  const plate = PLATES[(T.L * 100 + color) % PLATES.length | 0];
+  const signs = [signGeo(plate, PLATE_STYLE, 0.5, 0.13, M(0, bottom + 0.15, hl + 0.122)), signGeo(plate, PLATE_STYLE, 0.5, 0.13, M(0, bottom + 0.3, -hl - 0.042, 0, Math.PI, 0))];
+  if (T.shape !== 'wedge' && T.shape !== 'besouro') {
+    const gw = Wb - 0.16;
+    for (const sd of [-1, 1]) parts.push(nonIdx(new THREE.BoxGeometry(0.035, 0.03, T.ws[0] - T.rw[1] - 0.05), 0x0a0a0a, M(sd * (gw / 2 + 0.01), belt + 0.005, (T.ws[0] + T.rw[1]) / 2)));
+    parts.push(nonIdx(new THREE.BoxGeometry(gw - 0.05, 0.035, 0.16), 0x0e0e0e, M(0, belt - 0.005, T.ws[0] + 0.02))); // grade do para-brisa (cowl)
+    parts.push(nonIdx(new THREE.BoxGeometry(gw * (1 - shp.tumble) + 0.02, 0.025, 0.03), 0x0a0a0a, M(0, T.roof - 0.005, T.ws[1] + 0.01))); // borracha do topo do para-brisa
+  }
+  // interior: bancos ajustados ao motorista, painel completo, console, forros e tapetes
+  const seatC = T.chrome || T.shape === 'wedge' ? 0x5a2a1e : T.police ? 0x1e2430 : 0x2a2a2e, dashC = T.shape === 'wedge' ? 0x141414 : 0x1e1e20;
+  const steerPos = [0.38, belt + 0.05 + lift, T.ws[0] - 0.55];
+  const seatCfg = seatLayout({ x: 0.38, floor: bottom - 0.02 + lift, roof: T.roof + lift, steer: steerPos, ws0: T.ws[0] });
+  { // a carroceria inteira sobe com a suspensão depois: aqui as alturas vão sem o "lift"
+    const g = { ...seatCfg, floor: seatCfg.floor - lift, cushTop: seatCfg.cushTop - lift, hipY: seatCfg.hipY - lift, footY: seatCfg.footY - lift, wheel: [steerPos[0], steerPos[1] - lift, steerPos[2]] };
+    seatsGeo(parts, g, seatC, M);
+    dashGeo(parts, g, { W: Wb, belt, ws0: T.ws[0], roof: T.roof, dashC, accent: T.shape === 'wedge' ? 0xd06a1a : 0x2a6aaa, floor: g.floor }, M); }
+  { // paredes internas da cabine (por dentro da lataria aberta): laterais inteiras e fundo
+    const fl = seatCfg.floor - lift, rearZ = T.shape === 'wedge' ? T.rw[1] + 0.3 : T.bed ? T.rw[0] + 0.05 : T.rw[1] + 0.12, frontZ = T.ws[0] - 0.05;
+    const trimC = T.shape === 'wedge' ? 0x141414 : 0x26262a, topY = T.shape === 'wedge' ? 0.62 : belt - 0.02;
+    for (const sd of [-1, 1]) parts.push(nonIdx(new THREE.BoxGeometry(0.04, topY - fl, frontZ - rearZ), trimC, M(sd * (Wb / 2 - 0.08), (topY + fl) / 2, (frontZ + rearZ) / 2)));
+    parts.push(nonIdx(new THREE.BoxGeometry(Wb - 0.16, topY - fl, 0.04), trimC, M(0, (topY + fl) / 2, rearZ)));
+    parts.push(nonIdx(new THREE.BoxGeometry(Wb - 0.16, 0.03, frontZ - rearZ), 0x161616, M(0, fl - 0.015, (frontZ + rearZ) / 2)));
+    if (!T.bed && T.shape !== 'wedge') parts.push(nonIdx(new THREE.BoxGeometry(Wb - 0.2, 0.025, 0.4), 0x1a1a1a, M(0, belt - 0.03, rearZ + 0.2))); // tampão do porta-malas
+    if (T.bed) { // caçamba: assoalho com frisos e paredes internas
+      const bz0 = -hl + 0.12, bz1 = T.rw[0] - 0.12, by = bottom + 0.25;
+      parts.push(nonIdx(new THREE.BoxGeometry(Wb - 0.2, 0.03, bz1 - bz0), 0x222222, M(0, by, (bz0 + bz1) / 2)));
+      for (let i = -3; i <= 3; i++) parts.push(nonIdx(new THREE.BoxGeometry(0.04, 0.02, bz1 - bz0), 0x333333, M(i * (Wb - 0.3) / 7, by + 0.025, (bz0 + bz1) / 2)));
+      for (const sd of [-1, 1]) parts.push(nonIdx(new THREE.BoxGeometry(0.04, belt - by, bz1 - bz0), darker, M(sd * (Wb / 2 - 0.08), (belt + by) / 2, (bz0 + bz1) / 2)));
+      for (const zz of [bz0, bz1]) parts.push(nonIdx(new THREE.BoxGeometry(Wb - 0.16, belt - by, 0.04), darker, M(0, (belt + by) / 2, zz)));
+    }
   }
   if (!T.bed && !T.twoDoor && T.shape !== 'wedge' && T.rw[1] < -1.1) {
-    parts.push(nonIdx(new THREE.BoxGeometry(Wb - 0.35, 0.16, 0.5), seatC, M(0, bottom + 0.14, -1.0)));
-    parts.push(nonIdx(new THREE.BoxGeometry(Wb - 0.35, 0.55, 0.12), seatC, M(0, bottom + 0.45, -1.28, -0.15, 0, 0)));
+    const rz = Math.min(-0.95, seatCfg.hipZ - 1.0);
+    parts.push(nonIdx(new THREE.BoxGeometry(Wb - 0.35, 0.14, 0.5), seatC, M(0, seatCfg.cushTop - lift - 0.07, rz)));
+    parts.push(nonIdx(new THREE.BoxGeometry(Wb - 0.35, 0.58, 0.12), seatC, M(0, seatCfg.cushTop - lift + 0.27, rz - 0.28, -0.2, 0, 0)));
+    for (const k of [-0.42, 0, 0.42]) parts.push(nonIdx(new THREE.BoxGeometry(0.24, 0.15, 0.09), seatC, M(k, seatCfg.cushTop - lift + 0.62, rz - 0.36, -0.2, 0, 0)));
   }
-  parts.push(nonIdx(new THREE.BoxGeometry(Wb - 0.25, 0.22, 0.42), dashC, M(0, belt - 0.05, T.ws[0] - 0.28)));
-  parts.push(nonIdx(new THREE.BoxGeometry(0.32, 0.1, 0.02), T.shape === 'wedge' ? 0xd06a1a : 0x3a7aba, M(0.38, belt + 0.03, T.ws[0] - 0.495)));
-  parts.push(nonIdx(new THREE.BoxGeometry(0.22, 0.12, 0.02), 0x2a4a6a, M(0, belt - 0.02, T.ws[0] - 0.495)));
-  parts.push(nonIdx(new THREE.BoxGeometry(0.2, 0.3, 0.5), dashC, M(0, bottom + 0.35, 0.25)));
-  parts.push(nonIdx(new THREE.BoxGeometry(Wb - 0.15, 0.05, L * 0.6), 0x151515, M(0, bottom + 0.18, -0.1)));
   if (T.bed) {
     const bl = T.rw[0] + hl - 0.05;
-    parts.push(nonIdx(new THREE.BoxGeometry(Wb - 0.1, 0.05, bl), 0x222222, M(0, belt - 0.35, -hl + bl / 2 + 0.05)));
     for (const s of [-1, 1]) parts.push(nonIdx(new THREE.BoxGeometry(0.06, 0.08, bl), color, M(s * (Wb / 2 - 0.05), belt + 0.02, -hl + bl / 2 + 0.05)));
   }
   if (T.police) {
@@ -305,13 +355,92 @@ function buildGeo(T, m, color) {
   for (let i = 0; i < 4; i++) lp[i].applyMatrix4(up); if (roofLow) roofLow.applyMatrix4(up);
   const lod = mergeGeometries(lp);
   return { body, glass, head, tail, door, doorGlass, doorHole, doorHinge: [sideX + 0.005, lift, dz0], lod, wheelPos, lift, exhausts: exhausts.map(([x, y, z]) => [x, y + lift, z]),
-    seat: [0.38, bottom - 0.3 + lift, 0.0], steerPos: [0.38, belt + 0.05 + lift, T.ws[0] - 0.55] };
+    seat: [0.38, seatCfg.hipY - 0.56, seatCfg.hipZ], steerPos, seatCfg, signs: (() => { const g = mergeGeometries(signs); g.applyMatrix4(up); return g; })() };
 }
 // placa/letreiro (texto do atlas de placas) colado na lataria
+const PLATES = ['LVS-4A21', 'BRA-2E19', 'LVS-7K03', 'RIO-5B88', 'LVS-1C47', 'SPX-9D12', 'LVS-3F65', 'MGA-6H30', 'LVS-8J94', 'BWD-2L57', 'LVS-0M76', 'CXA-4N08'];
+const PLATE_STYLE = { bg: '#f4f4f4', fg: '#111111', border: false, w: 256, h: 64 };
 function signGeo(text, opts, w, h, mtx, mirror = false) {
   const r = signMat(text, opts).region; const g = new THREE.PlaneGeometry(w, h); const uv = g.attributes.uv;
   for (let i = 0; i < uv.count; i++) { const u = mirror ? 1 - uv.getX(i) : uv.getX(i); uv.setXY(i, r.u0 + (r.u1 - r.u0) * u, r.v0 + (r.v1 - r.v0) * uv.getY(i)); }
   g.applyMatrix4(mtx); return g;
+}
+// ---------- posição do motorista e interior ----------
+// calcula onde fica o quadril, a inclinação do encosto e os pedais para a cabeça não passar do teto
+// e os pés ficarem no assoalho (tudo em coordenadas locais do carro)
+export function seatLayout(o) {
+  const floor = o.floor, headRoom = o.roof - 0.1;
+  const cush = THREE.MathUtils.clamp((o.roof - floor - 0.9) * 0.5, 0.02, 0.32); // assento sobre o piso (esportivos: quase no chão)
+  const hipY = floor + cush + 0.09; // osso do quadril (centro da bacia)
+  // topo da cabeça = quadril + tronco (0,34 m) inclinado + pescoço/cabeça (0,57 m) que volta metade da inclinação
+  const top = (t) => hipY + 0.34 * Math.cos(t) + 0.57 * Math.cos(t * 0.5);
+  let recline = 0.14; while (recline < 1.15 && top(recline) > headRoom) recline += 0.02; // carros baixos: encosto mais deitado
+  const hipZ = o.steer[2] - 0.42 + 0.52 * Math.sin(recline);
+  const drop = hipY - 0.04 - (floor + 0.1);
+  const reach = Math.sqrt(Math.max(0.04, 0.8 * 0.8 - drop * drop));
+  const footZ = Math.min(hipZ + reach, o.ws0 - 0.12);
+  return { x: o.x, floor, cush, cushTop: hipY - 0.1, hipY, hipZ, recline, footY: floor + 0.1, footZ, wheel: o.steer.slice(), wheelTilt: 0.45 };
+}
+// bancos do motorista e do passageiro seguindo o layout (assento, encosto inclinado, apoio de cabeça, costura)
+function seatsGeo(parts, cfg, seatC, M) {
+  const stitch = new THREE.Color(seatC).multiplyScalar(1.6).getHex();
+  for (const sx of [cfg.x, -cfg.x]) {
+    const ct = cfg.cushTop, zc = cfg.hipZ - 0.02, th = cfg.recline;
+    parts.push(nonIdx(new THREE.BoxGeometry(0.5, 0.13, 0.52), seatC, M(sx, ct - 0.065, zc + 0.04)));
+    parts.push(nonIdx(new THREE.BoxGeometry(0.06, 0.08, 0.52), seatC, M(sx + 0.22, ct + 0.01, zc + 0.04))); // abas laterais
+    parts.push(nonIdx(new THREE.BoxGeometry(0.06, 0.08, 0.52), seatC, M(sx - 0.22, ct + 0.01, zc + 0.04)));
+    parts.push(nonIdx(new THREE.BoxGeometry(0.04, 0.005, 0.5), stitch, M(sx, ct + 0.002, zc + 0.04)));
+    // encosto: gira em torno da base, atrás das costas
+    const by = ct, bz = cfg.hipZ - 0.2, h = 0.66;
+    const cy = by + Math.cos(th) * h / 2, cz = bz - Math.sin(th) * h / 2;
+    parts.push(nonIdx(new THREE.BoxGeometry(0.5, h, 0.13), seatC, M(sx, cy, cz, -th, 0, 0)));
+    parts.push(nonIdx(new THREE.BoxGeometry(0.04, h * 0.9, 0.005), stitch, M(sx, cy + Math.sin(th) * 0.0, cz + Math.cos(th) * 0.068, -th, 0, 0)));
+    const hy = by + Math.cos(th) * (h + 0.1), hz = bz - Math.sin(th) * (h + 0.1);
+    parts.push(nonIdx(new THREE.BoxGeometry(0.26, 0.17, 0.1), seatC, M(sx, hy, hz, -th, 0, 0)));
+    for (const k of [-0.07, 0.07]) parts.push(nonIdx(new THREE.CylinderGeometry(0.01, 0.01, 0.08, 5), 0x8a8a8a, M(sx + k, by + Math.cos(th) * (h + 0.01), bz - Math.sin(th) * (h + 0.01), -th, 0, 0)));
+    // trilho do banco
+    parts.push(nonIdx(new THREE.BoxGeometry(0.4, Math.max(0.02, ct - 0.13 - cfg.floor), 0.4), 0x1a1a1a, M(sx, (ct - 0.13 + cfg.floor) / 2, zc + 0.04)));
+  }
+}
+// painel completo: mostradores, saídas de ar, rádio, console com câmbio e freio de mão, forros das portas, retrovisor e para-sóis
+function dashGeo(parts, cfg, o, M) {
+  const { W, belt, ws0, roof, dashC, accent, floor } = o; const w = cfg.wheel;
+  const dz = ws0 - 0.3;
+  parts.push(nonIdx(new THREE.BoxGeometry(W - 0.22, 0.24, 0.46), dashC, M(0, belt - 0.06, dz)));
+  parts.push(nonIdx(new THREE.BoxGeometry(W - 0.26, 0.04, 0.5), new THREE.Color(dashC).multiplyScalar(1.5).getHex(), M(0, belt + 0.07, dz - 0.02))); // topo do painel
+  // cluster com 2 mostradores atrás do volante
+  parts.push(nonIdx(new THREE.BoxGeometry(0.42, 0.14, 0.08), 0x0c0c0c, M(cfg.x, belt + 0.04, dz - 0.21)));
+  for (const k of [-0.1, 0.1]) { parts.push(nonIdx(new THREE.CylinderGeometry(0.055, 0.055, 0.01, 16), 0xe8e8e0, M(cfg.x + k, belt + 0.04, dz - 0.255, Math.PI / 2, 0, 0))); parts.push(nonIdx(new THREE.BoxGeometry(0.004, 0.045, 0.004), 0xd01010, M(cfg.x + k + 0.012, belt + 0.05, dz - 0.262, 0, 0, -0.7))); }
+  parts.push(nonIdx(new THREE.BoxGeometry(0.44, 0.03, 0.12), dashC, M(cfg.x, belt + 0.12, dz - 0.21))); // capuz do cluster
+  // saídas de ar
+  for (const vx of [-W / 2 + 0.25, -0.12, 0.12, W / 2 - 0.25]) { parts.push(nonIdx(new THREE.BoxGeometry(0.14, 0.06, 0.02), 0x0a0a0a, M(vx, belt + 0.0, dz - 0.235))); for (let i = 0; i < 3; i++) parts.push(nonIdx(new THREE.BoxGeometry(0.13, 0.006, 0.01), 0x3a3a3a, M(vx, belt - 0.02 + i * 0.02, dz - 0.247))); }
+  // rádio/tela no centro
+  parts.push(nonIdx(new THREE.BoxGeometry(0.24, 0.13, 0.02), 0x111111, M(0, belt - 0.1, dz - 0.235)));
+  parts.push(nonIdx(new THREE.BoxGeometry(0.19, 0.08, 0.005), accent, M(0, belt - 0.09, dz - 0.247)));
+  for (let i = 0; i < 4; i++) parts.push(nonIdx(new THREE.BoxGeometry(0.025, 0.012, 0.01), 0x8a8a8a, M(-0.075 + i * 0.05, belt - 0.15, dz - 0.247)));
+  // console central, câmbio e freio de mão
+  const cz0 = cfg.hipZ + 0.1, cz1 = dz - 0.2, cl = Math.max(0.3, cz1 - cz0);
+  parts.push(nonIdx(new THREE.BoxGeometry(0.22, Math.max(0.1, belt - 0.2 - floor), 0.3), dashC, M(0, (belt - 0.2 + floor) / 2, dz - 0.3)));
+  parts.push(nonIdx(new THREE.BoxGeometry(0.2, 0.16, cl), dashC, M(0, floor + 0.08, (cz0 + cz1) / 2)));
+  parts.push(nonIdx(new THREE.CylinderGeometry(0.012, 0.014, 0.16, 6), 0x2a2a2a, M(0, floor + 0.24, (cz0 + cz1) / 2 + 0.05, -0.15, 0, 0)));
+  parts.push(nonIdx(new THREE.SphereGeometry(0.03, 8, 6), 0x111111, M(0, floor + 0.33, (cz0 + cz1) / 2 + 0.06)));
+  parts.push(nonIdx(new THREE.BoxGeometry(0.035, 0.03, 0.2), 0x1a1a1a, M(0, floor + 0.19, cz0 + 0.05, -0.35, 0, 0)));
+  // assoalho e tapetes
+  parts.push(nonIdx(new THREE.BoxGeometry(W - 0.16, 0.03, Math.max(0.6, ws0 - cfg.hipZ + 1.2)), 0x161616, M(0, floor - 0.015, (ws0 + cfg.hipZ - 1.2) / 2 - 0.1)));
+  for (const sx of [cfg.x, -cfg.x]) parts.push(nonIdx(new THREE.BoxGeometry(0.42, 0.012, 0.5), 0x0c0c0c, M(sx, floor + 0.006, cfg.footZ - 0.15)));
+  // pedais
+  for (const [px, pz] of [[0.12, 0], [0.0, 0], [-0.1, 0.02]]) parts.push(nonIdx(new THREE.BoxGeometry(0.06, 0.09, 0.02), 0x2a2a2a, M(cfg.x + px - 0.02, cfg.footY + 0.02, cfg.footZ + 0.12 + pz, -0.5, 0, 0)));
+  // forros das portas (lado de dentro) com apoio de braço e alto-falante
+  for (const s of [-1, 1]) {
+    const dx = s * (W / 2 - 0.09);
+    parts.push(nonIdx(new THREE.BoxGeometry(0.05, belt - floor - 0.05, Math.max(0.8, ws0 - cfg.hipZ + 0.2)), dashC, M(dx, (belt + floor) / 2, (ws0 + cfg.hipZ) / 2 - 0.25)));
+    parts.push(nonIdx(new THREE.BoxGeometry(0.08, 0.05, 0.5), new THREE.Color(dashC).multiplyScalar(1.6).getHex(), M(dx - s * 0.03, belt - 0.2, cfg.hipZ + 0.1)));
+    parts.push(nonIdx(new THREE.CylinderGeometry(0.07, 0.07, 0.01, 12), 0x0a0a0a, M(dx - s * 0.03, floor + 0.2, cfg.hipZ + 0.45, 0, 0, Math.PI / 2)));
+  }
+  // retrovisor interno e para-sóis
+  parts.push(nonIdx(new THREE.BoxGeometry(0.24, 0.07, 0.03), 0x111111, M(0, roof - 0.13, ws0 - 0.62)));
+  parts.push(nonIdx(new THREE.BoxGeometry(0.22, 0.055, 0.005), 0xa8b8c8, M(0, roof - 0.13, ws0 - 0.637)));
+  for (const s of [-1, 1]) parts.push(nonIdx(new THREE.BoxGeometry(0.38, 0.02, 0.17), 0xb0a898, M(s * 0.38, roof - 0.06, ws0 - 0.7)));
 }
 // ---------- ambulância (furgão) e caminhão de bombeiros ----------
 function buildService(T, m, color) {
@@ -353,8 +482,10 @@ function buildService(T, m, color) {
     signs.push(signGeo('SAMU 192', { bg: '#ffffff', fg: '#d01818', border: false, w: 512, h: 96 }, 1.0, 0.25, M(-0.4, 2.2, -hl - 0.02, 0, Math.PI, 0)));
   }
   // interior simples (bancos e painel visíveis pelo para-brisa)
-  for (const sx of [0.42, -0.42]) { P.push(nonIdx(new THREE.BoxGeometry(0.5, 0.15, 0.5), 0x2a2a2e, M(sx, bottom + 0.35, cabBack + 0.5))); P.push(nonIdx(new THREE.BoxGeometry(0.5, 0.65, 0.12), 0x2a2a2e, M(sx, bottom + 0.75, cabBack + 0.25, -0.15, 0, 0))); }
-  P.push(nonIdx(new THREE.BoxGeometry(W - 0.3, 0.25, 0.4), 0x1e1e20, M(0, belt + 0.05, T.ws[0] - 0.35)));
+  const steerPos = [0.42, belt + 0.15, T.ws[0] - 0.6];
+  const seatCfg = seatLayout({ x: 0.42, floor: bottom + 0.3, roof: cabTop, steer: steerPos, ws0: T.ws[0] });
+  seatsGeo(P, seatCfg, 0x2a2a2e, M);
+  dashGeo(P, seatCfg, { W, belt: belt + 0.1, ws0: T.ws[0], roof: cabTop, dashC: 0x1e1e20, accent: 0x2a6aaa, floor: seatCfg.floor }, M);
   const exhausts = [[W * 0.3, bottom + 0.05, -hl - 0.05]];
   P.push(nonIdx(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 10), 0xbfc2c6, M(W * 0.3, bottom + 0.05, -hl + 0.05, Math.PI / 2, 0, 0)));
   const body = mergeGeometries(P);
@@ -375,7 +506,7 @@ function buildService(T, m, color) {
   const lp = [lowBody, nonIdx(head.clone(), 0xfff0c0), nonIdx(glass.clone(), 0x1c2630), nonIdx(tail.clone(), 0x7a1010)];
   for (const w of wheelPos) lp.push(wLow.clone().applyMatrix4(new THREE.Matrix4().makeTranslation(w.x, wr, w.z)));
   return { body, glass, head, tail, door: null, lod: mergeGeometries(lp), wheelPos, lift: 0, exhausts, signs: signs.length ? mergeGeometries(signs) : null,
-    seat: [0.42, bottom - 0.05, cabBack + 0.45], steerPos: [0.42, belt + 0.15, T.ws[0] - 0.6] };
+    seat: [0.42, seatCfg.hipY - 0.56, seatCfg.hipZ], steerPos, seatCfg };
 }
 // ---------- motos ----------
 function buildMoto(T, m, color) {
@@ -451,6 +582,17 @@ export class Vehicle {
     this.engineOn = false;
     this.tank = T.tank || 50;
     this.fuel = 0.35 + Math.random() * 0.65; this.health = 1;
+    this.wreck = 0; // 0 inteiro, 1 quebrado (fumaça), 2 pegando fogo, 3 queimado
+  }
+  // ponto do motor (de onde sai a fumaça/fogo), em coordenadas locais
+  get enginePos() { const T = this.T; return T.moto ? [0, 0.55, 0.1] : T.rearEngine ? [0, T.roof * 0.6, -T.L / 2 + 0.6] : [0, Math.max(0.75, T.roof * 0.62), T.L / 2 - 0.75]; }
+  // depois da explosão: tudo preto/queimado (só esta instância), sem luzes
+  char() {
+    if (!Vehicle.charMat) { Vehicle.charMat = new THREE.MeshLambertMaterial({ color: 0x1b1916 }); Vehicle.charGlass = new THREE.MeshLambertMaterial({ color: 0x0a0a0a, transparent: true, opacity: 0.35 }); }
+    const all = new Set([...this.built, ...(this.detail || []), ...(this.detailParts || [])]); all.add(this.group);
+    for (const o of all) o.traverse((m) => { if (m.isMesh) m.material = Array.isArray(m.material) ? m.material.map((x) => (x.transparent ? Vehicle.charGlass : Vehicle.charMat)) : (m.material && m.material.transparent ? Vehicle.charGlass : Vehicle.charMat); if (m.isLight) m.visible = false; });
+    if (this.lodMesh) this.lodMesh.material = Vehicle.charMat;
+    this.charred = true;
   }
   // som do motor: o escolhido na oficina (ou o do modelo)
   get soundProfile() { return ENGINES[this.mods.engineType]?.sound || this.T.sound; }
@@ -493,7 +635,7 @@ export class Vehicle {
       this.sirenL.position.set(0.3, T.roof + 0.1, z); this.sirenR.position.set(-0.3, T.roof + 0.1, z);
       if (svc) this.sirenL.scale.set(1.4, 1, 1), this.sirenR.scale.set(1.4, 1, 1);
     }
-    if (C.signs) this._add(this.body, new THREE.Mesh(C.signs, mats().sign));
+    if (C.signs) { this.signMesh = this._add(this.body, new THREE.Mesh(C.signs, mats().sign)); this.signMesh.castShadow = false; }
     if (m.neon != null) {
       const nm = new THREE.MeshBasicMaterial({ color: m.neon, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
       const neon = this._add(this.group, new THREE.Mesh(new THREE.PlaneGeometry(T.W + 0.8, T.L + 0.4).rotateX(-Math.PI / 2), nm));
@@ -526,12 +668,12 @@ export class Vehicle {
     }
     this.lodMesh = this._add(this.group, new THREE.Mesh(C.lod, bodyMat));
     this.lodMesh.visible = false;
-    this.detail = [bodyMesh, this.tail, this.steeringWheel, head, ...this.wheels.map((w) => w.pivot)];
+    this.detail = [bodyMesh, this.tail, this.steeringWheel, head, ...this.wheels.map((w) => w.pivot), ...(this.signMesh ? [this.signMesh] : [])];
     if (this.sirenL) this.detail.push(this.sirenL, this.sirenR);
     this.glassMesh = glassMesh;
     this.exhausts = C.exhausts;
     this.lod = false;
-    this.seat = new THREE.Vector3(...C.seat);
+    this.seat = new THREE.Vector3(...C.seat); this.seatCfg = C.seatCfg || null;
     this.detailParts = [glassMesh, ...(this.door ? [this.door, this.doorHole] : [])];
     // matrizes só são recalculadas quando o carro se move (muito menos trabalho por quadro)
     this.group.traverse((o) => { if (o.isHumanoidRoot) return; o.matrixAutoUpdate = false; o.updateMatrix(); });
@@ -619,7 +761,7 @@ export class Vehicle {
   update(dt, input, others) {
     const T = this.T; const st = this.stats;
     const inp = input || { throttle: 0, brake: 0, steer: 0, handbrake: 0 };
-    const fwd = this.speed; const hb = inp.handbrake > 0;
+    const fwd = this.speed; const hb = inp.handbrake > 0 || this.wreck === 3;
     // motor / freio
     let acc = 0;
     let thr = inp.throttle || 0;
@@ -627,8 +769,11 @@ export class Vehicle {
       this.fuel = Math.max(0, this.fuel - Math.abs(this.speed) * dt / (9000 * this.tank / 55));
       if (this.fuel <= 0) thr = Math.min(thr, 0.12);
     }
+    // carro quebrado: anda devagar e falhando; pegando fogo/queimado: não anda mais
+    if (this.wreck >= 2) thr = 0;
+    else if (this.wreck === 1) thr *= Math.sin(performance.now() * 0.004) > -0.3 ? 0.5 : 0.05;
     const hp = 0.45 + 0.55 * this.health;
-    const vmax = st.maxSpeed * hp;
+    const vmax = this.wreck === 1 ? Math.min(7, st.maxSpeed * 0.3) : st.maxSpeed * hp;
     if (thr > 0) {
       if (fwd < -0.5) acc = st.brake * thr;
       else acc = st.accel * hp * thr * (1 - Math.min(1, Math.max(0, fwd) / vmax) ** 2);
@@ -699,7 +844,7 @@ export class Vehicle {
       // perde velocidade proporcional ao ângulo do impacto
       this.speed *= 1 - Math.min(0.85, Math.abs(head) * 0.9 + 0.05);
       if (Math.abs(head) > 0.6 && impact > 2) this.speed = -Math.sign(this.speed || 1) * impact * 0.15;
-      this.lastHit = impact;
+      this.lastHit = impact; this.hitCar = null;
       // transfere impulso a outros carros próximos
       if (others) for (const o of others) {
         if (o === this) continue;
@@ -707,10 +852,10 @@ export class Vehicle {
         const d = Math.hypot(dx, dz);
         if (d < (T.L + o.T.L) / 2 + 0.3 && d > 0.01) {
           o.pushVx += (dx / d) * impact * 0.4; o.pushVz += (dz / d) * impact * 0.4;
-          o.awake = true;
+          o.awake = true; this.hitCar = o;
         }
       }
-    } else this.lastHit = 0;
+    } else { this.lastHit = 0; this.hitCar = null; }
   }
 
   syncTransform(dt) {

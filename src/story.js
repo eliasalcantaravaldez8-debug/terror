@@ -213,11 +213,14 @@ export class Story {
   }
   unfollow(npc) { this.followers = this.followers.filter((f) => f !== npc); if (npc.inCar) this.unseat(npc); npc.behavior = 'stand'; }
   seat(npc, car, i) {
-    const seats = [[-0.38, -0.1], [0.4, -1.05], [-0.4, -1.05]];
-    const s = i === -1 ? [0.38, -0.1] : seats[i]; if (!s) { npc.model.root.visible = false; npc.inCar = car; npc.collidable = false; return; }
+    const c = car.seatCfg, fx = c ? c.x : 0.38, fz = car.seat.z, rz = c ? Math.min(-0.95, c.hipZ - 1.0) - 0.05 : -1.05;
+    const seats = [[-fx, fz, false], [0.4, rz, true], [-0.4, rz, true]];
+    const s = i === -1 ? [fx, fz, false] : seats[i]; if (!s) { npc.model.root.visible = false; npc.inCar = car; npc.collidable = false; return; }
     this.G.scene.remove(npc.model.root); car.body.add(npc.model.root);
     npc.model.root.position.set(s[0], car.seat.y, s[1]); npc.model.root.rotation.set(0, 0, 0);
-    npc.model.update(0.5, { mode: 'sit' }); npc.inCar = car; npc.collidable = false;
+    // banco de trás: mesmo assento, mais para trás e com as pernas mais curtas
+    const cfg = c && (s[2] ? { ...c, hipZ: s[1], footZ: s[1] + 0.62, wheel: null } : { ...c, hipZ: s[1] });
+    for (let k = 0; k < 6; k++) npc.model.update(0.5, { mode: 'sit', cfg, passenger: i !== -1 }); npc.inCar = car; npc.collidable = false;
   }
   unseat(npc) {
     const car = npc.inCar; if (!car) return;

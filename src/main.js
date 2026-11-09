@@ -13,8 +13,8 @@ import { Story } from './story.js';
 import { Phone, VIBE } from './phone.js';
 import { ETHAN_MISSIONS } from './missions_ethan.js';
 import { RYAN_MISSIONS } from './missions_ryan.js';
-import { SIDE_MISSIONS } from './missions_side.js';
-import { ChaseDriver, RouteDriver } from './drivers.js';
+import { SIDE_MISSIONS, rachaOpen } from './missions_side.js';
+import { ChaseDriver, RouteDriver, PoliceDriver } from './drivers.js';
 import { Humanoid } from './humanoid.js';
 import { sfx } from './audio.js';
 import * as SAVE from './save.js';
@@ -33,6 +33,9 @@ import { CHARACTERS, randomPedestrian, shopkeeperLook, policeLook, SHOP_LINES, P
 import { TrafficLights, spawnTraffic } from './traffic.js';
 import { Sky, TIMES } from './sky.js';
 import { EngineAudio } from './audio.js';
+import { Fx } from './fx.js';
+import { Pet, BREEDS, DOG_NAMES, CAT_NAMES, warmBreeds, breedReady } from './animals.js';
+import { mats as _mats } from './materials.js';
 import { rand, pick, setSeed, rr, glowTex, blobTex } from './textures.js';
 
 // ---------------- CONFIGURAÇÕES ----------------
@@ -80,7 +83,7 @@ window.addEventListener('resize', () => {
 });
 
 const G = {}; // estado global do jogo (exposto para testes em window.game)
-window.game = G;
+window.game = G; G.THREE = THREE; G.mats = () => _mats();
 G.freeWeapons = settings.freeWeapons;
 
 function build() {
@@ -171,6 +174,7 @@ function build() {
   blobs.frustumCulled = false; blobs.renderOrder = 1; scene.add(blobs);
   // Ultra: filtragem anisotrópica máxima (texturas nítidas no chão e nas paredes vistas de lado)
   if (Q.ultra) { const maxA = renderer.capabilities.getMaxAnisotropy(); const seen = new Set(); scene.traverse((o) => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) for (const k of ['map', 'normalMap', 'emissiveMap']) { const t = m[k]; if (t && !seen.has(t)) { seen.add(t); t.anisotropy = maxA; t.needsUpdate = true; } } }); }
+  fx = new Fx(scene); G.fx = fx;
   Object.assign(G, { plane, grass, blackwood, world, sky, city, zones, cars, drivers, player, npcs, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera, lampLights, glow, blobs });
   G.aiDrivers = []; G.police = [];
   G.audio = new EngineAudio();
@@ -561,6 +565,7 @@ function nearestCar() {
 }
 function enterCar(car) {
   if (G.carsLocked) { toast('Agora não dá para pegar um carro'); return; }
+  if (car.wreck >= 2) { toast(car.wreck === 3 ? 'Este carro está destruído' : 'Está pegando fogo!'); return; }
   if (car.driver === 'ai' || G.police.some((u) => u.car === car)) { toast('Este carro está ocupado'); return; }
   if (!car.owner && car.parked && G.state[G.state.char] && !G.mission) witnessCrime(0.35, 'roubo');
   enterCarDirect(car);
@@ -691,38 +696,55 @@ function witnessCrime(level, kind, victim) {
     if (before === 0) G.vibe('procurado');
   }
 }
+const POLICE_GRID = { N, P: 76, roadC, half: HALF - 2 };
 function updatePolice(dt) {
   const P = G.player; const target = () => G.car || P;
   const want = W.stars ? Math.min(6, W.stars + 1) : 0;
   // gera viaturas longe do jogador
   if (G.police.length < want && Math.random() < dt * 0.8) {
-    const a = Math.random() * Math.PI * 2; const r = 85;
-    let x = P.x + Math.sin(a) * r, z = P.z + Math.cos(a) * r;
-    const snap = (v) => roadC(Math.max(0, Math.min(N, Math.round(v / P_ + N / 2))));
-    const P_ = 76; x = Math.abs(x) < HALF ? snap(x) + 1.75 : x; 
+    // nasce num cruzamento a 90–150 m (dentro de Los Valles) ou na estrada, longe da vista
+    let x, z, ok = false;
+    if (Math.max(Math.abs(P.x), Math.abs(P.z)) < HALF) {
+      for (let k = 0; k < 30 && !ok; k++) { const a = Math.floor(Math.random() * (N + 1)), b = Math.floor(Math.random() * (N + 1)); x = roadC(a) + 1.75; z = roadC(b) + 1.75; const dd = Math.hypot(x - P.x, z - P.z); ok = dd > 90 && dd < 150; }
+    }
+    if (!ok) { const a = Math.random() * Math.PI * 2; x = P.x + Math.sin(a) * 85; z = P.z + Math.cos(a) * 85; }
     const c = new Vehicle('police', 0xffffff, G.world); c.place(x, z, Math.atan2(P.x - x, P.z - z)); c.fuel = 1;
     scene.add(c.group); G.world.dynamic.add(c); G.cars.push(c);
-    G.police.push({ car: c, drv: new ChaseDriver(c, target, { speed: 20 + W.stars * 2.5 }), near: 0 });
+    G.police.push({ car: c, drv: new PoliceDriver(c, target, { speed: 20 + W.stars * 2.5, grid: POLICE_GRID }), near: 0 });
   }
   let seen = false;
+  const armed = G.weapons.current !== 'mao';
   for (const u of G.police) {
-    u.drv.update(dt, { cars: G.cars });
-    const d = Math.hypot(u.car.x - P.x, u.car.z - P.z);
+    const c = u.car; if (c.removed) { u.spent = true; continue; }
+    const d = Math.hypot(c.x - P.x, c.z - P.z);
     if (d < 90 && W.stars) seen = true;
-    // prisão: viatura parada perto do jogador a pé
-    if (W.stars && P.mode === 'foot' && d < 7 && Math.abs(u.car.speed) < 2) u.near += dt; else u.near = Math.max(0, u.near - dt);
-    if (u.near > 2.5 && W.stars < 3) { busted(); return; }
-    // 3 estrelas ou mais: policiais descem armados
-    if (W.stars >= 3 && !u.officers && d < 30 && Math.abs(u.car.speed) < 3) {
-      u.officers = [];
-      for (let k = 0; k < 2; k++) {
-        const [ox, oz] = u.car.doorPos(k ? -1 : 1);
-        const o = new NPC(scene, G.world, policeLook(), { name: 'Policial', role: 'police', team: 'enemy', behavior: 'hostile', x: ox, z: oz, hp: 70, interactable: false });
-        o.team = 'enemy'; o.gun = true; o.gunDmg = 7; o.onlyPlayer = true; o.tag = 'policia';
-        G.npcs.push(o); G.world.dynamic.add(o); u.officers.push(o);
+    if (!u.officers) {
+      if (!u.wrecked && c.wreck < 2) u.drv.update(dt, { cars: G.cars });
+      // prisão rápida: viatura parada colada no jogador a pé (1–2 estrelas)
+      if (W.stars && P.mode === 'foot' && d < 7 && Math.abs(c.speed) < 2) u.near += dt; else u.near = Math.max(0, u.near - dt);
+      if (u.near > 2.5 && W.stars < 2 && !armed) { busted(); return; }
+      // perto e devagar (ou a viatura quebrou): os policiais DESCEM do carro com a arma na mão
+      const playerSlow = !G.car || Math.abs(G.car.speed) < 6;
+      if (W.stars && ((d < 24 && Math.abs(c.speed) < 4 && playerSlow) || c.wreck >= 1 || u.wrecked)) policeExit(u);
+    } else {
+      const alive = u.officers.filter((o) => o.alive && !o.removed);
+      for (const o of alive) {
+        // 1 estrela e jogador a pé e desarmado: apontam e vêm prender; senão atiram
+        o.holdFire = W.stars <= 1 && P.mode === 'foot' && !armed && !o.provoked;
+        const od = Math.hypot(o.x - P.x, o.z - P.z);
+        if (o.holdFire && od < 2.6 && P.hp > 0) { o.arrestT = (o.arrestT || 0) + dt; if (o.arrestT > 2.2) { busted(); return; } if (!o.saidStop) { o.saidStop = true; toast('POLÍCIA! Mãos para o alto!', 2); } } else o.arrestT = 0;
+      }
+      if (!alive.length) { u.spent = true; continue; } // todos caíram: a viatura fica abandonada
+      // jogador fugiu de carro: voltam para a viatura e continuam a perseguição
+      if (G.car && d > 40 && c.wreck < 1 && alive.every((o) => Math.hypot(o.x - c.x, o.z - c.z) < 30)) {
+        removeOfficers(u); u.drv = new PoliceDriver(c, target, { speed: 20 + W.stars * 2.5, grid: POLICE_GRID }); doorAnim(c); u.near = 0;
       }
     }
   }
+  // unidades sem policiais vivos (ou viatura destruída) saem da lista; a viatura fica na rua até o jogador se afastar
+  for (const u of G.police) if (u.spent) { if (!u.car.removed) abandonedCops.add(u.car); u.officers = null; }
+  G.police = G.police.filter((u) => !u.spent);
+  for (const c of abandonedCops) if (c.removed || (Math.hypot(c.x - P.x, c.z - P.z) > 140 && G.car !== c)) { if (!c.removed && !wrecks.has(c)) removeCar(c); abandonedCops.delete(c); }
   if (W.stars) {
     W.unseen = seen ? 0 : W.unseen + dt;
     if (W.unseen > 10 + W.stars * 4) { W.stars = 0; toast('Você despistou a polícia', 2.5); }
@@ -730,10 +752,22 @@ function updatePolice(dt) {
   // remove viaturas sobrando
   if (!W.stars) G.police = G.police.filter((u) => { removeCar(u.car); removeOfficers(u); return false; });
 }
+const abandonedCops = new Set();
+function policeExit(u) {
+  const c = u.car; u.officers = []; c.driver = null; c.speed = 0; c.awake = true; doorAnim(c);
+  const n = c.T.moto ? 1 : 2;
+  for (let k = 0; k < n; k++) {
+    const [ox, oz] = c.doorPos ? c.doorPos(k ? -1 : 1) : c.local((k ? -1 : 1) * (c.T.W / 2 + 0.7), 0.3);
+    const o = new NPC(scene, G.world, policeLook(), { name: 'Policial', role: 'police', team: 'enemy', behavior: 'hostile', x: ox, z: oz, hp: 70, interactable: false });
+    o.team = 'enemy'; o.gun = true; o.gunDmg = 6 + Math.min(4, W.stars); o.onlyPlayer = true; o.tag = 'policia'; o.heading = c.heading;
+    G.npcs.push(o); G.world.dynamic.add(o); u.officers.push(o);
+  }
+  if (Math.hypot(c.x - G.player.x, c.z - G.player.z) < 40) G.sound('siren', 1.2);
+}
 function removeOfficers(u) { for (const o of u.officers || []) { o.remove(); const i = G.npcs.indexOf(o); if (i >= 0) G.npcs.splice(i, 1); G.world.dynamic.delete(o); } u.officers = null; }
 function removeCar(c) { c.removed = true; scene.remove(c.group); G.world.dynamic.delete(c); const i = G.cars.indexOf(c); if (i >= 0) G.cars.splice(i, 1); }
 function busted() {
-  if (G.heist) { G.heist = null; G.story.clearObjective(); setTimeout(() => toast('A polícia recuperou o dinheiro do assalto', 3), 1500); }
+  if (G.heist) { const back = Math.min(G.campaign().money, G.heist.taken || 0); G.addMoney(-back); G.heist = null; G.story.clearObjective(); setTimeout(() => toast(`A polícia recuperou R$ ${back.toLocaleString('pt-BR')} do assalto`, 3), 1500); }
   W.stars = 0; G.police.forEach((u) => { removeCar(u.car); removeOfficers(u); }); G.police = [];
   const C = G.campaign(); const fine = Math.max(50, Math.round(C.money * 0.1)); G.addMoney(-fine);
   if (G.car) forceExitCar();
@@ -802,6 +836,101 @@ function doorAnim(car, dur = 0.8) { if (!car.door) return; car.doorT = dur; car.
 function updateDoors(dt) {
   for (const c of doorAnims) { c.doorT -= dt; if (c.doorT <= 0) { c.setDoor(0); doorAnims.delete(c); continue; } c.setDoor(Math.sin(Math.PI * (1 - c.doorT / c.doorDur))); }
 }
+// DANO DOS CARROS: estado 0% = quebrado (fumaça, anda pouco); batida/tiro com ele quebrado = pega fogo; ~5 s depois explode
+let fx = null; const wrecks = new Set(); const _ev = new THREE.Vector3();
+function storyProtected(c) { return G.mission && (c === G.ethanCar || c.storyKey); }
+function damageCar(c, amt) {
+  if (!c || c.removed || c.wreck >= 2 || amt <= 0 || c.storyKey === 'plane') return;
+  if (c.wreck === 1) { if (amt >= 0.012 && !storyProtected(c)) igniteCar(c); return; }
+  c.health = Math.max(0, c.health - amt);
+  if (c.health <= 0) breakCar(c);
+}
+function abandonCar(c) { // motorista da IA desce e foge
+  if (c.driver !== 'ai' || c.jacked) return;
+  const di = G.drivers.findIndex((d) => d.car === c); if (di >= 0) G.drivers.splice(di, 1);
+  const ai = G.aiDrivers.findIndex((d) => d.car === c); if (ai >= 0) G.aiDrivers.splice(ai, 1);
+  const pol = G.police.find((u) => u.car === c); if (pol) pol.wrecked = true;
+  c.driver = null; c.speed = 0; c.awake = true;
+  if (Math.hypot(c.x - G.player.x, c.z - G.player.z) < 60 && !c.T.police) {
+    const [sx, sz] = c.local(c.T.W / 2 + 0.9, 0.3);
+    const n = new NPC(scene, G.world, randomPedestrian(), { name: 'Motorista', role: 'ped', lines: ['Meu carro!'], x: sx, z: sz, behavior: 'panic' });
+    n.panicFrom = [c.x, c.z]; n.panicT = 8; G.npcs.push(n); G.world.dynamic.add(n);
+  }
+}
+function breakCar(c) {
+  c.health = 0; c.wreck = 1; c.smokeT = 0; wrecks.add(c);
+  if (c === G.car) toast('O carro quebrou! Ainda anda um pouco, mas se bater de novo pode pegar fogo.', 4);
+  if (c.T.police && c !== G.car) abandonCar(c);
+}
+function igniteCar(c) {
+  c.wreck = 2; c.fireT = 4.5 + Math.random() * 1.5; wrecks.add(c);
+  if (c === G.car) { toast('O CARRO ESTÁ PEGANDO FOGO! Saia agora (E)!', 4); G.shake(0.2); }
+  if (Math.hypot(c.x - G.player.x, c.z - G.player.z) < 60) G.sound('fire', 2);
+  abandonCar(c);
+}
+function explodeCar(c) {
+  c.wreck = 3; c.speed = 0; c.burnT = 18; c.deadT = 0;
+  const P = G.player; const [ex, ey, ez] = [c.x, c.y + 0.6, c.z];
+  fx.explosion(ex, c.y, ez); G.sound('explosion');
+  const dP = Math.hypot(P.x - ex, P.z - ez);
+  if (dP < 40) G.shake(Math.min(1, 1.2 - dP / 40));
+  // quem está dentro sai voando
+  if (G.car === c) { forceExitCar(); }
+  if (c.driverModel) { c.driver = null; }
+  c.char();
+  // jogador
+  const dP2 = Math.hypot(P.x - ex, P.z - ez);
+  if (dP2 < 9 && P.mode === 'foot') {
+    const k = 1 - dP2 / 9; damagePlayer(Math.round(130 * k * k + 10 * k), c);
+    const nx = (P.x - ex) / (dP2 || 1), nz = (P.z - ez) / (dP2 || 1);
+    if (k > 0.25) P.startRagdoll({ x: nx * 9 * k, y: 4 + 5 * k, z: nz * 9 * k }, { x: P.x, y: P.y + 0.5, z: P.z }, 2.4);
+  }
+  // pessoas
+  for (const n of G.npcs) {
+    if (!n.alive || n.inCar) continue; const d = Math.hypot(n.x - ex, n.z - ez); if (d > 9) { if (d < 30 && n.role === 'ped') { n.behavior = 'panic'; n.panicFrom = [ex, ez]; n.panicT = 7; } continue; }
+    const k = 1 - d / 9, nx = (n.x - ex) / (d || 1), nz = (n.z - ez) / (d || 1);
+    n.hp -= 160 * k; n.knockDown(n.hp <= 0 ? 0 : 6, { x: nx * 9 * k, y: 4 + 5 * k, z: nz * 9 * k }, { x: n.x, y: n.y + 0.5, z: n.z });
+  }
+  // carros em volta: empurrão e dano (pode virar reação em cadeia)
+  for (const o of G.cars) {
+    if (o === c || o.removed) continue; const d = Math.hypot(o.x - ex, o.z - ez); if (d > 8) continue;
+    const k = 1 - d / 8; o.pushVx += (o.x - ex) / (d || 1) * 6 * k; o.pushVz += (o.z - ez) / (d || 1) * 6 * k; o.awake = true;
+    if (o.wreck === 1 && k > 0.3) igniteCar(o); else damageCar(o, 0.9 * k);
+  }
+  witnessCrime(c.T.police ? 3 : 2, 'explosão');
+  if (c === G.ethanCar) toast('Seu carro explodiu! Quando você se afastar, ele será guinchado e consertado em casa.', 5);
+}
+function updateWrecks(dt) {
+  const P = G.player;
+  // dano por batida do carro do jogador no carro atingido
+  if (G.car && G.car.lastHit > 3 && G.car.hitCar) damageCar(G.car.hitCar, G.car.lastHit * 0.014);
+  for (const c of wrecks) {
+    if (c.removed) { wrecks.delete(c); continue; }
+    const d = Math.hypot(c.x - P.x, c.z - P.z); const near = d < 120;
+    const [lx, ly, lz] = c.enginePos; _ev.set(lx, ly, lz); c.body.localToWorld(_ev);
+    if (c.wreck === 1) { // fumaça cinza do motor
+      if (near && (c.smokeT -= dt) <= 0) { c.smokeT = 0.12; fx.smoke(_ev.x, _ev.y, _ev.z, 0.8); }
+    } else if (c.wreck === 2) { // fogo + fumaça preta, depois explode
+      c.fireT -= dt;
+      if (near) { for (let i = 0; i < 2; i++) fx.fire(_ev.x, _ev.y, _ev.z, 1.1); if (Math.random() < dt * 9) fx.smoke(_ev.x, _ev.y + 0.6, _ev.z, 1.2, true); if (Math.random() < dt * 4) fx.spark(_ev.x, _ev.y, _ev.z); }
+      if (c === G.car && Math.random() < dt * 2) damagePlayer(2, c);
+      if ((c.fireSnd = (c.fireSnd || 0) - dt) <= 0 && d < 50) { c.fireSnd = 1.8; G.sound('fire', 1.9); }
+      if (c.fireT <= 0) explodeCar(c);
+    } else if (c.wreck === 3) { // carcaça queimando por um tempo
+      if (c.burnT > 0) { c.burnT -= dt; if (near) { if (Math.random() < dt * 14) fx.fire(_ev.x, c.y + 0.9, _ev.z, 0.9); if (Math.random() < dt * 7) fx.smoke(c.x, c.y + 1.4, c.z, 1.4, true); } }
+      else if (near && Math.random() < dt * 2) fx.smoke(c.x, c.y + 1.2, c.z, 1, false);
+      c.deadT += dt;
+      if (c.deadT > 40 && d > 80 && G.car !== c) {
+        if (c === G.ethanCar) { // seu carro volta consertado para casa
+          const eh = G.city.ethanHouse; c.wreck = 0; c.health = 0.6; c.charred = false; c.rebuild(); c.place(eh.driveway[0], eh.driveway[1], eh.heading + Math.PI); wrecks.delete(c);
+          toast('Seu carro foi guinchado e consertado: está na garagem de casa', 4);
+        } else { removeCar(c); wrecks.delete(c); }
+      }
+    }
+  }
+  fx.update(dt);
+}
+G.damageCar = damageCar; G.explodeCar = explodeCar; G.wrecks = wrecks;
 // ROUBO DE CARRO: vai até a porta, abre, tira o motorista, entra e fecha
 function stealCar(car) {
   const P = G.player;
@@ -852,8 +981,10 @@ function startHeist(teller) {
   if (G.weapons.current === 'mao') { toast('Você precisa estar com uma arma na mão (Tab abre o menu de armas)', 3); return; }
   if (C.flags.heistDay != null && G.state.day - C.flags.heistDay < 2) { toast('O banco ainda está com a segurança reforçada. Volte daqui a alguns dias.', 3); return; }
   C.flags.heistDay = G.state.day;
-  G.heist = { phase: 'vault', prog: 0, cash: 0 };
-  G.sound('siren', 4); showBanner('ASSALTO!', 'Vá até o cofre e fique perto dele para abrir', false);
+  const caixa = 1500 + Math.round(Math.random() * 15) * 100; // o caixa entrega o dinheiro da gaveta na hora
+  G.heist = { phase: 'vault', prog: 0, cash: 0, taken: caixa };
+  G.addMoney(caixa); G.sound('cash');
+  G.sound('siren', 4); showBanner('ASSALTO!', `O caixa entregou R$ ${caixa.toLocaleString('pt-BR')}. Agora vá até o cofre e fique perto dele para abrir`, false);
   G.wanted.stars = Math.max(G.wanted.stars, 2); G.crime(1, 'assalto ao banco', teller);
   const P = G.player;
   if (B.guardNpc && B.guardNpc.alive) { B.guardNpc.team = 'enemy'; B.guardNpc.behavior = 'hostile'; B.guardNpc.interactable = false; } // o segurança reage
@@ -881,14 +1012,15 @@ function updateHeist(dt) {
       H.prog += dt / 12; S.objText = `Abrindo o cofre: ${Math.min(100, Math.round(H.prog * 100))}%`; $('objective').textContent = 'OBJETIVO: ' + S.objText;
       if (Math.random() < dt * 2) G.sound('page');
       if (H.prog >= 1) {
-        H.phase = 'escape'; H.cash = 8000 + Math.round(Math.random() * 7000 / 100) * 100;
-        G.wanted.stars = Math.max(G.wanted.stars, 4); G.sound('cash'); toast(`Cofre aberto! R$ ${H.cash.toLocaleString('pt-BR')} na mochila`, 3);
+        H.phase = 'escape'; H.cash = 8000 + Math.round(Math.random() * 7000 / 100) * 100; H.taken += H.cash;
+        G.addMoney(H.cash); // o dinheiro já vai para o bolso (se for preso, a polícia toma de volta)
+        G.wanted.stars = Math.max(G.wanted.stars, 4); G.sound('cash'); toast(`Cofre aberto! +R$ ${H.cash.toLocaleString('pt-BR')} (total roubado: R$ ${H.taken.toLocaleString('pt-BR')})`, 3.5);
         S.objective('Fuja da polícia com o dinheiro (despiste todas as estrelas)', null);
       }
     }
-    if (Math.hypot(P.x - B.vault[0], P.z - B.vault[1]) > 70) { G.heist = null; S.clearObjective(); toast('Você abandonou o assalto', 2.5); }
+    if (Math.hypot(P.x - B.vault[0], P.z - B.vault[1]) > 70) { G.heist = null; S.clearObjective(); toast(`Você fugiu só com o dinheiro do caixa (R$ ${H.taken.toLocaleString('pt-BR')})`, 3); }
   } else if (H.phase === 'escape' && G.wanted.stars === 0) {
-    G.addMoney(H.cash); S.clearObjective(); showBanner('ASSALTO CONCLUÍDO', `Você ficou com R$ ${H.cash.toLocaleString('pt-BR')}`, false);
+    S.clearObjective(); showBanner('ASSALTO CONCLUÍDO', `Você despistou a polícia e ficou com R$ ${H.taken.toLocaleString('pt-BR')}`, false);
     G.heist = null; SAVE.writeSlot('auto', snapshot());
   }
 }
@@ -971,9 +1103,83 @@ function updateStoreKeepers(dt) {
     } else if (r.npc && d > 70) { r.npc.remove(); G.world.dynamic.delete(r.npc); G.npcs = G.npcs.filter((x) => x !== r.npc); r.npc = null; }
   }
 }
+// gente da igreja e da escola (padre, fiéis, professores, alunos): aparecem de perto e no horário certo
+function crowdLook(kind) {
+  if (kind === 'priest') return { ...randomPedestrian(), female: false, skirt: null, shirt: 0x141414, jacket: 0x141414, pants: 0x141414, shoes: 0x0a0a0a, hat: null, tie: null, badge: false, hairStyle: pick(['short', 'bald']), longSleeve: true, height: rr(0.98, 1.04) };
+  if (kind === 'cop') return policeLook();
+  if (kind === 'student') return { ...randomPedestrian(), height: rr(0.76, 0.86), build: rr(0.85, 0.95), shirt: 0xf2f2f2, pants: 0x1a2a5a, jacket: null, hat: null, tie: null };
+  return randomPedestrian();
+}
+function updateCrowds() {
+  const P = G.player, h = G.state.hour ?? 12;
+  for (const c of G.city.crowds) {
+    const d = Math.hypot(c.x - P.x, c.z - P.z); const open = h >= c.hours[0] && h < c.hours[1];
+    if (!c.npcs && d < c.r) {
+      c.npcs = [];
+      for (const q of c.people) {
+        if (!open && q.kind !== 'priest') continue;
+        const n = new NPC(scene, G.world, crowdLook(q.kind), { name: q.name, role: 'ped', lines: q.lines.slice(), x: q.x, z: q.z, y: q.y, heading: q.heading, behavior: q.chair ? 'chair' : 'stand' });
+        if (q.chair) { n.fixedY = true; n.y = q.y; }
+        G.npcs.push(n); G.world.dynamic.add(n); c.npcs.push(n);
+      }
+    } else if (c.npcs && d > c.r + 35) {
+      for (const n of c.npcs) { n.remove(); G.world.dynamic.delete(n); } G.npcs = G.npcs.filter((x) => !c.npcs.includes(x)); c.npcs = null;
+    }
+  }
+}
+// CACHORROS E GATOS: aparecem nas calçadas, quintais e praças perto do jogador (somem de longe)
+G.pets = []; let petT = 0, lastShotPos = null, lastShotT = -99;
+G.makePet = (breed, x, z, name = "Teste") => { const a = new Pet(scene, G.world, breed, x, z, name); G.pets.push(a); return a; };
+G.noteShot = (x, z) => { lastShotPos = [x, z]; lastShotT = G.story.t; };
+function spawnPet(dog) {
+  const P = G.player; const loops = G.city.pedLoops.filter((l) => ['res', 'park', 'mixed', 'apart', 'shops', 'shops2', 'down', 'bwres', 'square', 'bwshops', 'bwmixed', 'church', 'school', 'mall'].includes(l.type) && Math.hypot(l.cx - P.x, l.cz - P.z) < 120);
+  if (!loops.length) return;
+  for (let tries = 0; tries < 12; tries++) {
+    const l = pick(loops); const side = Math.floor(Math.random() * 4), t = (Math.random() - 0.5) * 1.6 * l.half; const inset = l.half - (dog ? rr(0, 3) : rr(1.5, 5));
+    const [x, z] = side === 0 ? [l.cx + t, l.cz - inset] : side === 1 ? [l.cx + inset, l.cz + t] : side === 2 ? [l.cx + t, l.cz + inset] : [l.cx - inset, l.cz + t];
+    const d = Math.hypot(x - P.x, z - P.z); if (d < 35 || d > 95) continue;
+    const r = G.world.resolveCircle(x, z, 0.4, G.world.groundFn(x, z) + 0.05, G.world.groundFn(x, z) + 0.6, 0.25, null); if (r.hit) continue;
+    const breeds = Object.keys(BREEDS).filter((k) => (BREEDS[k].sp === 'dog') === dog && breedReady(k)); if (!breeds.length) return;
+    const pet = new Pet(scene, G.world, pick(breeds), x, z, pick(dog ? DOG_NAMES : CAT_NAMES)); G.pets.push(pet); return;
+  }
+}
+let petsWarm = false;
+function updatePets(dt) {
+  if (!started) return; const P = G.player;
+  if (!petsWarm) petsWarm = warmBreeds(dt > 1 / 40 ? 3 : 6); // malhas das raças: geradas aos poucos
+  if ((petT -= dt) <= 0) {
+    petT = 1.2;
+    const maxDog = Math.round(Q.peds / 22) + 1, maxCat = Math.max(1, Math.round(Q.peds / 30));
+    for (let i = G.pets.length - 1; i >= 0; i--) { const a = G.pets[i]; if (Math.hypot(a.x - P.x, a.z - P.z) > 125) { a.remove(); G.pets.splice(i, 1); } }
+    if (!G.flight && !G.mission) {
+      if (G.pets.filter((a) => a.dog).length < maxDog) spawnPet(true);
+      if (G.pets.filter((a) => !a.dog).length < maxCat) spawnPet(false);
+    }
+  }
+  const threat = G.story.t - lastShotT < 4 ? lastShotPos : null;
+  const ctx = { player: P, cars: G.cars.filter((c) => Math.abs(c.speed) > 3 && Math.abs(c.x - P.x) < 110 && Math.abs(c.z - P.z) < 110), threat, sound: (n) => G.sound(n, 2) };
+  for (const a of G.pets) { const d = Math.hypot(a.x - P.x, a.z - P.z); a.a.root.visible = d < 90 * LODM; if (d < 90 * LODM) a.update(dt, ctx); }
+}
+function nearestPet() { const P = G.player; let best = null, bd = 1.7; for (const a of G.pets) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } } return best; }
+function petAnimal(a) { a.pet(); G.sound(a.dog ? 'bark' : 'purr', 3); G.player.crouchToggle = true; setTimeout(() => { G.player.crouchToggle = false; }, 2500); toast(a.dog ? `${a.name} abanou o rabo todo feliz!` : `${a.name} ronronou e deitou de barriga para cima.`, 2.5); const C = G.campaign(); C.needs.dor = Math.max(0, C.needs.dor - 5); }
+// RACHA DE LOS VALLES: avisa no celular quando abre e junta curiosos na largada
+let rachaWasOpen = false; const rachaFans = [];
+function updateRacha() {
+  if (!started) return; const C = G.campaign(); const open = rachaOpen(C, G) && !G.mission;
+  const m = SIDE_MISSIONS.find((x) => x.id === 'racha_lv'); const st = m.start(G); const P = G.player;
+  if (open && !rachaWasOpen) { G.phone.addPost({ user: 'lv_rachas', tag: 'RUMOR', text: 'Hoje tem racha nas avenidas! Largada na avenida oeste. Prêmio: 2 mil pro primeiro, mil pro segundo e 500 pro terceiro. Marcador verde no mapa.', notify: true }); toast('Racha hoje à noite! Veja o marcador verde no mapa', 3.5); }
+  rachaWasOpen = open;
+  const d = Math.hypot(st[0] - P.x, st[1] - P.z);
+  if (open && d < 70 && !rachaFans.length) {
+    for (let i = 0; i < 7; i++) { const side = i % 2 ? 1 : -1; const n = new NPC(scene, G.world, randomPedestrian(), { name: 'Curioso do racha', role: 'ped', lines: [pick(['Esse racha vai ser pesado!', 'Aposto no carro preto.', 'Se a polícia aparecer, todo mundo corre!', 'Já viu o turbo daquele ali?'])], x: st[0] + side * (6.5 + Math.random()), z: st[1] - 8 + i * 3.2, heading: side > 0 ? -Math.PI / 2 : Math.PI / 2, behavior: 'stand' }); G.npcs.push(n); G.world.dynamic.add(n); rachaFans.push(n); }
+  } else if (rachaFans.length && (!open || d > 110)) {
+    for (const n of rachaFans) { n.remove(); G.world.dynamic.delete(n); } G.npcs = G.npcs.filter((x) => !rachaFans.includes(x)); rachaFans.length = 0;
+  }
+}
 // clientes do shopping: andam em volta do chafariz; só existem com o jogador por perto
 const mallPeds = [];
 function updateMallShoppers() {
+  if (keeperT === 1) { updateCrowds(); updateRacha(); }
   const c = G.city.mallCenter; if (!c || keeperT !== 1) return; // roda junto com os atendentes (1x por segundo)
   const d = Math.hypot(c[0] - G.player.x, c[1] - G.player.z);
   if (!mallPeds.length && d < 45) {
@@ -1009,6 +1215,7 @@ function updateEmergency(dt) {
 }
 G.spawnEmergency = () => { emergT = 0; updateEmergency(0.01); return emergency.map((e) => e.car.type); };
 G.emergency = emergency;
+G.makeCarAt = (t, x, z) => makeCarAt(t, x, z);
 function makeCarAt(type, x, z) { const c = new Vehicle(type, pick(CAR_COLORS), G.world); scene.add(c.group); G.world.dynamic.add(c); G.cars.push(c); c.place(x, z, 0); c.fuel = 1; return c; }
 function updateEvents(dt) {
   if (!started || G.mission || G.heist || G.flight) return;
@@ -1127,10 +1334,10 @@ function updateDriverModels(dt) {
       let d = driverPool.find((x) => !x.car && !x.busy && x.kind === kind);
       if (!d) { if (driverPool.length >= 12) continue; d = { kind, model: new Humanoid(kind === 'police' ? policeLook() : randomPedestrian()), car: null }; driverPool.push(d); }
       c.body.add(d.model.root); d.model.root.position.copy(c.seat); d.model.root.rotation.set(0, 0, 0); d.car = c; c.driverModel = d.model;
-      d.model.update(0.5, { mode: 'sit' });
+      d.model.update(0.5, { mode: 'sit', cfg: c.seatCfg });
     }
   }
-  for (const d of driverPool) if (d.car) { d.model.root.visible = !d.car.lod; if (!d.car.lod) d.model.update(dt, { mode: 'sit', steer: d.car.steer * 1.5 }); }
+  for (const d of driverPool) if (d.car) { d.model.root.visible = !d.car.lod; if (!d.car.lod) d.model.update(dt, { mode: 'sit', steer: d.car.steer * 1.5, cfg: d.car.seatCfg }); }
 }
 G.driverPool = driverPool;
 // comer/beber: o item aparece na mão do personagem por alguns segundos
@@ -1194,7 +1401,7 @@ async function service(kind) {
   } else if (kind === 'oficina') {
     const car = G.car; if (!car) return; const cost = Math.round((1 - car.health) * 400) + 20;
     if (C.money < cost) { toast('Conserto custa R$ ' + cost); return; }
-    G.addMoney(-cost); car.health = 1; toast('Carro consertado (R$ ' + cost + ')'); SAVE.writeSlot('auto', snapshot());
+    G.addMoney(-cost); car.health = 1; if (car.wreck === 1) { car.wreck = 0; wrecks.delete(car); } toast('Carro consertado (R$ ' + cost + ')'); SAVE.writeSlot('auto', snapshot());
   } else if (kind === 'posto') {
     const car = G.car; if (!car) return; const liters = (1 - car.fuel) * car.tank; const cost = Math.round(liters * 5.89);
     if (liters < 0.5) { toast('O tanque já está cheio'); return; }
@@ -1232,7 +1439,7 @@ function buildMinimap() {
   mmBase = document.createElement('canvas'); mmBase.width = MMW; mmBase.height = MM;
   const g = mmBase.getContext('2d'); const o = MM / 2;
   g.fillStyle = '#2d4224'; g.fillRect(0, 0, MMW, MM);
-  const colors = { res: '#5d7a4a', park: '#3f7a3a', down: '#8a8580', mixed: '#9a9286', shops: '#a8927a', shops2: '#a8927a', police: '#5a6a9a', gas: '#a87a6a', parking: '#6a6a6a', apart: '#8a8070', hospital: '#c8c8c8', mall: '#c9b48c',
+  const colors = { res: '#5d7a4a', park: '#3f7a3a', down: '#8a8580', mixed: '#9a9286', shops: '#a8927a', shops2: '#a8927a', police: '#5a6a9a', gas: '#a87a6a', parking: '#6a6a6a', apart: '#8a8070', hospital: '#c8c8c8', mall: '#c9b48c', church: '#b8a890', school: '#8aa0c0',
     bwres: '#4f6a42', bwshops: '#98806a', square: '#a8a090', cemetery: '#4a5a44', bwpolice: '#5a6a9a', motel: '#8a6a5a', bwmixed: '#8a8278', bwgas: '#7a8a6a', factory: '#6a4a3a', bwforest: '#2f5a2a' };
   g.fillStyle = '#3a3a3c'; g.fillRect(o - HALF, o - HALF, HALF * 2, HALF * 2);
   for (let k = 0; k < N; k++) for (let j = 0; j < N; j++) {
@@ -1392,9 +1599,9 @@ function step(dt) {
   if (active && !locked2 && hit('KeyF')) playerPunch();
   punchCd -= dt; pulsoCd -= dt;
   updateEat(dt);
-  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers();
+  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers(); updateWrecks(dt); updatePets(dt);
   // interiores das casas: só desenha os que estão perto (o jogador ou a câmera)
-  if ((interiorT -= dt) <= 0) { interiorT = 0.25; const cx = G.camera.position.x, cz = G.camera.position.z; for (const it of G.city.interiors) { const dx = it.x - p.x, dz = it.z - p.z, ex = it.x - cx, ez = it.z - cz; it.group.visible = dx * dx + dz * dz < 1600 * LODM * LODM || ex * ex + ez * ez < 900 * LODM * LODM; } }
+  if ((interiorT -= dt) <= 0) { interiorT = 0.25; const cx = G.camera.position.x, cz = G.camera.position.z; for (const it of G.city.interiors) { const dx = it.x - p.x, dz = it.z - p.z, ex = it.x - cx, ez = it.z - cz; const R = (it.r || 40) * LODM; it.group.visible = dx * dx + dz * dz < R * R || ex * ex + ez * ez < R * R * 0.56; } }
   if (active && !locked2 && hit('KeyQ') && G.campaign().tools.pulso) {
     if (pulsoCd > 0) toast('Pulso recarregando: ' + Math.ceil(pulsoCd) + 's', 1);
     else { pulsoCd = 16; let n = 0; for (const c of S.cameras) if (Math.hypot(c.x - p.x, c.z - p.z) < 26) { c.disabled = 8; n++; } toast(n ? `Pulso Eletrônico: ${n} câmera(s) desligada(s) por 8s` : 'Nenhuma câmera por perto', 2); G.sound('ping'); }
@@ -1416,6 +1623,7 @@ function step(dt) {
     else if (nearDoor) { prompt = '[E] Dormir (8 horas e salvar)'; if (free && G.consumeInteract()) sleep(); }
     else if (nearHosp && !G.mission) { prompt = '[E] Atendimento médico (R$ 150)'; if (free && G.consumeInteract()) service('hospital'); }
     else if (npc && (!car || nd < 1.8) && !G.mission) { prompt = `[E] Falar com ${npc.name}`; if (free && G.consumeInteract()) interactNPC(npc); }
+    else if (nearestPet() && !car) { const a = nearestPet(); prompt = `[E] Fazer carinho no ${a.label} (${a.name})`; if (free && G.consumeInteract()) petAnimal(a); }
     else if (!G.mission && G.plane && !G.plane.crashed && G.plane.onGround && planeBoardSpot()) { const st = planeBoardSpot(); prompt = st.stairs ? '[E] Subir a escada e embarcar no avião' : '[E] Entrar no avião'; if (free && G.consumeInteract()) boardPlane(st); }
     else if (car) {
       const jackable = car.driver === 'ai' && !car.T.police && !car.storyKey && !G.mission && G.drivers.some((d) => d.car === car);
@@ -1453,12 +1661,12 @@ function step(dt) {
     car.update(dt, input, G.cars);
     // impacto: dano ao carro, dor e crimes
     if (car.lastHit > 3) {
-      car.health = Math.max(0, car.health - car.lastHit * 0.012);
+      damageCar(car, car.lastHit * 0.012);
       if (car.lastHit > 8) { const C = G.campaign(); C.needs.dor = Math.min(100, C.needs.dor + car.lastHit * 1.5); p.hp = Math.max(1, p.hp - (car.lastHit - 8) * 1.5); G.shake(0.25); }
       if (sp0 > 6 && G.police.some((u) => Math.hypot(u.car.x - car.x, u.car.z - car.z) < 6)) witnessCrime(1, 'viatura');
     }
     p.x = car.x; p.z = car.z; p.y = car.y;
-    p.model.update(dt, car.T.moto ? { mode: 'moto', steer: car.steer * 1.5, lean: car.T.style === 'esportiva' ? 0.55 : car.T.style === 'custom' ? -0.05 : 0.2 } : { mode: 'sit', steer: car.steer * 1.5 });
+    p.model.update(dt, car.T.moto ? { mode: 'moto', steer: car.steer * 1.5, lean: car.T.style === 'esportiva' ? 0.55 : car.T.style === 'custom' ? -0.05 : 0.2 } : { mode: 'sit', steer: car.steer * 1.5, cfg: car.seatCfg });
     const rev = revT > 0 ? Math.sin(Math.min(1, revT) * Math.PI) : 0; revT -= dt;
     G.audio.update(true, rev ? Math.max(Math.abs(car.speed), rev * 22) : car.speed, Math.max(input.throttle, rev), car.soundProfile);
     turboFx(dt, car, input.throttle);

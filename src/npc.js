@@ -269,10 +269,18 @@ export class NPC {
       if (ctx.tokens.has(this) || ctx.tokens.size < 2) { if (d < 3) ctx.tokens.add(this); }
       else { if (d < 2.8) return 0; const r = this.moveTo(tgt.x, tgt.z, 2.2, dt, 2.8); return r.speed; }
     }
+    // policial com 1 estrela: aponta a arma e chega perto para prender (não atira)
+    if (this.gun && this.holdFire && isPlayer) {
+      this.aimPose = true;
+      if (d > 2.0) { const r = this.moveTo(tgt.x, tgt.z, d > 8 ? this.runSpeed * 0.8 : 1.6, dt, 1.9); return r.speed; }
+      return 0;
+    }
     // armados: param e atiram de longe
     if (this.gun && d > 2 && d < 26 && ctx.npcShoot) {
       this.aimPose = true;
-      if (this.attackCd <= 0) { this.attackCd = 1.3 + Math.random() * 0.9; ctx.npcShoot(this, tgt); }
+      if (this.attackCd <= 0) { this.attackCd = 1.3 + Math.random() * 0.9; if (ctx.npcShoot(this, tgt) === false) { this.blockedT = 1.4; this.attackCd = 0.5; this.sideDir = this.sideDir || (Math.random() < 0.5 ? 1 : -1); } else this.blockedT = 0; }
+      // sem linha de tiro (carro/parede no meio): contorna pelo lado até ter visão
+      if (this.blockedT > 0) { this.blockedT -= dt; const dx = tgt.x - this.x, dz = tgt.z - this.z, L = Math.hypot(dx, dz) || 1; const r = this.moveTo(this.x + dx / L * 2 + (-dz / L) * this.sideDir * 3, this.z + dz / L * 2 + (dx / L) * this.sideDir * 3, 2.6, dt, 0.3); return r.speed; }
       if (d > 14) { const r = this.moveTo(tgt.x, tgt.z, 2.2, dt, 12); return r.speed; }
       return 0;
     }

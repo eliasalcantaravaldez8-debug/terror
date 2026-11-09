@@ -110,7 +110,7 @@ export class Weapons {
   fire() {
     const G = this.G, P = G.player, id = this.current, W = WEAPONS[id], s = this.inv[id];
     if (s.clip <= 0) { if (s.ammo > 0) this.reload(); else { G.toast('Sem munição', 1.2); this.cd = 0.4; } return; }
-    s.clip--; this.cd = W.rate; P.model.punchT = 0; G.sound(W.sound); G.shake(id === 'escopeta' ? 0.12 : W.auto ? 0.03 : 0.05);
+    s.clip--; this.cd = W.rate; P.model.punchT = 0; G.sound(W.sound); if (G.noteShot) G.noteShot(P.x, P.z); G.shake(id === 'escopeta' ? 0.12 : W.auto ? 0.03 : 0.05);
     if (W.auto) { G.cam.pitch = Math.max(-0.6, G.cam.pitch - (W.rifle ? 0.012 : 0.007)); G.cam.yaw += (Math.random() - 0.5) * 0.008; } // recuo
     const spread = W.spread * (P.aiming ? 0.6 : 1.3);
     const cam = G.camera; const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
@@ -121,7 +121,7 @@ export class Weapons {
       const hit = this.trace(cam.position, d, W.range, (n) => n !== P);
       this.tracer(from, hit.point);
       if (hit.npc) { this.damageNPC(hit.npc, W.dmg, d, hit.point, W.force || 2); anyHit = hit.npc; }
-      else if (hit.car) { hit.car.health = Math.max(0, hit.car.health - W.dmg / 1500); if (G.police.some((u) => u.car === hit.car)) G.crime(2, 'viatura'); this.puff(hit.point); }
+      else if (hit.car) { if (G.damageCar) G.damageCar(hit.car, W.dmg / 700); else hit.car.health = Math.max(0, hit.car.health - W.dmg / 1500); if (G.police.some((u) => u.car === hit.car)) G.crime(2, 'viatura'); this.puff(hit.point); }
       else if (hit.dist < W.range) this.puff(hit.point);
     }
     // disparo em público: pânico e procurado
@@ -162,14 +162,15 @@ export class Weapons {
     const d = to.clone().sub(from); const L = d.length(); d.normalize();
     G.world.rayIgnore = null;
     if (G.world.raycast(from.x, from.y, from.z, d.x, d.y, d.z, L) < L - 0.5) return false; // parede no caminho
-    G.sound('shot');
+    G.sound('shot'); if (G.noteShot) G.noteShot(n.x, n.z);
     const P = G.player; let chance = 0.5 - L * 0.012;
     if (tgt === P) { if (P.crouch) chance -= 0.15; if (P.speed > 4) chance -= 0.12; if (G.car) chance -= 0.2; }
     const hit = Math.random() < Math.max(0.08, chance);
     const end = hit ? to : to.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, (Math.random() - 0.5), (Math.random() - 0.5) * 2));
     this.flash(from); this.tracer(from, end);
     if (hit) {
-      if (tgt === P) G.damagePlayer(n.gunDmg || 6, n);
+      if (tgt === P && G.car && G.damageCar) { G.damageCar(G.car, 0.035); if (Math.random() < 0.45) G.damagePlayer((n.gunDmg || 6) * 0.6, n); } // dentro do carro: a lataria segura parte dos tiros
+      else if (tgt === P) G.damagePlayer(n.gunDmg || 6, n);
       else if (tgt.team === 'ally') tgt.hp = Math.max(30, tgt.hp - 4);
       else if (tgt.alive) { tgt.hp -= (n.gunDmg || 6) * 3; if (tgt.hp <= 0) tgt.knockDown(0, { x: d.x * 3, y: 0.5, z: d.z * 3 }, to); } // NPC contra NPC (gangues)
     }
