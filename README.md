@@ -60,6 +60,49 @@ Missões com marcador azul começam quando você chega nele e aperta **E**. Miss
 - **História inicial**: fale com Ryan Cole → vá até a delegacia → fale com o delegado. As falas ficam em `src/characters.js` e são fáceis de editar.
 - **Minimapa** que gira com a câmera e mostra o objetivo (amarelo) e o seu carro (azul).
 
+## GRANDE ATUALIZAÇÃO: Westhaven, estádio, praça, dublagem e mais
+
+> Observação: o projeto é feito em **Three.js (navegador)**, não em Godot. O ZIP traz o jogo pronto (`dist/`) e o código-fonte (`src/`).
+
+### Westhaven (terceira cidade)
+- Liberada depois da missão de fuga (prólogo). Siga a **rodovia oeste** (4 faixas) e atravesse a **ponte pênsil gigante** sobre a baía.
+- Cidade grande: arranha-céus, centro, comércio, prédios residenciais, casas, zona industrial, parques, floresta e uma **região afastada com poucas casas** (Pinheiros), com casas entráveis.
+- Trânsito e pedestres próprios; aparece no mapa e no minimapa.
+
+### Estádio de Westhaven
+- Explorável por fora e por dentro: fachada, estacionamento, **bilheteria**, **catracas**, arquibancadas, túnel dos jogadores, vestiário e **Sala de Troféus** (6 troféus 3D; aperte E para ver nome, ano e clube).
+- **Ingresso: R$ 200** (sem saldo negativo: sem dinheiro, não compra). Jogos às **13h** e **20h**; as catracas exigem ingresso a partir de 1 h antes.
+- **Partida simulada por IA**: 22 jogadores (goleiro, zagueiros, meias, atacantes), árbitro, saída de bola, laterais, escanteios, tiros de meta, faltas e pênaltis, placar no telão.
+- Tempo real: **1º tempo 2 min → intervalo 10 s (jogadores vão para o túnel) → 2º tempo 2 min**.
+- Gramado com faixas de corte e marcações oficiais; torcida variada com bandeiras, reações a lances e gols, e som de torcida.
+- Dá para **sentar e levantar** em qualquer cadeira e sair a qualquer momento: a partida continua.
+
+### Praça de Westhaven
+- **Quadra de basquete jogável**: [E] pega a bola, [E] arremessa. A bola tem física (quica, bate no aro e na tabela); cesta vale 2 ou 3 pontos (linha de três). O erro aumenta com a distância e correndo.
+- Parquinho (balanços e gangorra animados, escorregador, trepa-trepa, caixa de areia), chafariz animado, **bancos para sentar**, postes que acendem à noite, lixeiras e árvores.
+- Gente diferente por horário: aposentados e corredores de manhã, crianças e pais durante o dia, jogadores e jovens no fim de tarde/noite, casais no chafariz à noite.
+
+### Primeira missão (refeita)
+- Cutscene na cela com a **porta abrindo animada**, Ethan de **uniforme laranja**, saída da prisão, volta para casa e **troca de roupa**.
+- Na fuga do prólogo, **3 policiais** aparecem antes do carro: é preciso derrubá-los.
+
+### Combate
+- Inimigos buscam cobertura, espiam, agacham, atiram em rajadas, recarregam e reagem quando são atingidos; avisam os companheiros por perto.
+- Dispersão que aumenta com tiros seguidos, tiro na cabeça (dano dobrado), marcador de acerto, faíscas, ricochete e som de bala passando perto.
+
+### Veículos
+- Corrigidas as **rodas atravessando a carroceria** em todos os carros (14 tipos × rebaixado/suspensão/rodas grandes) e nas 4 motos.
+
+### Dublagem (vozes reais)
+- O jogo toca a **gravação real** de cada fala quando o arquivo existe em `dist/voz/`. **Não há voz sintetizada**: sem arquivo, a fala continua só com legenda.
+- **Os áudios das vozes ainda não foram fornecidos.** A lista completa do que gravar (112 falas, por personagem, com tom sugerido e nome do arquivo) está em **`dist/voz/ROTEIRO_DUBLAGEM.md`**.
+- Volume próprio em **Opções → Volume das vozes**; filtro de telefone nas ligações; a boca do personagem abre conforme o volume do áudio (sincronia labial).
+- Para a boca seguir o áudio exato, jogue por um servidor local (`npx serve dist` ou `python -m http.server -d dist`). Abrindo o `index.html` direto, a voz toca normalmente, mas a boca usa um movimento aproximado.
+- Depois de colocar os arquivos, rode `node build.mjs` (ou `node tools/vozes.mjs`) para o jogo reconhecê-los.
+
+### Gráficos
+- Variação em larga escala na grama (áreas secas e viçosas), no asfalto (remendos e desgaste) e nas calçadas, quebrando a repetição das texturas sem custo perceptível.
+
 ## Blackwood (a segunda cidade)
 
 Fica a leste, depois do rio (siga a estrada leste depois da Zona Industrial e atravesse a ponte). A entrada é liberada quando você alcança **2 estrelas de procurado**.
@@ -340,6 +383,11 @@ npm run dev       # recompila automaticamente ao salvar
 | `src/products.js` | Produtos, comidas e bebidas das lojas (atlas), ícones do menu e item na mão |
 | `src/sky.js` | Céu, sol/lua, dia/entardecer/noite |
 | `src/collision.js` | Colisões |
+| `src/westhaven.js` | Cidade de Westhaven, rodovia, baía e ponte |
+| `src/stadium.js` / `src/football.js` | Estádio, torcida, troféus e partida de futebol com IA |
+| `src/praca.js` | Praça de Westhaven: basquete, parquinho, chafariz, bancos |
+| `src/voice.js` / `src/voiceid.mjs` | Dublagem: tocar vozes gravadas, volume, filtro, sincronia labial |
+| `tools/vozes.mjs` | Gera o roteiro de dublagem e a lista de áudios presentes |
 
 ## Licenças
 
