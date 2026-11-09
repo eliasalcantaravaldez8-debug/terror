@@ -25,7 +25,7 @@ import { Airplane } from './plane.js';
 import { UltraPost } from './post.js';
 import { itemIcon, handItem } from './products.js';
 import { shopKind } from './city.js';
-import { Vehicle, CAR_COLORS, updateSirens, MOTO_TYPES, CAR_LIST, CAR_TYPES } from './vehicle.js';
+import { Vehicle, CAR_COLORS, updateSirens, MOTO_TYPES, CAR_LIST, CAR_TYPES, debugWheelClip } from './vehicle.js';
 import { Player } from './player.js';
 import { ThirdPersonCamera } from './camera.js';
 import { NPC } from './npc.js';
@@ -83,7 +83,7 @@ window.addEventListener('resize', () => {
 });
 
 const G = {}; // estado global do jogo (exposto para testes em window.game)
-window.game = G; G.THREE = THREE; G.mats = () => _mats();
+window.game = G; G.THREE = THREE; G.mats = () => _mats(); G.debugWheelClip = debugWheelClip; G.CAR_TYPES = CAR_TYPES;
 G.freeWeapons = settings.freeWeapons;
 
 function build() {
