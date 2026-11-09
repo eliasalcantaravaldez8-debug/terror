@@ -53,3 +53,35 @@ export function bwOnRoad(x, z) {
   const onAxis = (v, c) => { const u = v - (c - BW.half); if (u < 0 || u > BW.n * BW.P + BW.ROAD) return false; return (u % BW.P) < BW.ROAD; };
   return onAxis(x, BW.x) || onAxis(z, BW.z);
 }
+
+// ---------- WESTHAVEN (terceira cidade, a oeste, depois da baía e da ponte gigante) ----------
+export const WH = { x: -1150, z: 0, n: 8, P: 76, ROAD: 12, BLOCK: 64 };
+WH.half = (WH.n / 2) * WH.P + WH.ROAD / 2; // 310 => x de -1460 a -840
+export const whRoad = (i) => WH.x + (i - WH.n / 2) * WH.P;
+export const whRoadZ = (i) => WH.z + (i - WH.n / 2) * WH.P;
+export const whBlock = (j) => whRoad(j) + WH.P / 2;
+export const whBlockZ = (k) => whRoadZ(k) + WH.P / 2;
+// estádio ocupa 2x2 quarteirões (colunas 6-7, linhas 1-2): as ruas internas não existem
+export const WH_STADIUM = { j0: 6, k0: 1 };
+export function inWHStadium(x, z) { return x > whRoad(6) + 6 && x < whRoad(8) - 6 && z > whRoadZ(1) + 6 && z < whRoadZ(3) - 6; }
+export function inWesthaven(x, z, pad = 0) { return Math.abs(x - WH.x) <= WH.half + pad && Math.abs(z - WH.z) <= WH.half + pad; }
+export function whOnRoad(x, z) {
+  if (inWHStadium(x, z)) return false;
+  const onAxis = (v, c) => { const u = v - (c - WH.half); if (u < 0 || u > WH.n * WH.P + WH.ROAD) return false; return (u % WH.P) < WH.ROAD; };
+  return onAxis(x, WH.x) || onAxis(z, WH.z);
+}
+// baía e ponte: rodovia sai de Los Valles (x -234) pelo oeste, sobe a rampa, cruza a baía a 12 m e desce em Westhaven
+export const BAY = { x0: -780, x1: -560 };
+export const HWY = { x0: -480, x1: -234, w: 18 }; // rodovia de 4 faixas em z = 0
+export const BRIDGE = { x0: -840, x1: -480, w: 18, towers: [-600, -740] };
+export function deckY(x) {
+  if (x >= -480 || x <= -840) return 0;
+  const ss = (t) => t * t * (3 - 2 * t);
+  if (x > -560) return 12 * ss((-480 - x) / 80);
+  if (x < -780) return 12 * ss((x + 840) / 60);
+  return 12 + 2.5 * Math.sin(Math.PI * (-560 - x) / 220); // vão central levemente arqueado
+}
+export const onBridge = (x, z) => x < -480 && x > -840 && Math.abs(z) < BRIDGE.w / 2;
+export const onHighway = (x, z) => x <= -234 && x >= -480 && Math.abs(z) < HWY.w / 2;
+// área afastada com poucas casas, no meio da floresta a oeste da cidade
+export const PINES = { x: -1660, z: 150, r: 70, name: 'Vale dos Pinheiros (área afastada)' };

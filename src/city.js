@@ -7,7 +7,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import * as TX from './textures.js';
 import { mats, signMat, prodMat, homeMat, paint } from './materials.js';
 import { rand, rr, pick, setSeed } from './textures.js';
-import { inKeepOut, hillHeight, inBlackwood, bwOnRoad } from './places.js';
+import { inKeepOut, hillHeight, inBlackwood, bwOnRoad, onHighway, onBridge, deckY, inWesthaven, whOnRoad, BAY, PINES } from './places.js';
 
 export const N = 6;            // quarteirões por lado
 export const ROAD = 12;        // largura da rua
@@ -42,6 +42,13 @@ export function onRoadAxis(v) {
 export function groundHeight(x, z) {
   if (Math.abs(x) <= HALF && Math.abs(z) <= HALF) return (onRoadAxis(x) || onRoadAxis(z)) ? 0 : CURB;
   if (x > 470 && inBlackwood(x, z)) return bwOnRoad(x, z) ? 0 : CURB;
+  if (x < -230) { // oeste: rodovia, ponte e Westhaven
+    if (onHighway(x, z)) return 0;
+    if (onBridge(x, z)) return deckY(x);
+    if (x < -830 && inWesthaven(x, z)) return whOnRoad(x, z) ? 0 : CURB;
+    if (x < BAY.x1 && x > BAY.x0) return -1.6; // fundo da baía (a água bloqueia a passagem)
+    if (x < -1440 && Math.abs(z - PINES.z) < 3 && x > PINES.x) return CURB; // estrada de terra
+  }
   return CURB + hillHeight(x, z);
 }
 
@@ -1709,6 +1716,7 @@ export class City {
       const a = (i / 26) * Math.PI * 2 + rr(-0.1, 0.1), r = rr(470, 520);
       const g = new THREE.ConeGeometry(rr(60, 110), rr(40, 90), 7, 1);
       if (Math.cos(a) * r > 380 && Math.abs(Math.sin(a) * r) < 330) continue; // lado de Blackwood
+      if (Math.cos(a) * r < -300 && Math.abs(Math.sin(a) * r) < 120) continue; // rodovia para Westhaven
       B.add(g, hillMat, mat(Math.cos(a) * r, 0, Math.sin(a) * r));
     }
     B.flush(this.root);
@@ -1724,7 +1732,7 @@ export class City {
     }
     // limites invisíveis
     const L = 448, LE = 836;
-    this.world.addBox(-L - 2, 0, -L, -L, 50, L); this.world.addBox(LE, 0, -L, LE + 2, 50, L);
+    this.world.addBox(-L - 2, 0, -L, -L, 50, -10); this.world.addBox(-L - 2, 0, 10, -L, 50, L); this.world.addBox(LE, 0, -L, LE + 2, 50, L); // oeste: passagem da rodovia
     this.world.addBox(-L, 0, -L - 2, LE, 50, -L); this.world.addBox(-L, 0, L, LE, 50, L + 2);
   }
 

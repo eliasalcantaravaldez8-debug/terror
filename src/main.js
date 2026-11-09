@@ -9,6 +9,8 @@ const P_ = P;
 import { Zones } from './zones.js';
 import { PLACES, BW, bwRoad, bwRoadZ, bwBlock, bwBlockZ, RIVER } from './places.js';
 import { Blackwood, BW_LAYOUT } from './blackwood.js';
+import { Westhaven, WH_LAYOUT } from './westhaven.js';
+import { WH, whRoad, whRoadZ, whBlock, whBlockZ, BAY, PINES, inWesthaven } from './places.js';
 import { Story } from './story.js';
 import { Phone, VIBE } from './phone.js';
 import { ETHAN_MISSIONS } from './missions_ethan.js';
@@ -97,6 +99,8 @@ function build() {
   zones.build();
   const blackwood = new Blackwood(scene, world, city);
   blackwood.build();
+  const westhaven = new Westhaven(scene, world, city); G.westhaven = westhaven;
+  if (G.onWesthavenBuild) G.onWesthavenBuild(westhaven); westhaven.build();
   city.buildTrees();
   // grama 3D (não na qualidade Baixa)
   const grass = Q.grass ? new Grass(scene, city.grassRects, (x, z) => world.groundFn(x, z), { radius: Q.grass, spacing: Q.grass > 60 ? 1.05 : 1.25 }) : null;
@@ -122,7 +126,7 @@ function build() {
   const npcs = [];
   for (const s of city.shopkeepers) npcs.push(new NPC(scene, world, shopkeeperLook(), { name: 'Atendente — ' + s.shop, role: 'shop', lines: [pick(SHOP_LINES), pick(SHOP_LINES)], x: s.x, z: s.z, heading: s.heading }));
   for (const p of city.npcs) if (p.kind === 'police') npcs.push(new NPC(scene, world, policeLook(), { name: 'Policial', role: 'police', lines: POLICE_LINES, x: p.x, z: p.z, behavior: 'patrol' }));
-  const loops = city.pedLoops;
+  const loops = city.pedLoops.filter((l) => l.cx > -830); // Westhaven tem pedestres próprios (aparecem quando o jogador está lá)
   for (let i = 0; i < Q.peds; i++) {
     const loop = loops[Math.floor(rand() * loops.length)];
     npcs.push(new NPC(scene, world, randomPedestrian(), { name: 'Pedestre', role: 'ped', lines: [pick(PED_LINES)], behavior: 'loop', loop }));
@@ -175,7 +179,7 @@ function build() {
   // Ultra: filtragem anisotrópica máxima (texturas nítidas no chão e nas paredes vistas de lado)
   if (Q.ultra) { const maxA = renderer.capabilities.getMaxAnisotropy(); const seen = new Set(); scene.traverse((o) => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) for (const k of ['map', 'normalMap', 'emissiveMap']) { const t = m[k]; if (t && !seen.has(t)) { seen.add(t); t.anisotropy = maxA; t.needsUpdate = true; } } }); }
   fx = new Fx(scene); G.fx = fx;
-  Object.assign(G, { plane, grass, blackwood, world, sky, city, zones, cars, drivers, player, npcs, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera, lampLights, glow, blobs });
+  Object.assign(G, { plane, grass, blackwood, westhaven, world, sky, city, zones, cars, drivers, player, npcs, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera, lampLights, glow, blobs });
   G.aiDrivers = []; G.police = [];
   G.audio = new EngineAudio();
   G.state = SAVE.newState();
@@ -1179,6 +1183,39 @@ function updatePets(dt) {
 }
 function nearestPet() { const P = G.player; let best = null, bd = 1.7; for (const a of G.pets) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } } return best; }
 function petAnimal(a) { a.pet(); G.sound(a.dog ? 'bark' : 'purr', 3); G.player.crouchToggle = true; setTimeout(() => { G.player.crouchToggle = false; }, 2500); toast(a.dog ? `${a.name} abanou o rabo todo feliz!` : `${a.name} ronronou e deitou de barriga para cima.`, 2.5); const C = G.campaign(); C.needs.dor = Math.max(0, C.needs.dor - 5); }
+// WESTHAVEN: libera depois do Prólogo (missão de fuga); pedestres e trânsito próprios aparecem só com o jogador lá
+const whPeds = [], whTraffic = []; let whT = 0;
+function whLoopRoute(j, k) { // volta no quarteirão, na faixa junto à calçada
+  const x0 = whRoad(j) + 2.6, x1 = whRoad(j + 1) - 2.6, z0 = whRoadZ(k) + 2.6, z1 = whRoadZ(k + 1) - 2.6;
+  const one = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]; const r = []; for (let i = 0; i < 6; i++) r.push(...one); return r;
+}
+function updateWesthaven(dt) {
+  if (!started || !G.westhaven) return; const W = G.westhaven, P = G.player;
+  const C = G.state && G.state.ethan; const ok = C && C.done && C.done.includes('prologo');
+  if (ok && !W.unlocked) { W.unlock(); if (G.campaign().flags && !G.campaign().flags.whMsg && !G.mission) { G.campaign().flags.whMsg = true; setTimeout(() => toast('WESTHAVEN DESBLOQUEADA — pegue a rodovia oeste e atravesse a ponte gigante', 5), 1500); } }
+  if (!W.unlocked && Math.hypot(P.x - W.gateSign.x, P.z - W.gateSign.z) < 14 && (whT -= dt) < 0) { whT = 4; toast('Ponte de Westhaven interditada (abre depois da missão de fuga)', 3); }
+  if ((W.tick = (W.tick || 0) - dt) > 0) return; W.tick = 1;
+  const inside = inWesthaven(P.x, P.z, 60);
+  // pedestres
+  for (let i = whPeds.length - 1; i >= 0; i--) { const n = whPeds[i]; if (!inside || Math.hypot(n.x - P.x, n.z - P.z) > 170) { n.remove(); G.world.dynamic.delete(n); G.npcs = G.npcs.filter((x) => x !== n); whPeds.splice(i, 1); } }
+  if (inside && W.unlocked) {
+    const want = Math.round(Q.peds * 0.35); const loops = G.city.pedLoops.filter((l) => l.cx < -830 && Math.hypot(l.cx - P.x, l.cz - P.z) < 140);
+    for (let k = 0; k < 4 && whPeds.length < want && loops.length; k++) { const n = new NPC(scene, G.world, randomPedestrian(), { name: 'Pedestre', role: 'ped', lines: [pick(PED_LINES)], behavior: 'loop', loop: pick(loops) }); if (Math.hypot(n.x - P.x, n.z - P.z) < 30) { n.remove(); continue; } G.npcs.push(n); G.world.dynamic.add(n); whPeds.push(n); }
+  }
+  // trânsito
+  for (let i = whTraffic.length - 1; i >= 0; i--) { const t = whTraffic[i]; const c = t.car; if (c.removed || t.drv.done || !inside || Math.hypot(c.x - P.x, c.z - P.z) > 230) { const a = G.aiDrivers.indexOf(t.drv); if (a >= 0) G.aiDrivers.splice(a, 1); if (!c.removed && G.car !== c) removeCar(c); whTraffic.splice(i, 1); } }
+  if (inside && W.unlocked && whTraffic.length < Math.round(Q.traffic * 0.6)) {
+    const j = Math.floor(Math.random() * WH.n), k = Math.floor(Math.random() * WH.n);
+    if (!((j === 6 || j === 7) && (k === 1 || k === 2))) { // não dentro do estádio
+      const route = whLoopRoute(j, k); const st = route[Math.floor(Math.random() * 4)];
+      if (Math.hypot(st[0] - P.x, st[1] - P.z) > 45 && Math.hypot(st[0] - P.x, st[1] - P.z) < 200) {
+        const c = makeCarAt(pick(['sedan', 'hatch', 'popular', 'suv', 'pickup', 'taxi', 'luxo', 'coupe', 'classico']), st[0], st[1]);
+        const i0 = route.indexOf(st); const r2 = route.slice(i0 + 1); c.place(st[0], st[1], Math.atan2(r2[0][0] - st[0], r2[0][1] - st[1]));
+        const drv = new RouteDriver(c, r2, { speed: 11, rubber: false }); G.aiDrivers.push(drv); whTraffic.push({ car: c, drv });
+      }
+    }
+  }
+}
 // RACHA DE LOS VALLES: avisa no celular quando abre e junta curiosos na largada
 let rachaWasOpen = false; const rachaFans = [];
 function updateRacha() {
@@ -1451,10 +1488,10 @@ function renderStats() {
 }
 
 // ---------------- MINIMAPA ----------------
-let mmBase; const MM = 900, MMW = 1300; // largura cobre x de -450 até 850
+let mmBase; const MM = 1400, MW = 1500, MMW = 1300 + 1500; // cobre x de -1950 até 850 e z de -700 até 700
 function buildMinimap() {
   mmBase = document.createElement('canvas'); mmBase.width = MMW; mmBase.height = MM;
-  const g = mmBase.getContext('2d'); const o = MM / 2;
+  const g = mmBase.getContext('2d'); const o = MM / 2; g.translate(MW, 0); g.fillStyle = '#2d4224'; g.fillRect(-MW, 0, MMW, MM);
   g.fillStyle = '#2d4224'; g.fillRect(0, 0, MMW, MM);
   const colors = { res: '#5d7a4a', park: '#3f7a3a', down: '#8a8580', mixed: '#9a9286', shops: '#a8927a', shops2: '#a8927a', police: '#5a6a9a', gas: '#a87a6a', parking: '#6a6a6a', apart: '#8a8070', hospital: '#c8c8c8', mall: '#c9b48c', church: '#b8a890', school: '#8aa0c0',
     bwres: '#4f6a42', bwshops: '#98806a', square: '#a8a090', cemetery: '#4a5a44', bwpolice: '#5a6a9a', motel: '#8a6a5a', bwmixed: '#8a8278', bwgas: '#7a8a6a', factory: '#6a4a3a', bwforest: '#2f5a2a' };
@@ -1489,6 +1526,17 @@ function buildMinimap() {
   }
   g.setLineDash([]); g.fillStyle = '#ffffff'; g.font = 'bold 22px Arial'; g.textAlign = 'center';
   g.fillText('LOS VALLES', o, o - HALF - 12); g.fillText('BLACKWOOD', o + BW.x, o + BW.z - BW.half - 12);
+  // Westhaven, baía, rodovia e ponte
+  g.fillStyle = '#2a5a7a'; g.fillRect(o + BAY.x0, 0, BAY.x1 - BAY.x0, MM);
+  g.fillStyle = '#3a3a3c'; g.fillRect(o + WH.x - WH.half, o + WH.z - WH.half, WH.half * 2, WH.half * 2);
+  const whCol = { ...colors, wsky: '#7a7f88', wshops: '#a8927a', wind: '#6a5a4a', wpraca: '#3f7a3a', ST: '#d8d0b0' };
+  for (let k = 0; k < WH.n; k++) for (let j = 0; j < WH.n; j++) { g.fillStyle = '#a8a296'; g.fillRect(o + whBlock(j) - BLOCK / 2, o + whBlockZ(k) - BLOCK / 2, BLOCK, BLOCK); g.fillStyle = whCol[WH_LAYOUT[k][j]] || '#888'; g.fillRect(o + whBlock(j) - BLOCK / 2 + 4, o + whBlockZ(k) - BLOCK / 2 + 4, BLOCK - 8, BLOCK - 8); }
+  g.fillStyle = '#d8d0b0'; g.fillRect(o + whRoad(6) + 6, o + whRoadZ(1) + 6, whRoad(8) - whRoad(6) - 12, whRoadZ(3) - whRoadZ(1) - 12);
+  g.fillStyle = '#2f5a2a'; g.fillRect(o - 1900, o - 680, 1900 - 1460, 1360);
+  g.fillStyle = '#7a6448'; g.beginPath(); g.arc(o + PINES.x, o + PINES.z, PINES.r, 0, Math.PI * 2); g.fill(); g.fillRect(o + PINES.x, o + PINES.z - 3, -1460 - PINES.x, 6);
+  g.strokeStyle = '#3a3a3c'; g.lineWidth = 18; g.beginPath(); g.moveTo(o - 234, o); g.lineTo(o - 840, o); g.stroke();
+  g.strokeStyle = '#b8432a'; g.lineWidth = 4; for (const tx of [-600, -740]) { g.beginPath(); g.moveTo(o + tx, o - 14); g.lineTo(o + tx, o + 14); g.stroke(); }
+  g.fillStyle = '#ffffff'; g.font = 'bold 22px Arial'; g.textAlign = 'center'; g.fillText('WESTHAVEN', o + WH.x, o + WH.z - WH.half - 12); g.font = 'bold 14px Arial'; g.fillText('ponte', o - 670, o - 18);
   G.mmOrigin = o;
 }
 function mapMarks(g, p, zoom, rel = true) {
@@ -1516,7 +1564,7 @@ function drawMinimap() {
   g.translate(W2 / 2, H / 2); g.scale(zoom, zoom);
   // gira o mapa para que a direção da câmera fique para cima
   g.rotate(mapRotation());
-  g.drawImage(mmBase, -(o + p.x), -(o + p.z));
+  g.drawImage(mmBase, -(o + MW + p.x), -(o + p.z));
   mapMarks(g, p, zoom);
   g.restore();
   g.save(); g.translate(W2 / 2, H / 2);
@@ -1531,7 +1579,7 @@ function drawMinimap() {
 }
 G.drawPhoneMap = (cv) => {
   const g = cv.getContext('2d'); const s = cv.width / MMW; cv.height = Math.round(MM * s); g.save(); g.scale(s, s); g.drawImage(mmBase, 0, 0);
-  g.translate(G.mmOrigin, G.mmOrigin); mapMarks(g, { x: 0, z: 0 }, s, false);
+  g.translate(G.mmOrigin + MW, G.mmOrigin); mapMarks(g, { x: 0, z: 0 }, s, false);
   const p = G.car || G.player; const h = G.car ? G.car.heading : G.player.heading;
   g.translate(p.x, p.z); g.rotate(-h + Math.PI); g.fillStyle = '#ff5a3a'; g.beginPath(); g.moveTo(0, -14); g.lineTo(10, 12); g.lineTo(0, 5); g.lineTo(-10, 12); g.closePath(); g.fill(); g.restore();
 };
@@ -1616,7 +1664,7 @@ function step(dt) {
   if (active && !locked2 && hit('KeyF')) playerPunch();
   punchCd -= dt; pulsoCd -= dt;
   updateEat(dt);
-  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers(); updateWrecks(dt); updatePets(dt);
+  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers(); updateWrecks(dt); updatePets(dt); updateWesthaven(dt);
   // interiores das casas: só desenha os que estão perto (o jogador ou a câmera)
   if ((interiorT -= dt) <= 0) { interiorT = 0.25; const cx = G.camera.position.x, cz = G.camera.position.z; for (const it of G.city.interiors) { const dx = it.x - p.x, dz = it.z - p.z, ex = it.x - cx, ez = it.z - cz; const R = (it.r || 40) * LODM; it.group.visible = dx * dx + dz * dz < R * R || ex * ex + ez * ez < R * R * 0.56; } }
   if (active && !locked2 && hit('KeyQ') && G.campaign().tools.pulso) {
