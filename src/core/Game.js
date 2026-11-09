@@ -102,13 +102,14 @@ export class Game {
       }
     });
     this.input.onLockChange = (locked) => {
-      if (!locked && this.state === 'playing' && !this.testMode && !this._ignoreUnlock) this.pause();
+      if (!locked && this.state === 'playing' && !this.testMode && !this._ignoreUnlock && !this.input.lockFailed) this.pause();
     };
     this.pipeline.renderer.domElement.addEventListener('click', () => {
       if (this.state === 'playing' && !this.input.locked && !this.testMode) this.input.requestLock();
     });
     window.addEventListener('keydown', (e) => {
       if ((e.code === 'Escape' || e.code === 'KeyP') && this.state === 'paused' && this.menus.current === 'pause') { this.resume(); }
+      else if (e.code === 'Escape' && this.state === 'playing' && this.input.lockFailed) this.pause();
       else if ((e.code === 'KeyP') && this.state === 'playing') this.pause();
     });
 

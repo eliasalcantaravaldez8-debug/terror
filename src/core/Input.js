@@ -48,12 +48,14 @@ export class Input {
     });
     window.addEventListener('mouseup', (e) => this.mouseDown.delete(e.button));
     element.addEventListener('contextmenu', (e) => e.preventDefault());
+    this.lockFailed = false; // embedded pages may refuse pointer lock: fall back to free mouse look
     window.addEventListener('mousemove', (e) => {
-      if (!this.locked) return;
+      if (!this.locked && !(this.lockFailed && this.enabled)) return;
       this.mouseDX += e.movementX || 0;
       this.mouseDY += e.movementY || 0;
     });
     window.addEventListener('wheel', (e) => { this.wheel += Math.sign(e.deltaY); }, { passive: true });
+    document.addEventListener('pointerlockerror', () => { this.lockFailed = true; });
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === this.element;
       this.onLockChange?.(this.locked);
@@ -62,9 +64,10 @@ export class Input {
 
   requestLock() {
     try {
-      const p = this.element.requestPointerLock?.();
-      if (p && p.catch) p.catch(() => {});
-    } catch { /* not available (headless) */ }
+      if (!this.element.requestPointerLock) { this.lockFailed = true; return; }
+      const p = this.element.requestPointerLock();
+      if (p && p.catch) p.catch(() => { this.lockFailed = true; });
+    } catch { this.lockFailed = true; }
   }
   exitLock() { if (document.pointerLockElement) document.exitPointerLock(); }
 
