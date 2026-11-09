@@ -64,6 +64,17 @@ export const ETHAN_MISSIONS = [
         const ryan = S.npc('ryan', 'ryanYoung', { x: Z.hideoutOut[0] + 1, z: Z.hideoutOut[1], role: 'story', hp: 400 });
         S.follow(ryan);
         const car = ensureCar(S, G, 'fugaCar', 'sedan', 0x2a2a30, Z.hideoutCar[0], Z.hideoutCar[1], Math.PI / 2);
+        // a polícia já está na viela: 3 policiais bloqueiam o caminho até o carro (Ryan só acompanha)
+        {
+          G.sound('siren', 3);
+          const cops = [];
+          for (let i = 0; i < 3; i++) cops.push(hostile(S, 'raid' + i, policeLook(), car.x - 3 + i * 3, car.z - 6 - (i % 2) * 2.5, 'raid', { name: 'Policial', hp: 80, damage: 7, run: 3.8 }));
+          ryan.behavior = 'follow';
+          S.failChecks = [() => (G.player.hp <= 0 ? 'Ethan foi derrubado pela polícia' : null)];
+          S.objective('Abra caminho: derrube os 3 policiais (F para golpear)', () => { const a = enemiesAlive(G, 'raid')[0]; return a ? [a.x, a.z] : null; });
+          await S.until(() => enemiesAlive(G, 'raid').length === 0);
+          S.failChecks = null; S.clearObjective();
+        }
         await S.goto([car.x, car.z], 3, 'Corra até o carro e fuja (E para entrar)');
         await S.until(() => G.car === car);
         // a polícia chega pela estrada da cidade
@@ -114,12 +125,35 @@ export const ETHAN_MISSIONS = [
   {
     id: 'liberdade', title: 'Sete Anos Depois', auto: true, next: null, hint: 'Ethan é libertado.',
     stages: [
+      { name: 'cela', async run(S, G) {
+        const Z = G.zones.spots, D = G.zones.cellDoorObj;
+        G.setHour(9.2); G.player.setLook(CHARACTERS.ethanPrison.look);
+        D.open(0);
+        S.placePlayer(Z.ethanCell[0], Z.ethanCell[1], Math.PI);
+        const [dx, dz] = Z.ethanCellDoor, [ox, oz] = Z.ethanCellOut;
+        await S.cutscene(async () => {
+          // câmera no corredor, olhando Ethan pelas grades
+          S.shot([dx + 2.2, 1.75, dz - 1.6], [Z.ethanCell[0], 1.2, Z.ethanCell[1]], 4, [dx + 1.4, 1.6, dz - 1.2], [Z.ethanCell[0], 1.3, Z.ethanCell[1]]);
+          if (S.fade > 0) await S.fadeIn(1.4);
+          await S.card('PENITENCIÁRIA ESTADUAL — 2034', 'Ethan Cross é libertado', 3);
+          // a campainha toca e a porta de grade corre de verdade
+          G.sound('buzzer', 0.9); await S.wait(0.9);
+          G.sound('gate', 1.8);
+          const t0 = S.t; await S.until(() => { D.open(Math.min(1, (S.t - t0) / 1.8)); return S.t - t0 >= 1.85 || (S.cut && S.skipCut); }); D.open(1);
+          await S.wait(0.4);
+          // Ethan sai da cela de uniforme laranja
+          S.shot([ox - 2.6, 1.7, oz - 1.6], [dx, 1.1, dz], 2.5, [ox - 3.5, 1.8, oz - 1.2], [ox, 1.2, oz]);
+          await S.walkPlayer([dx, dz - 0.4]);
+          await S.walkPlayer([ox, oz]);
+        });
+        D.open(1);
+      } },
       { name: 'saida', async run(S, G) {
         const Z = G.zones.spots;
-        G.setHour(9.5); G.player.setLook(CHARACTERS.ethanPrison.look);
-        S.placePlayer(...Z.prisonGateIn, Math.PI / 2);
+        G.setHour(9.4); G.player.setLook(CHARACTERS.ethanPrison.look);
+        if (S.resumed) S.placePlayer(...Z.ethanCellOut, Math.PI / 2);
         if (S.fade > 0) await S.fadeIn(1.2);
-        await S.card('PENITENCIÁRIA ESTADUAL — 2034', 'Ethan Cross é libertado', 3);
+        await S.goto(Z.prisonDoor, 2.5, 'Saia do bloco de celas');
         await S.goto(Z.prisonGateOut, 3, 'Saia da penitenciária');
       } },
       { name: 'carro-preto', async run(S, G) {
@@ -168,7 +202,25 @@ export const ETHAN_MISSIONS = [
           S.frame(G.player, ryan, -1, 3);
           await S.say(E, 'Eu vou descobrir quem está por trás de tudo isso.');
         });
-        G.player.setLook(CHARACTERS.ethan.look);
+      } },
+      { name: 'roupas', async run(S, G) {
+        // ainda de uniforme laranja: entra em casa e troca de roupa no quarto
+        const H = safehouse(G);
+        G.player.setLook(CHARACTERS.ethanPrison.look);
+        if (S.resumed) S.placePlayer(H.door[0] + 1, H.door[1] + 4, Math.PI);
+        const bed = H.bed || H.door;
+        await S.goto(H.door, 2.2, 'Entre em casa');
+        S.objective('Troque de roupa no quarto', bed);
+        await S.press(bed, 2.2, '[E] Trocar de roupa (tirar o uniforme da prisão)');
+        S.clearObjective();
+        await S.cutscene(async () => {
+          await S.fadeOut(0.7);
+          G.sound('page'); await S.wait(0.8); G.sound('page');
+          G.player.setLook(CHARACTERS.ethan.look);
+          S.shot([G.player.x + 1.8, 1.7, G.player.z + 1.6], [G.player.x, 1.1, G.player.z], 2.2, [G.player.x + 1.4, 1.6, G.player.z + 1.2], [G.player.x, 1.2, G.player.z]);
+          await S.fadeIn(0.8);
+          await S.wait(1.4);
+        });
         G.vibe('liberdade');
         G.phone.addMessage('Ryan Cole', 'Descansa hoje. Amanhã a gente começa pelos nomes do livro. Me encontra quando estiver pronto.');
       } },

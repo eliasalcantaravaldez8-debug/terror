@@ -119,7 +119,8 @@ export class Player {
     } else this.grounded = false;
     this.y = ny;
     this.speed = Math.hypot(this.vx, this.vz);
-    this.model.update(dt, { speed: this.speed, grounded: this.grounded, vy: this.vy, mode: this.pose || 'foot', turn: this.turn, accel: this.accel, crouch: this.crouch, phone: this.phone, aim: this.aiming, eat: this.eatT > 0 ? this.eatT : 0 });
+    const strafe = this.aiming && (input.x || input.z) ? Math.atan2(input.x || 0, input.z || 0) : null; // direção do passo em relação ao corpo
+    this.model.update(dt, { speed: this.speed, grounded: this.grounded, vy: this.vy, mode: this.pose || 'foot', turn: this.turn, accel: this.accel, crouch: this.crouch, phone: this.phone, aim: this.aiming, eat: this.eatT > 0 ? this.eatT : 0, strafe });
     this.sync();
   }
   sync() {

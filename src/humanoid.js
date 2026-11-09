@@ -197,6 +197,8 @@ export class Humanoid {
     this.root.rotation.order = 'YXZ';
   }
   punch() { this.punchT = 0.35; }
+  // tranco ao levar um tiro/soco (ang: direção do impacto em relação ao corpo)
+  flinch(ang = 0) { this.flinchT = 0.3; this.flinchA = ang; }
 
   // p: {speed, grounded, vy, mode: 'foot'|'sit', talk, turn, accel}
   update(dt, p) {
@@ -271,6 +273,10 @@ export class Humanoid {
       const armAmp = THREE.MathUtils.lerp(0.32, 0.75, run) * move;
       T.thighL = [-sA * thighAmp - run * 0.15, 0, 0.03];
       T.thighR = [-sB * thighAmp - run * 0.15, 0, -0.03];
+      if (p.strafe != null && move > 0.1) { // andando mirando: as pernas dão o passo na direção do movimento (lado / para trás)
+        const c = Math.cos(p.strafe), sn = Math.sin(p.strafe);
+        T.thighL = [-sA * thighAmp * c, 0, 0.03 - sA * thighAmp * sn * 0.85]; T.thighR = [-sB * thighAmp * c, 0, -0.03 - sB * thighAmp * sn * 0.85];
+      }
       const knee = (s, c) => (Math.max(0, Math.cos(c - 0.3)) * THREE.MathUtils.lerp(0.75, 1.6, run) + 0.08) * move;
       T.kneeL = [knee(sA, ph), 0, 0]; T.kneeR = [knee(sB, ph + Math.PI), 0, 0];
       T.footL = [Math.max(0, -sA) * 0.3 * move - 0.05 * move, 0, 0];
@@ -308,6 +314,10 @@ export class Humanoid {
       }
     }
     if (p.aim) { T.shoulderR = [-1.55, 0, 0.05]; T.elbowR = [-0.05, 0, 0]; T.shoulderL = [-1.35, 0, -0.55]; T.elbowL = [-0.55, 0, 0]; T.chest = [0, 0.1, 0]; T.head = [0, -0.1, 0]; }
+    if (this.flinchT > 0) { // tranco do impacto: tronco e cabeça jogados para trás e para o lado
+      this.flinchT -= dt; const k = Math.max(0, this.flinchT / 0.3) ** 0.7, sx = Math.sin(this.flinchA || 0), cz = Math.cos(this.flinchA || 0);
+      T.spine = [T.spine[0] - 0.32 * k * cz, T.spine[1], T.spine[2] + 0.25 * k * sx]; T.chest = [T.chest[0] - 0.18 * k * cz, T.chest[1] + 0.2 * k * sx, T.chest[2]]; T.head = [T.head[0] - 0.35 * k, T.head[1], T.head[2] + 0.2 * k * sx];
+    }
     if (p.eat && !p.aim) { // leva o item à boca em mordidas/goles
       const k = Math.max(0, Math.sin(p.eat * 3.2)) ** 0.6;
       T.shoulderR = [-0.3 - 0.3 * k, 0, -0.08 + 0.3 * k]; T.elbowR = [-1.45 - 0.95 * k, 0, 0]; T.head = [-0.06 * k + 0.08, 0, 0];
@@ -320,7 +330,7 @@ export class Humanoid {
       T.shoulderL = [-0.6, 0, 0.2]; T.elbowL = [-1.6, 0, 0];
       T.spine = [T.spine[0] + 0.1, -0.35 * k, 0];
     }
-    const blendK2 = this.punchT > 0 ? 30 : blendK;
+    const blendK2 = this.punchT > 0 || this.flinchT > 0 ? 30 : blendK;
     for (const [k, b] of Object.entries(this.bones)) {
       const c = this.cur[k], t = T[k];
       c.x = damp(c.x, t[0], blendK2, dt); c.y = damp(c.y, t[1], blendK2, dt); c.z = damp(c.z, t[2], blendK2, dt);

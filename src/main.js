@@ -609,6 +609,7 @@ let punchCd = 0, lastHurt = -99;
 function damagePlayer(amount, from = null) {
   if (from) G.lastHitFrom = [from.x, from.z];
   const C = G.campaign(); G.player.hp = Math.max(0, G.player.hp - amount); C.needs.dor = Math.min(100, C.needs.dor + amount * 0.7);
+  if (G.player.mode === 'foot' && G.player.model.flinch) G.player.model.flinch(from ? Math.atan2(G.player.x - from.x, G.player.z - from.z) - G.player.heading + Math.PI : 0);
   lastHurt = G.story.t; $('vignette').style.background = 'radial-gradient(ellipse at center, rgba(120,0,0,0) 45%, rgba(140,0,0,0.6) 100%)';
   setTimeout(() => { $('vignette').style.background = ''; }, 250);
   G.sound('punch');
@@ -646,6 +647,22 @@ function combatCtx() {
     },
     teleportFollower: (n) => G.story.teleportFollower(n),
     npcShoot: (n, tgt) => G.weapons.npcShoot(n, tgt),
+    sound: (name, n) => { if (Math.hypot(n.x - P.x, n.z - P.z) < 30) G.sound(name); },
+    // cobertura: ponto perto do inimigo que fica escondido do alvo (parede/carro/caixa entre os dois)
+    findCover: (n, tgt) => {
+      const W = G.world; let best = null, bd = 1e9; const hy = (tgt.y || 0) + 1.5;
+      for (let a = 0; a < 12; a++) for (const r of [2.5, 4.5, 7]) {
+        const ang = a / 12 * Math.PI * 2, x = n.x + Math.sin(ang) * r, z = n.z + Math.cos(ang) * r;
+        const dt2 = Math.hypot(x - tgt.x, z - tgt.z); if (dt2 < 6) continue;
+        const gy = W.groundAt(x, z, 0.4, n.y + 0.4); if (Math.abs(gy - n.y) > 0.6) continue;
+        if (W.resolveCircle(x, z, 0.42, gy + 0.05, gy + 1.7, 0.3, n).hit) continue; // dentro de obstáculo
+        const dx = x - tgt.x, dy = gy + 1.0 - hy, dz = z - tgt.z, L = Math.hypot(dx, dy, dz); W.rayIgnore = G.car || null;
+        if (W.raycast(tgt.x, hy, tgt.z, dx / L, dy / L, dz / L, L) > L - 0.7) continue; // dá para ver: não é cobertura
+        const score = r + Math.abs(dt2 - 12) * 0.15; if (score < bd) { bd = score; best = [x, z]; }
+      }
+      return best;
+    },
+    coverValid: (n, tgt) => { const W = G.world; const hy = (tgt.y || 0) + 1.5; const dx = n.x - tgt.x, dy = n.y + 1.0 - hy, dz = n.z - tgt.z, L = Math.hypot(dx, dy, dz); W.rayIgnore = G.car || null; return W.raycast(tgt.x, hy, tgt.z, dx / L, dy / L, dz / L, L) < L - 0.7; },
   };
 }
 // empurrão do soco: na direção de quem bate para quem apanha
@@ -1637,9 +1654,13 @@ function step(dt) {
       run: down('ShiftLeft', 'ShiftRight'), jump: hit('Space') && !S.cut, crouch: p.crouchToggle,
     } : { x: 0, z: 0, run: false, jump: false, crouch: p.crouchToggle };
     if (G.testInput) Object.assign(input, G.testInput);
+    // caminhada roteirizada (cutscenes): o personagem anda de verdade até o ponto
+    let moveYaw = G.cam.yaw;
+    if (G.scriptWalk) { const w = G.scriptWalk; const dx = w.to[0] - p.x, dz = w.to[1] - p.z, d = Math.hypot(dx, dz); w.t = (w.t || 0) + dt;
+      if (d < 0.35 || w.t > 15) { G.scriptWalk = null; input.x = 0; input.z = 0; } else { input.x = 0; input.z = 1; input.run = !!w.run; moveYaw = Math.atan2(dx, dz) - Math.PI; } }
     if (G.scope) { input.x = 0; input.z = 0; }
     G.weapons.update(dt, active && !locked2 && !S.cut ? { aim: mouseAim || aimToggle || !!G.testAim, fire: mouseFire || !!G.testFire } : { aim: false, fire: false });
-    if (p.mode === 'foot') p.update(dt, input, G.cam.yaw);
+    if (p.mode === 'foot') p.update(dt, input, moveYaw);
   }
   if (p.mode === 'car') {
     const car = G.car;

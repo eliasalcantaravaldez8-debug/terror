@@ -199,7 +199,8 @@ export class NPC {
       }
       case 'hostile': {
         const tgt = ctx.nearestFoe ? ctx.nearestFoe(this, 40) : null;
-        if (tgt) { moveSpeed = this.fight(tgt, dt, ctx); wantHeading = Math.atan2(tgt.x - this.x, tgt.z - this.z); } else this.aimPose = false;
+        if (tgt) { moveSpeed = this.fight(tgt, dt, ctx); wantHeading = Math.atan2(tgt.x - this.x, tgt.z - this.z); } else { this.aimPose = false; this.coverCrouch = false; }
+        crouch = !!this.coverCrouch;
         break;
       }
       case 'gang': { // briga de gangues: ataca o rival mais perto (ou o jogador, se ele provocou)
@@ -275,7 +276,9 @@ export class NPC {
       if (d > 2.0) { const r = this.moveTo(tgt.x, tgt.z, d > 8 ? this.runSpeed * 0.8 : 1.6, dt, 1.9); return r.speed; }
       return 0;
     }
-    // armados: param e atiram de longe
+    // armados: táticas (cobertura, rajadas, recarga, passo lateral) — ver gunTactics
+    if (this.gun && d > 2 && d < 30 && ctx.npcShoot && ctx.findCover) return this.gunTactics(tgt, d, dt, ctx);
+    // armados (modo simples): param e atiram de longe
     if (this.gun && d > 2 && d < 26 && ctx.npcShoot) {
       this.aimPose = true;
       if (this.attackCd <= 0) { this.attackCd = 1.3 + Math.random() * 0.9; if (ctx.npcShoot(this, tgt) === false) { this.blockedT = 1.4; this.attackCd = 0.5; this.sideDir = this.sideDir || (Math.random() < 0.5 ? 1 : -1); } else this.blockedT = 0; }
@@ -288,6 +291,58 @@ export class NPC {
     if (d > 1.25) { const r = this.moveTo(tgt.x, tgt.z, d > 4 ? this.runSpeed : 2.4, dt, 1.1); return r.speed; }
     if (this.attackCd <= 0) { this.attackCd = rr(1.1, 1.8); this.model.punch(); ctx.hit && ctx.hit(this, tgt, this.damage); }
     return 0;
+  }
+  // inimigo armado com comportamento de tiroteio: procura cobertura quando ferido ou sob fogo, sai para atirar em rajadas,
+  // recarrega, anda de lado quando está no aberto e mantém distância
+  gunTactics(tgt, d, dt, ctx) {
+    this.coverCd = (this.coverCd ?? rr(0.5, 2)) - dt; this.peekT = (this.peekT ?? rr(1, 2)) - dt; this.suppressedT = Math.max(0, (this.suppressedT || 0) - dt);
+    if (this.staggerT > 0) { this.staggerT -= dt; this.aimPose = false; return 0; } // reação ao tiro
+    if (this.reloadT > 0) { this.reloadT -= dt; this.aimPose = false; this.coverCrouch = !!this.inCover; if (this.reloadT <= 0) this.shots = 0; return 0; }
+    // procurar cobertura: ferido, sob fogo ou alvo perto demais
+    const hurt = this.hp < this.maxHp * 0.7 || this.suppressedT > 0;
+    if (!this.cover && hurt && this.coverCd <= 0) { this.coverCd = rr(3.5, 5.5); this.cover = ctx.findCover(this, tgt); this.inCover = false; }
+    if (this.cover) {
+      const [cx, cz] = this.cover;
+      if (!this.inCover) {
+        const r = this.moveTo(cx, cz, this.runSpeed, dt, 0.35); this.aimPose = false; this.coverCrouch = false;
+        if (r.arrived) { this.inCover = true; this.peekT = rr(0.8, 1.6); }
+        else { if (this.stuck > 1.5) { this.cover = null; this.stuck = 0; } return r.speed; }
+      }
+      // na cobertura: abaixado, e de vez em quando levanta para atirar
+      if ((this.coverCheck = (this.coverCheck || 0) - dt) <= 0) { this.coverCheck = 2; if (!ctx.coverValid(this, tgt)) { this.cover = null; this.inCover = false; this.coverCd = 0; return 0; } }
+      const peeking = this.peekT < 0 && this.peekT > -1.7;
+      if (this.peekT <= -1.7) this.peekT = rr(1.2, 2.6);
+      this.coverCrouch = !peeking; this.aimPose = peeking;
+      if (peeking) this.tryShoot(tgt, ctx);
+      return 0;
+    }
+    this.coverCrouch = false; this.aimPose = true;
+    // no aberto: mantém distância (8–16 m) e anda de lado enquanto atira
+    let sp = 0;
+    if (d > 18) { const r = this.moveTo(tgt.x, tgt.z, 2.6, dt, 16); sp = r.speed; }
+    else {
+      if ((this.strafeT = (this.strafeT || 0) - dt) <= 0) { this.strafeT = rr(1, 2.4); this.sideDir = Math.random() < 0.5 ? -1 : 1; }
+      const dx = tgt.x - this.x, dz = tgt.z - this.z, L = Math.hypot(dx, dz) || 1; const back = d < 7 ? -1 : 0;
+      const tx = this.x + (-dz / L) * this.sideDir * 1.5 + dx / L * back * 1.5, tz = this.z + (dx / L) * this.sideDir * 1.5 + dz / L * back * 1.5;
+      const r = this.moveTo(tx, tz, 1.4, dt, 0.2); sp = r.speed * 0.8; if (this.stuck > 0.6) { this.sideDir *= -1; this.stuck = 0; }
+    }
+    this.tryShoot(tgt, ctx);
+    return sp;
+  }
+  tryShoot(tgt, ctx) {
+    if (this.attackCd > 0) return;
+    // rajadas curtas: 2–3 tiros rápidos, pausa maior entre rajadas
+    this.burst = (this.burst || 0) + 1; const endBurst = this.burst >= (this.burstLen || (this.burstLen = 2 + Math.floor(Math.random() * 2)));
+    this.attackCd = endBurst ? rr(1.1, 1.9) : rr(0.22, 0.35); if (endBurst) { this.burst = 0; this.burstLen = 0; }
+    if (ctx.npcShoot(this, tgt) === false) { this.blockedT = 1.4; this.sideDir = this.sideDir || 1; }
+    this.shots = (this.shots || 0) + 1;
+    if (this.shots >= (this.mag || 10)) { this.reloadT = rr(1.6, 2.2); ctx.sound && ctx.sound('reload', this); }
+  }
+  // levou tiro e não caiu: tranco no corpo, pausa curta e fica "sob fogo" (procura cobertura)
+  hitReact(dir) {
+    this.staggerT = 0.32; this.suppressedT = 3; this.coverCd = Math.min(this.coverCd ?? 0, 0.2);
+    if (this.model.flinch) this.model.flinch(dir ? Math.atan2(dir.x, dir.z) - this.heading : 0);
+    if (dir) { const res = this.world.resolveCircle(this.x + dir.x * 0.25, this.z + dir.z * 0.25, this.r, this.y, this.y + 1.7, 0.4, this); this.x = res.x; this.z = res.z; }
   }
   nextLine() {
     if (!this.lines.length) return null;

@@ -72,6 +72,27 @@ export function sfx(ctx, name, dur = 1) {
     const len = name === 'crash' ? 1.1 : name === 'shot' ? 0.35 : 0.12;
     out.gain.setValueAtTime(name === 'punch' ? 0.25 : 0.5, t); out.gain.exponentialRampToValueAtTime(0.001, t + len);
     n.start(t); n.stop(t + len);
+  } else if (name === 'impact') { // bala acertando o corpo: baque abafado
+    const n = noise(0.15); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 420; n.connect(f); f.connect(out);
+    out.gain.setValueAtTime(0.45, t); out.gain.exponentialRampToValueAtTime(0.001, t + 0.12); n.start(t); n.stop(t + 0.15);
+  } else if (name === 'ricochet') { // ricochete: zunido metálico que cai
+    const o = osc('sine', 2600 + Math.random() * 1200); o.connect(out); o.frequency.exponentialRampToValueAtTime(900, t + 0.35);
+    out.gain.setValueAtTime(0.05, t); out.gain.exponentialRampToValueAtTime(0.001, t + 0.38); o.start(t); o.stop(t + 0.4);
+  } else if (name === 'whiz') { // bala passando perto da cabeça
+    const n = noise(0.25); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 3; f.frequency.setValueAtTime(5200, t); f.frequency.exponentialRampToValueAtTime(1500, t + 0.2); n.connect(f); f.connect(out);
+    out.gain.setValueAtTime(0.0001, t); out.gain.exponentialRampToValueAtTime(0.25, t + 0.06); out.gain.exponentialRampToValueAtTime(0.001, t + 0.22); n.start(t); n.stop(t + 0.25);
+  } else if (name === 'click') { // gatilho sem munição
+    const o = osc('square', 1800); o.connect(out); out.gain.setValueAtTime(0.06, t); out.gain.exponentialRampToValueAtTime(0.001, t + 0.03); o.start(t); o.stop(t + 0.04);
+  } else if (name === 'reload') { // pente saindo e entrando
+    for (const [dt2, fq] of [[0, 900], [0.45, 1300], [0.55, 700]]) { const n = noise(0.06); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = fq; f.Q.value = 4; const gg = ctx.createGain(); n.connect(f); f.connect(gg); gg.connect(out);
+      gg.gain.setValueAtTime(0.5, t + dt2); gg.gain.exponentialRampToValueAtTime(0.001, t + dt2 + 0.05); n.start(t + dt2); n.stop(t + dt2 + 0.06); }
+  } else if (name === 'buzzer') { // campainha da cela
+    const o = osc('square', 110); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; o.connect(f); f.connect(out);
+    out.gain.setValueAtTime(0.12, t); out.gain.setValueAtTime(0.12, t + dur - 0.05); out.gain.linearRampToValueAtTime(0, t + dur); o.start(t); o.stop(t + dur);
+  } else if (name === 'gate') { // grade de ferro correndo no trilho + batida no fim
+    const n = noise(dur + 0.3); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 650; f.Q.value = 1.5; n.connect(f); f.connect(out);
+    out.gain.setValueAtTime(0.0, t); out.gain.linearRampToValueAtTime(0.22, t + 0.15); for (let i = 0; i < dur * 8; i++) out.gain.setValueAtTime(0.14 + Math.random() * 0.1, t + 0.15 + i / 8);
+    out.gain.setValueAtTime(0.55, t + dur); out.gain.exponentialRampToValueAtTime(0.001, t + dur + 0.3); n.start(t); n.stop(t + dur + 0.3);
   } else if (name === 'bark' || name === 'yelp') { // latido: 2 "au" (ruído filtrado + tom que cai); ganido: agudo e curto
     const n2 = name === 'yelp' ? 1 : 2;
     for (let i = 0; i < n2; i++) {

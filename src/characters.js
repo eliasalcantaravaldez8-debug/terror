@@ -5,7 +5,8 @@ import { rand, pick, rr } from './textures.js';
 const ETHAN_SKIN = 0xd09a74, ETHAN_HAIR = 0x2a1c12;
 export const CHARACTERS = {
   ethan: { name: 'Ethan Cross', look: { skin: ETHAN_SKIN, hair: ETHAN_HAIR, shirt: 0x4a5560, jacket: 0x4a4038, pants: 0x34425e, shoes: 0x3a2a1e, hairStyle: 'short', height: 1.0, build: 1.0 } },
-  ethanPrison: { name: 'Ethan Cross', look: { skin: ETHAN_SKIN, hair: ETHAN_HAIR, shirt: 0xd8d8d0, pants: 0x5a5a58, shoes: 0x2a2a2a, hairStyle: 'short', beard: true, height: 1.0, build: 1.02 } },
+  ethanPrison: { name: 'Ethan Cross', look: { skin: ETHAN_SKIN, hair: ETHAN_HAIR, shirt: 0xe0661a, pants: 0xd85e16, shoes: 0xe8e8e8, longSleeve: false, jacket: null, // uniforme laranja da penitenciária
+    hairStyle: 'short', beard: true, height: 1.0, build: 1.02 } },
   ethanYoung: { name: 'Ethan', look: { skin: ETHAN_SKIN, hair: ETHAN_HAIR, shirt: 0x8a2a2a, pants: 0x2a2f3a, shoes: 0xe0e0e0, hairStyle: 'short', hat: 'cap', hatColor: 0x1a1a1a, height: 1.0, build: 0.97 } },
   ryan: { name: 'Ryan Cole', look: { skin: 0xb07856, hair: 0x18120c, shirt: 0xe8e2d6, jacket: 0x5a3b26, pants: 0x1f2430, shoes: 0x141414, hairStyle: 'short', beard: true, height: 1.03, build: 1.08 } },
   ryanYoung: { name: 'Ryan', look: { skin: 0xb07856, hair: 0x18120c, shirt: 0x2a4a7a, pants: 0x2a2a2a, shoes: 0x141414, hairStyle: 'short', height: 1.03, build: 1.02 } },

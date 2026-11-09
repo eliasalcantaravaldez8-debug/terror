@@ -40,7 +40,7 @@ const puffMat = new THREE.SpriteMaterial({ color: 0xcfc8bb, transparent: true, o
 
 export class Weapons {
   constructor(G) {
-    this.G = G; this.cd = 0; this.reloadT = 0; this.fx = [];
+    this.G = G; this.cd = 0; this.reloadT = 0; this.fx = []; this.bloom = 0;
     // modelos das armas (ficam na mão direita)
     // materiais com textura: aço escovado (com brilho) e madeira
     const metalTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#3a3c40'; g.fillRect(0, 0, 128, 128);
@@ -84,7 +84,7 @@ export class Weapons {
   reload() {
     const id = this.current; if (id === 'mao') return; const s = this.inv[id], W = WEAPONS[id];
     if (s.clip >= W.mag || s.ammo <= 0 || this.reloadT > 0) return;
-    this.reloadT = W.reload || 1.1; this.G.sound('page');
+    this.reloadT = W.reload || 1.1; this.G.sound('reload');
   }
   update(dt, input) {
     const G = this.G, P = G.player; this.cd -= dt;
@@ -102,17 +102,28 @@ export class Weapons {
       const want = G.cam.yaw + Math.PI; let d = want - P.heading; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
       P.heading += d * Math.min(1, dt * 18); P.sync();
     }
+    this.bloom = Math.max(0, (this.bloom || 0) - dt * (input.fire ? 1.2 : 2.8));
     if (armed && input.fire && this.cd <= 0 && this.reloadT <= 0) this.fire();
+    { const ch = document.querySelector('.crosshair'); if (ch) { const sz = 18 + this.bloom * 22 + Math.min(1, (P.speed || 0) / 3) * 12; ch.style.width = ch.style.height = (aim ? sz : 4) + 'px'; ch.style.margin = (aim ? -sz / 2 : -2) + 'px'; } }
     for (const f of this.fx) { f.t -= dt; f.obj.material.opacity = Math.max(0, f.t / f.life) * (f.op || 1); if (f.t <= 0) { G.scene.remove(f.obj); f.dead = true; } }
     this.fx = this.fx.filter((f) => !f.dead);
+  }
+  // marcador de acerto no centro da mira (vermelho = abate ou tiro na cabeça)
+  hitMark(kill) {
+    let el = document.getElementById('hitmark');
+    if (!el) { el = document.createElement('div'); el.id = 'hitmark'; el.textContent = '✕'; Object.assign(el.style, { position: 'fixed', left: '50%', top: '50%', transform: 'translate(-50%,-52%)', font: '700 26px sans-serif', pointerEvents: 'none', zIndex: 30, transition: 'opacity .18s' }); document.body.appendChild(el); }
+    el.style.color = kill ? '#ff3a3a' : '#ffffff'; el.style.opacity = 1; clearTimeout(this._hm); this._hm = setTimeout(() => { el.style.opacity = 0; }, 140);
   }
   muzzle() { const v = new THREE.Vector3(); this.models[this.current].getWorldPosition(v); return v; }
   fire() {
     const G = this.G, P = G.player, id = this.current, W = WEAPONS[id], s = this.inv[id];
-    if (s.clip <= 0) { if (s.ammo > 0) this.reload(); else { G.toast('Sem munição', 1.2); this.cd = 0.4; } return; }
+    if (s.clip <= 0) { if (s.ammo > 0) this.reload(); else { G.toast('Sem munição', 1.2); G.sound('click'); this.cd = 0.4; } return; }
     s.clip--; this.cd = W.rate; P.model.punchT = 0; G.sound(W.sound); if (G.noteShot) G.noteShot(P.x, P.z); G.shake(id === 'escopeta' ? 0.12 : W.auto ? 0.03 : 0.05);
     if (W.auto) { G.cam.pitch = Math.max(-0.6, G.cam.pitch - (W.rifle ? 0.012 : 0.007)); G.cam.yaw += (Math.random() - 0.5) * 0.008; } // recuo
-    const spread = W.spread * (P.aiming ? 0.6 : 1.3);
+    // dispersão: abre ao andar e ao atirar sem parar; fecha parado e agachado
+    const moving = Math.min(1, (P.speed || 0) / 3);
+    const spread = W.spread * (P.aiming ? 0.6 : 1.3) * (1 + this.bloom * 1.4 + moving * 0.9) * (P.crouch ? 0.7 : 1);
+    this.bloom = Math.min(1, this.bloom + (W.auto ? 0.1 : 0.22) * (W.pellets > 1 ? 0.5 : 1));
     const cam = G.camera; const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
     const from = this.muzzle(); this.flash(from);
     let anyHit = null;
@@ -120,9 +131,9 @@ export class Weapons {
       const d = dir.clone().add(new THREE.Vector3((Math.random() - 0.5) * spread * 2, (Math.random() - 0.5) * spread * 2, (Math.random() - 0.5) * spread * 2)).normalize();
       const hit = this.trace(cam.position, d, W.range, (n) => n !== P);
       this.tracer(from, hit.point);
-      if (hit.npc) { this.damageNPC(hit.npc, W.dmg, d, hit.point, W.force || 2); anyHit = hit.npc; }
+      if (hit.npc) { const head = hit.point.y > hit.npc.y + 1.5; this.damageNPC(hit.npc, W.dmg * (head ? 2 : 1), d, hit.point, W.force || 2); anyHit = hit.npc; this.hitMark(head || !hit.npc.alive); if (k === 0) G.sound('impact'); }
       else if (hit.car) { if (G.damageCar) G.damageCar(hit.car, W.dmg / 700); else hit.car.health = Math.max(0, hit.car.health - W.dmg / 1500); if (G.police.some((u) => u.car === hit.car)) G.crime(2, 'viatura'); this.puff(hit.point); }
-      else if (hit.dist < W.range) this.puff(hit.point);
+      else if (hit.dist < W.range) { this.puff(hit.point); if (k === 0 && Math.random() < 0.35) G.sound('ricochet'); if (G.fx && Math.random() < 0.5) for (let i = 0; i < 3; i++) G.fx.spark(hit.point.x, hit.point.y, hit.point.z); }
     }
     // disparo em público: pânico e procurado
     if (!G.mission) {
@@ -150,7 +161,13 @@ export class Weapons {
     // ragdoll: o corpo é empurrado na direção do tiro, a partir do ponto atingido
     const imp = dir ? { x: dir.x * force, y: 0.3 + Math.max(0, dir.y) * force, z: dir.z * force } : null;
     if (n.gang) { if (n.hp <= 0) n.knockDown(0, imp, at); G.provokeGang && G.provokeGang(n); G.crime(1, 'tiroteio', n); return; }
-    if (n.team === 'enemy') { if (n.hp <= 0) n.knockDown(0, imp, at); else if (n.behavior === 'guard') { n.behavior = 'hostile'; G.story.addAlert(40); } return; }
+    if (n.team === 'enemy') {
+      if (n.hp <= 0) n.knockDown(0, imp, at);
+      else { if (n.behavior === 'guard') { n.behavior = 'hostile'; G.story.addAlert(40); } if (n.hitReact) n.hitReact(dir); }
+      // os comparsas por perto ouvem e reagem
+      for (const o of G.npcs) if (o !== n && o.team === 'enemy' && o.alive && (o.behavior === 'stand' || o.behavior === 'patrol') && Math.hypot(o.x - n.x, o.z - n.z) < 22) { o.behavior = 'hostile'; o.suppressedT = 2; }
+      return;
+    }
     // civis e polícia caem (sem sangue); conta como crime
     n.knockDown(0, imp, at); n.collidable = false;
     G.crime(n.role === 'police' ? 2 : 1, 'baleado', n);
@@ -163,11 +180,12 @@ export class Weapons {
     G.world.rayIgnore = null;
     if (G.world.raycast(from.x, from.y, from.z, d.x, d.y, d.z, L) < L - 0.5) return false; // parede no caminho
     G.sound('shot'); if (G.noteShot) G.noteShot(n.x, n.z);
-    const P = G.player; let chance = 0.5 - L * 0.012;
-    if (tgt === P) { if (P.crouch) chance -= 0.15; if (P.speed > 4) chance -= 0.12; if (G.car) chance -= 0.2; }
+    const P = G.player; let chance = 0.5 - L * 0.012 - (n.suppressedT > 0 ? 0.12 : 0) - (n.inCover ? 0.05 : 0);
+    if (tgt === P) { if (P.crouch) chance -= 0.15; if (P.speed > 4) chance -= 0.12; else if (P.speed > 1.5) chance -= 0.05; if (G.car) chance -= 0.2; }
     const hit = Math.random() < Math.max(0.08, chance);
     const end = hit ? to : to.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, (Math.random() - 0.5), (Math.random() - 0.5) * 2));
     this.flash(from); this.tracer(from, end);
+    if (!hit && tgt === P && Math.random() < 0.6) G.sound('whiz'); // bala passando perto
     if (hit) {
       if (tgt === P && G.car && G.damageCar) { G.damageCar(G.car, 0.035); if (Math.random() < 0.45) G.damagePlayer((n.gunDmg || 6) * 0.6, n); } // dentro do carro: a lataria segura parte dos tiros
       else if (tgt === P) G.damagePlayer(n.gunDmg || 6, n);

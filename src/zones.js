@@ -172,10 +172,12 @@ export class Zones {
       f.box(band, 0, y + CH - 0.6, side * cz0, W - 0.8, 0.6, 0.1, false, 2);
       for (let i = 0; i < n; i++) {
         const x0 = xs + i * cell + cell / 2, fz = side * cz0;
-        // grades
-        for (let b = -cell / 2 + 0.2; b < cell / 2 - 0.1; b += 0.16) f.add(cyl(0.022, 0.022, CH - 0.6, 6), M.metalDark, x0 + b, y + (CH - 0.6) / 2, fz);
-        for (const by of [0.08, 1.1, CH - 0.65]) f.add(box(cell - 0.2, 0.06, 0.06), M.metalDark, x0, y + by, fz);
-        f.collide(x0, y, fz, cell - 0.2, CH, 0.15);
+        // grades (a cela 4 do lado norte é a de Ethan: tem porta de correr de verdade)
+        const ethanCell = side === 1 && i === 3, gap = 1.2, gx0 = x0 - cell / 2 + 0.1 + gap; // vão da porta: lado esquerdo da cela
+        for (let b = -cell / 2 + 0.2; b < cell / 2 - 0.1; b += 0.16) { if (ethanCell && x0 + b < gx0) continue; f.add(cyl(0.022, 0.022, CH - 0.6, 6), M.metalDark, x0 + b, y + (CH - 0.6) / 2, fz); }
+        for (const by of [0.08, 1.1, CH - 0.65]) { if (ethanCell) f.add(box(cell - 0.2 - gap, 0.06, 0.06), M.metalDark, x0 + gap / 2, y + by, fz); else f.add(box(cell - 0.2, 0.06, 0.06), M.metalDark, x0, y + by, fz); }
+        if (ethanCell) { f.collide(x0 + gap / 2, y, fz, cell - 0.2 - gap, CH, 0.15); this.cellDoor(f, gx0 - gap / 2, fz + side * 0.12, gap, CH - 0.6, y, side); }
+        else f.collide(x0, y, fz, cell - 0.2, CH, 0.15);
         // beliche, vaso, pia
         const bz = side * (cz0 + cellD - 0.55);
         for (const lv of [0.45, 1.55]) { f.box(M.metalDark, x0 - 0.5, y + lv - 0.08, bz, 0.9, 0.06, 2.0, false); f.box(paint(M.flat, 0xd8d0c0), x0 - 0.5, y + lv - 0.02, bz, 0.85, 0.12, 1.9, false); f.box(paint(M.flat, 0xf0f0f0), x0 - 0.5, y + lv + 0.1, bz - side * 0.75, 0.6, 0.12, 0.35, false); }
@@ -184,6 +186,7 @@ export class Zones {
         f.add(cyl(0.18, 0.15, 0.42, 10), paint(M.flat, 0xe8e8e8), x0 + 1.1, y + 0.21, side * (cz0 + cellD - 0.4));
         f.box(paint(M.flat, 0xe8e8e8), x0 + 1.1, y + 0.75, side * (cz0 + 1.2), 0.4, 0.12, 0.35, false);
         const [px, pz] = f.pt(x0 + 0.4, side * (cz0 + 1.6)); (this.spots.prisonCells = this.spots.prisonCells || []).push([px, pz, side > 0 ? Math.PI : 0]);
+        if (side === 1 && i === 3) { this.spots.ethanCell = f.pt(x0 + 0.2, side * (cz0 + 2.4)); this.spots.ethanCellBunk = f.pt(x0 - 0.5, side * (cz0 + cellD - 0.55)); this.spots.ethanCellOut = f.pt(x0 - cell / 2 + 0.7, 0); this.spots.ethanCellDoor = f.pt(x0 - cell / 2 + 0.7, side * cz0); }
       }
     }
     // mesa dos guardas com monitores (fundo do corredor) e detector de metais na entrada
@@ -192,6 +195,17 @@ export class Zones {
     for (const s2 of [-1, 1]) f.box(paint(M.flat, 0x9a9aa0), W / 2 - 2.5, y, s2 * 0.8, 0.3, 2.3, 0.3, true, 1);
     f.box(paint(M.flat, 0x9a9aa0), W / 2 - 2.5, y + 2.3, 0, 0.3, 0.25, 1.9, false);
     this.spots.prisonCorridor = f.pt(-4, 0); this.spots.prisonDesk = f.pt(-W / 2 + 3.4, 0); this.spots.prisonDoor = f.pt(W / 2 + 1.5, 0);
+  }
+  // porta de grade que corre de verdade (malha e colisão próprias): open(k) com k de 0 (fechada) a 1 (aberta)
+  cellDoor(f, lx, lz, w, h, y, side) {
+    const g = new THREE.Group(); const bar = new THREE.MeshLambertMaterial({ color: 0x2b2e31 }), lockM = new THREE.MeshLambertMaterial({ color: 0x5c6166 });
+    for (let b = -w / 2 + 0.08; b < w / 2; b += 0.16) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, h, 6), bar); m.position.set(b, h / 2, 0); g.add(m); }
+    for (const by of [0.08, 1.1, h - 0.05]) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, 0.06), bar); m.position.set(0, by, 0); g.add(m); }
+    const lock = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.22, 0.12), lockM); lock.position.set(w / 2 - 0.08, 1.1, 0); g.add(lock);
+    const [wx, wz] = f.pt(lx, lz); g.position.set(wx, y, wz); g.rotation.y = f.ry; this.scene.add(g);
+    const col = this.world.addCentered(wx, y, wz, w, h + 0.6, 0.2); const saved = { minY: col.minY, maxY: col.maxY };
+    const dir = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), f.ry);
+    this.cellDoorObj = { group: g, k: 0, open(k) { this.k = k; g.position.set(wx + dir.x * w * 0.95 * k, y, wz + dir.z * w * 0.95 * k); if (k > 0.6) this.world.disableBox(col); else { col.minY = saved.minY; col.maxY = saved.maxY; } }, world: this.world };
   }
   // ---------- AEROPORTO (pista norte-sul, terminal com interior, torre, hangar, escada de embarque) ----------
   airport(B) {

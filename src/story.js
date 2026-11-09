@@ -166,6 +166,8 @@ export class Story {
     await this.until(() => this.near(target, r) && (!opts.foot || this.G.player.mode === 'foot') && (!opts.car || this.G.player.mode === 'car'));
     this.clearObjective();
   }
+  // o jogador caminha sozinho até o ponto (usado em cutscenes)
+  walkPlayer(to, run = false) { this.G.scriptWalk = { to, run }; return this.until(() => !this.G.scriptWalk); }
   async press(target, r, prompt) { // espera o jogador apertar E perto de um ponto
     this.G.storyPrompt = null;
     await this.until(() => {
@@ -203,6 +205,7 @@ export class Story {
     this.failChecks = null; this.G.storyPrompt = null; this.hideDialog(); this.letterbox(false);
     this.cut = false; this.G.inputLocked = false; this.G.camOverride = false; this.shotState = null; this.G.carsLocked = false;
     this.G.scope = null; $('scope').style.display = 'none'; this.G.player.pose = null;
+    this.G.scriptWalk = null;
   }
   // ---------- seguidores (entram no carro com o jogador) ----------
   follow(npc, ally = false) {
