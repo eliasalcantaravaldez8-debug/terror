@@ -122,15 +122,18 @@ export class Story {
     const name = typeof who === 'string' ? who : who.name;
     const speaker = typeof who === 'object' ? who : null;
     if (speaker && speaker.model) speaker.talking = !opts.noAnim;
+    // dublagem: toca a gravação real da fala, se existir (sem arquivo = só legenda)
+    const V = this.G.voice; const vo = V && !opts.noVoice ? V.play(name, text, speaker || (name.split(' ')[0] === (this.G.campaign().char === 'ryan' ? 'Ryan' : 'Ethan') ? this.G.player : null), opts) : null;
     if (opts.sub) { // legenda durante o jogo (não trava o jogador)
-      this.showDialog(name, text, ''); await this.wait(opts.time || Math.min(6, 1.6 + text.length * 0.045));
+      this.showDialog(name, text, ''); const t0 = this.t, tt = opts.time || Math.min(6, 1.6 + text.length * 0.045);
+      await this.until(() => this.t - t0 > tt && (!vo || vo.ended || vo.failed || this.t - t0 > 30));
       if (speaker) speaker.talking = false; this.hideDialog(); return;
     }
     this.showDialog(name, text);
     this.advance = false; const t0 = this.t;
     const autoT = Math.min(7, 2.2 + text.length * 0.05);
-    await this.until(() => (this.advance && this.t - t0 > 0.35) || (this.cut && this.skipCut) || (this.G.settings.autoDialog && this.t - t0 > autoT));
-    this.advance = false; if (speaker) speaker.talking = false;
+    await this.until(() => (this.advance && this.t - t0 > 0.35) || (this.cut && this.skipCut) || (this.G.settings.autoDialog && this.t - t0 > autoT && (!vo || vo.ended || vo.failed)));
+    this.advance = false; if (speaker) speaker.talking = false; if (vo && !vo.ended) V.stop();
   }
   async choose(options, title = 'Ethan') {
     $('dialog').style.display = 'block'; $('dialog-name').textContent = title; $('dialog-text').textContent = '';

@@ -195,7 +195,12 @@ export class Humanoid {
     this.lookYaw = 0;
     this.punchT = 0;
     this.root.rotation.order = 'YXZ';
+    // boca (interior escuro) que abre conforme o volume da voz dublada — sincronia labial
+    if (!Humanoid.mouthGeo) { Humanoid.mouthGeo = new THREE.SphereGeometry(0.016, 10, 6); Humanoid.mouthMat = new THREE.MeshBasicMaterial({ color: 0x2a0c0c }); }
+    this.mouth = new THREE.Mesh(Humanoid.mouthGeo, Humanoid.mouthMat); this.mouth.position.set(0, 0.0525, 0.1); this.mouth.scale.set(1.5, 0.05, 0.4); this.mouth.visible = false; this.bones.head.add(this.mouth);
   }
+  // k: 0 (fechada) .. 1 (bem aberta)
+  setMouth(k) { const m = this.mouth; if (!m) return; m.visible = k > 0.03; m.scale.y = 0.05 + Math.min(1, k) * 0.75; m.position.y = 0.0525 - Math.min(1, k) * 0.006; }
   punch() { this.punchT = 0.35; }
   // chute (futebol): perna direita vai para trás e chuta para a frente
   kick(power = 1) { this.kickT = 0.42; this.kickP = power; }

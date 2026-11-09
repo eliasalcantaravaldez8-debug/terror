@@ -1,0 +1,1458 @@
+[
+ {
+  "id": "f090c1d64",
+  "arquivo": "f090c1d64.ogg",
+  "personagem": "Aluno(a)",
+  "fala": "Que horas é o intervalo?",
+  "tom": "pergunta",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "city.js:1678"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f2f9cd179",
+  "arquivo": "f2f9cd179.ogg",
+  "personagem": "Aluno(a)",
+  "fala": "Psiu, a professora tá olhando.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "city.js:1678"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f92f0a810",
+  "arquivo": "f92f0a810.ogg",
+  "personagem": "Bilheteria do Estádio",
+  "fala": "Ingresso para o jogo de hoje: R$ 200.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:1229"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fc6b9b0ac",
+  "arquivo": "fc6b9b0ac.ogg",
+  "personagem": "Bilheteria do Estádio",
+  "fala": "Os portões abrem uma hora antes da partida.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:1229"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "ff36fcbfa",
+  "arquivo": "ff36fcbfa.ogg",
+  "personagem": "Blake Morrison",
+  "fala": "Para! Para! Eu me rendo!",
+  "tom": "enfático",
+  "contexto": "Os Nomes do Livro",
+  "onde": [
+   "missions_ethan.js:297"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f63be76cf",
+  "arquivo": "f63be76cf.ogg",
+  "personagem": "Blake Morrison",
+  "fala": "Eu falo! Eu conto tudo o que eu sei!",
+  "tom": "enfático",
+  "contexto": "Os Nomes do Livro",
+  "onde": [
+   "missions_ethan.js:298"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f29b0045c",
+  "arquivo": "f29b0045c.ogg",
+  "personagem": "Corredor",
+  "fala": "Ufa... não posso parar agora!",
+  "tom": "enfático",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:181"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f0f706549",
+  "arquivo": "f0f706549.ogg",
+  "personagem": "Corredora",
+  "fala": "(correndo) Bom dia!",
+  "tom": "enfático",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:180"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fcd3ec5dd",
+  "arquivo": "fcd3ec5dd.ogg",
+  "personagem": "Corredora",
+  "fala": "Mais duas voltas...",
+  "tom": "hesitante / pensativo",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:180"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f98f26473",
+  "arquivo": "f98f26473.ogg",
+  "personagem": "Criança",
+  "fala": "Moço, olha eu no balanço!",
+  "tom": "enfático",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:185"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fa967c858",
+  "arquivo": "fa967c858.ogg",
+  "personagem": "Criança",
+  "fala": "Pega-pega! Tá com você!",
+  "tom": "enfático",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:185"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f891db518",
+  "arquivo": "f891db518.ogg",
+  "personagem": "Criança",
+  "fala": "Hehe! Escorrega!",
+  "tom": "enfático",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:186"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f17e0ea58",
+  "arquivo": "f17e0ea58.ogg",
+  "personagem": "Criança",
+  "fala": "Minha mãe tá ali no banco.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:186"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fd1f3c252",
+  "arquivo": "fd1f3c252.ogg",
+  "personagem": "Criança",
+  "fala": "Estou fazendo um castelo de areia.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:187"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f6ea43655",
+  "arquivo": "f6ea43655.ogg",
+  "personagem": "Criança",
+  "fala": "Você não me pega!",
+  "tom": "enfático",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:188"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f089037f0",
+  "arquivo": "f089037f0.ogg",
+  "personagem": "Desconhecido",
+  "fala": "Eu sei de tudo, sei quem te traiu e quem te trairá mais pra frente e eu tô te vendo agora...",
+  "tom": "hesitante / pensativo",
+  "contexto": "O Primeiro Suspeito",
+  "onde": [
+   "missions_ethan.js:376"
+  ],
+  "telefone": true,
+  "gravado": false
+ },
+ {
+  "id": "f3765086f",
+  "arquivo": "f3765086f.ogg",
+  "personagem": "Desconhecido",
+  "fala": "Ryan. Tenho um trabalho diferente pra você.",
+  "tom": "neutro",
+  "contexto": "A Casa das Câmeras",
+  "onde": [
+   "missions_ryan.js:48"
+  ],
+  "telefone": true,
+  "gravado": false
+ },
+ {
+  "id": "f17276472",
+  "arquivo": "f17276472.ogg",
+  "personagem": "Desconhecido",
+  "fala": "Uma casa monitorada por câmeras. Nenhum segurança.",
+  "tom": "neutro",
+  "contexto": "A Casa das Câmeras",
+  "onde": [
+   "missions_ryan.js:49"
+  ],
+  "telefone": true,
+  "gravado": false
+ },
+ {
+  "id": "f254ec16d",
+  "arquivo": "f254ec16d.ogg",
+  "personagem": "Desconhecido",
+  "fala": "Vou te mandar um equipamento: o Pulso Eletrônico. Ele desliga as câmeras por alguns segundos.",
+  "tom": "neutro",
+  "contexto": "A Casa das Câmeras",
+  "onde": [
+   "missions_ryan.js:50"
+  ],
+  "telefone": true,
+  "gravado": false
+ },
+ {
+  "id": "f59df2893",
+  "arquivo": "f59df2893.ogg",
+  "personagem": "Enfermeira",
+  "fala": "Bem-vindo ao Hospital Los Valles.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:144"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f917424a4",
+  "arquivo": "f917424a4.ogg",
+  "personagem": "Enfermeira",
+  "fala": "Atendimento médico custa R$ 150.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:144"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fb63cff71",
+  "arquivo": "fb63cff71.ogg",
+  "personagem": "Ethan",
+  "fala": "Quem fez isso vai pagar.",
+  "tom": "neutro",
+  "contexto": "Sete Anos Depois",
+  "onde": [
+   "missions_ethan.js:198"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f020be984",
+  "arquivo": "f020be984.ogg",
+  "personagem": "Ethan",
+  "fala": "Vamos com calma. Primeiro eu quero entender tudo.",
+  "tom": "neutro",
+  "contexto": "Sete Anos Depois",
+  "onde": [
+   "missions_ethan.js:199"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f00069a5c",
+  "arquivo": "f00069a5c.ogg",
+  "personagem": "Ethan",
+  "fala": "Me passa esses nomes. Agora.",
+  "tom": "neutro",
+  "contexto": "Sete Anos Depois",
+  "onde": [
+   "missions_ethan.js:200"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f40aa484b",
+  "arquivo": "f40aa484b.ogg",
+  "personagem": "Ethan",
+  "fala": "Eu vou descobrir quem está por trás de tudo isso.",
+  "tom": "neutro",
+  "contexto": "Sete Anos Depois",
+  "onde": [
+   "missions_ethan.js:203"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f57755b00",
+  "arquivo": "f57755b00.ogg",
+  "personagem": "Ethan",
+  "fala": "Então fala.",
+  "tom": "neutro",
+  "contexto": "Os Nomes do Livro",
+  "onde": [
+   "missions_ethan.js:299"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f56645eaf",
+  "arquivo": "f56645eaf.ogg",
+  "personagem": "Ethan",
+  "fala": "Vamos ver o primeiro nome.",
+  "tom": "neutro",
+  "contexto": "Os Nomes do Livro",
+  "onde": [
+   "missions_ethan.js:355"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fb4cac22e",
+  "arquivo": "fb4cac22e.ogg",
+  "personagem": "Ethan",
+  "fala": "Lucas... Eu quero descobrir o que ele sabe sobre a traição.",
+  "tom": "hesitante / pensativo",
+  "contexto": "O Primeiro Suspeito",
+  "onde": [
+   "missions_ethan.js:371"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fddfae1c8",
+  "arquivo": "fddfae1c8.ogg",
+  "personagem": "Ethan",
+  "fala": "Aquele filho da puta... Eu vou matar ele... Por que logo você?",
+  "tom": "hesitante, pergunta",
+  "contexto": "O Irmão",
+  "onde": [
+   "missions_ethan.js:423"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f14af89f4",
+  "arquivo": "f14af89f4.ogg",
+  "personagem": "Ethan",
+  "fala": "Eu conheço aquela pessoa há muito tempo.",
+  "tom": "neutro",
+  "contexto": "O Irmão",
+  "onde": [
+   "missions_ethan.js:426"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fac7f3068",
+  "arquivo": "fac7f3068.ogg",
+  "personagem": "Ethan",
+  "fala": "É o meu irmão. Todo mundo achava que ele estava morto há dez anos.",
+  "tom": "neutro",
+  "contexto": "O Irmão",
+  "onde": [
+   "missions_ethan.js:427"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f523fe642",
+  "arquivo": "f523fe642.ogg",
+  "personagem": "Ethan",
+  "fala": "Meu irmão? Ele fez isso? Não acredito...",
+  "tom": "hesitante, pergunta",
+  "contexto": "A Fotografia",
+  "onde": [
+   "missions_ethan.js:450"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f03930f2b",
+  "arquivo": "f03930f2b.ogg",
+  "personagem": "Ethan",
+  "fala": "Vamos invadir aquela mansão hoje à noite, eu, você e só 1 guarda.",
+  "tom": "neutro",
+  "contexto": "A Fotografia",
+  "onde": [
+   "missions_ethan.js:452"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f2baa20e8",
+  "arquivo": "f2baa20e8.ogg",
+  "personagem": "Ethan",
+  "fala": "Parece que você não esperava minha visita.",
+  "tom": "neutro",
+  "contexto": "A Mansão",
+  "onde": [
+   "missions_ethan.js:505"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f303ec58e",
+  "arquivo": "f303ec58e.ogg",
+  "personagem": "Ethan",
+  "fala": "Vamos fugir.",
+  "tom": "neutro",
+  "contexto": "Prólogo — A Traição",
+  "onde": [
+   "missions_ethan.js:57"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f709d4fa8",
+  "arquivo": "f709d4fa8.ogg",
+  "personagem": "Ethan",
+  "fala": "O que você sabe? AGORA PORRA!!!!!",
+  "tom": "gritando, com raiva",
+  "contexto": "O Galpão",
+  "onde": [
+   "missions_ethan.js:585"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fce1ffdda",
+  "arquivo": "fce1ffdda.ogg",
+  "personagem": "Ethan",
+  "fala": "Você nos traiu.",
+  "tom": "neutro",
+  "contexto": "O Galpão",
+  "onde": [
+   "missions_ethan.js:589"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fb7a59c7e",
+  "arquivo": "fb7a59c7e.ogg",
+  "personagem": "Ethan",
+  "fala": "Ah merda... Você me entregou...",
+  "tom": "hesitante / pensativo",
+  "contexto": "O Galpão",
+  "onde": [
+   "missions_ethan.js:598"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fcee8e16f",
+  "arquivo": "fcee8e16f.ogg",
+  "personagem": "Ethan",
+  "fala": "EI! VOCÊ!",
+  "tom": "enfático",
+  "contexto": "O Galpão",
+  "onde": [
+   "missions_ethan.js:619"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f6db83f4f",
+  "arquivo": "f6db83f4f.ogg",
+  "personagem": "Ethan",
+  "fala": "RYAN?! CADÊ VOCÊ?!",
+  "tom": "gritando, com raiva",
+  "contexto": "O Galpão",
+  "onde": [
+   "missions_ethan.js:625"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fd8e480fb",
+  "arquivo": "fd8e480fb.ogg",
+  "personagem": "Fernando del Costa",
+  "fala": "Ryan?! O que você está fazendo aqui?!",
+  "tom": "exaltado / surpreso",
+  "contexto": "Casa monitorada",
+  "onde": [
+   "missions_ryan.js:91"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f9a91239a",
+  "arquivo": "f9a91239a.ogg",
+  "personagem": "Fernando del Costa",
+  "fala": "SOCORRO! ALGUÉM ME AJUDA!",
+  "tom": "gritando, com raiva",
+  "contexto": "Casa monitorada",
+  "onde": [
+   "missions_ryan.js:92"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f3ebe3ec3",
+  "arquivo": "f3ebe3ec3.ogg",
+  "personagem": "Fiel",
+  "fala": "Shh... estamos na igreja.",
+  "tom": "hesitante / pensativo",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "city.js:1595"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fb371934c",
+  "arquivo": "fb371934c.ogg",
+  "personagem": "Joe",
+  "fala": "Precisa de trabalho? Tenho três pedidos saindo agora. Pega um carro e capricha no tempo.",
+  "tom": "pergunta",
+  "contexto": "Trabalho: Entregas da Lanchonete do Joe",
+  "onde": [
+   "missions_side.js:98"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f0a7a6d97",
+  "arquivo": "f0a7a6d97.ogg",
+  "personagem": "Jogador de basquete",
+  "fala": "Quer jogar? A bola tá ali, pode arremessar.",
+  "tom": "pergunta",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:194"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f51b01d4c",
+  "arquivo": "f51b01d4c.ogg",
+  "personagem": "Jogador de basquete",
+  "fala": "Da linha de três vale 3 pontos.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:194"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f5d42906f",
+  "arquivo": "f5d42906f.ogg",
+  "personagem": "Jogador de basquete",
+  "fala": "Arremesso bom é com arco alto.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:195"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fe9494912",
+  "arquivo": "fe9494912.ogg",
+  "personagem": "Jogador de basquete",
+  "fala": "Aqui é a melhor quadra de Westhaven.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:195"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f1c7a9da0",
+  "arquivo": "f1c7a9da0.ogg",
+  "personagem": "Lucas",
+  "fala": "Ethan Cross?! Que porra você está fazendo aqui?!",
+  "tom": "exaltado / surpreso",
+  "contexto": "A Mansão",
+  "onde": [
+   "missions_ethan.js:503"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f3667d025",
+  "arquivo": "f3667d025.ogg",
+  "personagem": "Lucas",
+  "fala": "Eu... eu... eu não sei de nada, o que você quer de mim?",
+  "tom": "hesitante, pergunta",
+  "contexto": "O Galpão",
+  "onde": [
+   "missions_ethan.js:587"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f4ea31cca",
+  "arquivo": "f4ea31cca.ogg",
+  "personagem": "Motorista",
+  "fala": "Meu carro!",
+  "tom": "enfático",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:884"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fb9ec9289",
+  "arquivo": "fb9ec9289.ogg",
+  "personagem": "Motorista",
+  "fala": "Socorro! Roubaram meu carro!",
+  "tom": "enfático",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:989"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f2e5bc33d",
+  "arquivo": "f2e5bc33d.ogg",
+  "personagem": "Motorista",
+  "fala": "Ladrão!",
+  "tom": "enfático",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:989"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fd6543cbb",
+  "arquivo": "fd6543cbb.ogg",
+  "personagem": "Motorista",
+  "fala": "Cole me mandou te buscar.",
+  "tom": "neutro",
+  "contexto": "Sete Anos Depois",
+  "onde": [
+   "missions_ethan.js:173"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f6921f312",
+  "arquivo": "f6921f312.ogg",
+  "personagem": "Número privado",
+  "fala": "Ryan Cole? Tenho um contrato pra você. O pagamento é bom.",
+  "tom": "pergunta",
+  "contexto": "O Contrato",
+  "onde": [
+   "missions_ryan.js:20"
+  ],
+  "telefone": true,
+  "gravado": false
+ },
+ {
+  "id": "fc89b7fa9",
+  "arquivo": "fc89b7fa9.ogg",
+  "personagem": "Número privado",
+  "fala": "Aceita?",
+  "tom": "pergunta",
+  "contexto": "O Contrato",
+  "onde": [
+   "missions_ryan.js:21"
+  ],
+  "telefone": true,
+  "gravado": false
+ },
+ {
+  "id": "f50095706",
+  "arquivo": "f50095706.ogg",
+  "personagem": "Número privado",
+  "fala": "Você vai receber as instruções.",
+  "tom": "neutro",
+  "contexto": "Contrato — número privado",
+  "onde": [
+   "missions_ryan.js:28"
+  ],
+  "telefone": true,
+  "gravado": false
+ },
+ {
+  "id": "fd51ba5aa",
+  "arquivo": "fd51ba5aa.ogg",
+  "personagem": "Padre Anselmo",
+  "fala": "Que a paz esteja com você, meu filho.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "city.js:1594"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f10de7a46",
+  "arquivo": "f10de7a46.ogg",
+  "personagem": "Padre Anselmo",
+  "fala": "A missa é às sete da noite. Todos são bem-vindos.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "city.js:1594"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fa3eba2ce",
+  "arquivo": "fa3eba2ce.ogg",
+  "personagem": "Padre Anselmo",
+  "fala": "Se precisar conversar, o confessionário fica ali no fundo.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "city.js:1594"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f5b2122e6",
+  "arquivo": "f5b2122e6.ogg",
+  "personagem": "Pedestre (voz genérica)",
+  "fala": "Boa noite.",
+  "tom": "neutro",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "characters.js:60"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f5e20c411",
+  "arquivo": "f5e20c411.ogg",
+  "personagem": "Pedestre (voz genérica)",
+  "fala": "Com licença.",
+  "tom": "neutro",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "characters.js:60"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f9c531983",
+  "arquivo": "f9c531983.ogg",
+  "personagem": "Pedestre (voz genérica)",
+  "fala": "Hm?",
+  "tom": "pergunta",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "characters.js:60"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f6ae9de10",
+  "arquivo": "f6ae9de10.ogg",
+  "personagem": "Pedestre (voz genérica)",
+  "fala": "Não tenho tempo agora.",
+  "tom": "neutro",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "characters.js:60"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f6f3d6b99",
+  "arquivo": "f6f3d6b99.ogg",
+  "personagem": "Pedestre (voz genérica)",
+  "fala": "Cuidado por onde anda.",
+  "tom": "neutro",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "characters.js:60"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fa30c1205",
+  "arquivo": "fa30c1205.ogg",
+  "personagem": "Pedestre (voz genérica)",
+  "fala": "Dizem que algo estranho acontece na praça à noite...",
+  "tom": "hesitante / pensativo",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "characters.js:60"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f8f16e85a",
+  "arquivo": "f8f16e85a.ogg",
+  "personagem": "Policial (voz genérica)",
+  "fala": "Circulando, cidadão.",
+  "tom": "neutro",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "characters.js:61"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fec433914",
+  "arquivo": "fec433914.ogg",
+  "personagem": "Policial (voz genérica)",
+  "fala": "Tudo certo por aqui?",
+  "tom": "pergunta",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "characters.js:61"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fcf39b016",
+  "arquivo": "fcf39b016.ogg",
+  "personagem": "Policial (voz genérica)",
+  "fala": "Não vá dirigir em alta velocidade, hein.",
+  "tom": "neutro",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "characters.js:61"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "ffea82d1e",
+  "arquivo": "ffea82d1e.ogg",
+  "personagem": "Policial de plantão",
+  "fala": "Delegacia de Blackwood. Em que posso ajudar?",
+  "tom": "pergunta",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "blackwood.js:156"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fb415cd94",
+  "arquivo": "fb415cd94.ogg",
+  "personagem": "Policial de plantão",
+  "fala": "Boletim de ocorrência é ali no balcão.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "blackwood.js:156"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fb22edcc5",
+  "arquivo": "fb22edcc5.ogg",
+  "personagem": "Policial de plantão",
+  "fala": "Delegacia de Los Valles. Em que posso ajudar?",
+  "tom": "pergunta",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:145"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f523a7b0e",
+  "arquivo": "f523a7b0e.ogg",
+  "personagem": "Policial de plantão",
+  "fala": "Se for fazer boletim, pegue uma senha.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:145"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f87416b93",
+  "arquivo": "f87416b93.ogg",
+  "personagem": "Preso (voz genérica)",
+  "fala": "Ei, você aí! Me tira daqui!",
+  "tom": "enfático",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "main.js:149"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f399a9ab7",
+  "arquivo": "f399a9ab7.ogg",
+  "personagem": "Preso (voz genérica)",
+  "fala": "Sete anos... e ainda contando.",
+  "tom": "hesitante / pensativo",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "main.js:149"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f310b212d",
+  "arquivo": "f310b212d.ogg",
+  "personagem": "Preso (voz genérica)",
+  "fala": "Não olha pra mim.",
+  "tom": "neutro",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "main.js:149"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f0a2feffb",
+  "arquivo": "f0a2feffb.ogg",
+  "personagem": "Preso (voz genérica)",
+  "fala": "Aqui dentro o tempo não passa.",
+  "tom": "neutro",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "main.js:149"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f35726f39",
+  "arquivo": "f35726f39.ogg",
+  "personagem": "Preso (voz genérica)",
+  "fala": "Tem cigarro?",
+  "tom": "pergunta",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "main.js:149"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fe6208c95",
+  "arquivo": "fe6208c95.ogg",
+  "personagem": "Preso (voz genérica)",
+  "fala": "Eu sou inocente, juro.",
+  "tom": "neutro",
+  "contexto": "fala aleatória ao conversar",
+  "onde": [
+   "main.js:149"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f75562c9a",
+  "arquivo": "f75562c9a.ogg",
+  "personagem": "Professor(a)",
+  "fala": "Silêncio, turma! Página 42.",
+  "tom": "enfático",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "city.js:1677"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fccdc80bd",
+  "arquivo": "fccdc80bd.ogg",
+  "personagem": "Professor(a)",
+  "fala": "Se veio buscar alguém, a secretaria fica no corredor.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "city.js:1677"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f0e3be180",
+  "arquivo": "f0e3be180.ogg",
+  "personagem": "Professor(a)",
+  "fala": "Amanhã tem prova, hein!",
+  "tom": "enfático",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "city.js:1677"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f2ebddd44",
+  "arquivo": "f2ebddd44.ogg",
+  "personagem": "Ryan",
+  "fala": "Quando estiver pronto, a gente continua.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:472"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fb35bfaf3",
+  "arquivo": "fb35bfaf3.ogg",
+  "personagem": "Ryan",
+  "fala": "Cuidado lá fora, Ethan.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:472"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "ff1b8f3df",
+  "arquivo": "ff1b8f3df.ogg",
+  "personagem": "Ryan",
+  "fala": "Ethan. Sete anos...",
+  "tom": "hesitante / pensativo",
+  "contexto": "Sete Anos Depois",
+  "onde": [
+   "missions_ethan.js:190"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fbecde2a3",
+  "arquivo": "fbecde2a3.ogg",
+  "personagem": "Ryan",
+  "fala": "O nosso antigo esconderijo já era. O grupo rival destruiu tudo.",
+  "tom": "neutro",
+  "contexto": "Sete Anos Depois",
+  "onde": [
+   "missions_ethan.js:191"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f774eee94",
+  "arquivo": "f774eee94.ogg",
+  "personagem": "Ryan",
+  "fala": "Pelo que eu sei, só sobramos nós dois.",
+  "tom": "neutro",
+  "contexto": "Sete Anos Depois",
+  "onde": [
+   "missions_ethan.js:192"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fa11e13d1",
+  "arquivo": "fa11e13d1.ogg",
+  "personagem": "Ryan",
+  "fala": "Esse tempo todo eu fiquei investigando quem traiu a gente.",
+  "tom": "neutro",
+  "contexto": "Sete Anos Depois",
+  "onde": [
+   "missions_ethan.js:194"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f04c05262",
+  "arquivo": "f04c05262.ogg",
+  "personagem": "Ryan",
+  "fala": "Consegui preservar três nomes de um livro.",
+  "tom": "neutro",
+  "contexto": "Sete Anos Depois",
+  "onde": [
+   "missions_ethan.js:195"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f8a5595cd",
+  "arquivo": "f8a5595cd.ogg",
+  "personagem": "Ryan",
+  "fala": "Chegou. Esses são os nossos homens.",
+  "tom": "neutro",
+  "contexto": "Os Nomes do Livro",
+  "onde": [
+   "missions_ethan.js:251"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fe29e3d3b",
+  "arquivo": "fe29e3d3b.ogg",
+  "personagem": "Ryan",
+  "fala": "Primeiro a casa abandonada. Depois a gente vai até a área deles.",
+  "tom": "neutro",
+  "contexto": "Os Nomes do Livro",
+  "onde": [
+   "missions_ethan.js:252"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f8664f114",
+  "arquivo": "f8664f114.ogg",
+  "personagem": "Ryan",
+  "fala": "Não tem ninguém aqui.",
+  "tom": "neutro",
+  "contexto": "Os Nomes do Livro",
+  "onde": [
+   "missions_ethan.js:259"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f695d2f05",
+  "arquivo": "f695d2f05.ogg",
+  "personagem": "Ryan",
+  "fala": "Eles estão no território deles, na Zona Industrial.",
+  "tom": "neutro",
+  "contexto": "Os Nomes do Livro",
+  "onde": [
+   "missions_ethan.js:260"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f39c09d5d",
+  "arquivo": "f39c09d5d.ogg",
+  "personagem": "Ryan",
+  "fala": "Finalmente. O livro.",
+  "tom": "neutro",
+  "contexto": "Os Nomes do Livro",
+  "onde": [
+   "missions_ethan.js:354"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f21757c10",
+  "arquivo": "f21757c10.ogg",
+  "personagem": "Ryan",
+  "fala": "Alguém está observando a gente.",
+  "tom": "neutro",
+  "contexto": "O Primeiro Suspeito",
+  "onde": [
+   "missions_ethan.js:392"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f9c108e3b",
+  "arquivo": "f9c108e3b.ogg",
+  "personagem": "Ryan",
+  "fala": "Quem é, Ethan?",
+  "tom": "pergunta",
+  "contexto": "O Irmão",
+  "onde": [
+   "missions_ethan.js:424"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fa0b05fcc",
+  "arquivo": "fa0b05fcc.ogg",
+  "personagem": "Ryan",
+  "fala": "O quê?! Teu irmão?!",
+  "tom": "exaltado / surpreso",
+  "contexto": "O Irmão",
+  "onde": [
+   "missions_ethan.js:429"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f1896ae31",
+  "arquivo": "f1896ae31.ogg",
+  "personagem": "Ryan",
+  "fala": "Chefe, a polícia tá invadindo! Tem algum espião ou traidor! E agora?",
+  "tom": "enfático",
+  "contexto": "Prólogo — A Traição",
+  "onde": [
+   "missions_ethan.js:55"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f916db87f",
+  "arquivo": "f916db87f.ogg",
+  "personagem": "Ryan",
+  "fala": "Aceito. Me manda os detalhes.",
+  "tom": "neutro",
+  "contexto": "Contrato — número privado",
+  "onde": [
+   "missions_ryan.js:27"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f779217f8",
+  "arquivo": "f779217f8.ogg",
+  "personagem": "Ryan",
+  "fala": "Não, obrigado.",
+  "tom": "neutro",
+  "contexto": "Contrato — número privado",
+  "onde": [
+   "missions_ryan.js:31"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f0ab04483",
+  "arquivo": "f0ab04483.ogg",
+  "personagem": "Ryan",
+  "fala": "Fernando del Costa...",
+  "tom": "hesitante / pensativo",
+  "contexto": "Casa monitorada",
+  "onde": [
+   "missions_ryan.js:78"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f72dfa98e",
+  "arquivo": "f72dfa98e.ogg",
+  "personagem": "Ryan",
+  "fala": "Acorda, Fernando.",
+  "tom": "neutro",
+  "contexto": "Casa monitorada",
+  "onde": [
+   "missions_ryan.js:90"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f955e6e8e",
+  "arquivo": "f955e6e8e.ogg",
+  "personagem": "Segurança do banco",
+  "fala": "Bom dia. Fila à esquerda, por favor.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:167"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fd4571d94",
+  "arquivo": "fd4571d94.ogg",
+  "personagem": "Torcedor",
+  "fala": "Vai, acerta essa!",
+  "tom": "enfático",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "praca.js:196"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f82a797d6",
+  "arquivo": "f82a797d6.ogg",
+  "personagem": "Traficante",
+  "fala": "Psiu... tá procurando o quê?",
+  "tom": "hesitante, pergunta",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:163"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fec5b0b1d",
+  "arquivo": "fec5b0b1d.ogg",
+  "personagem": "Traficante",
+  "fala": "Aqui é ponto, parceiro. Se não vai comprar, vaza.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:163"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f8e29f004",
+  "arquivo": "f8e29f004.ogg",
+  "personagem": "Traficante",
+  "fala": "Tá com cara de polícia, hein.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:163"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f0550fcc9",
+  "arquivo": "f0550fcc9.ogg",
+  "personagem": "Traficante",
+  "fala": "Fala baixo. Tem olho em todo canto.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:163"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f1e4e1102",
+  "arquivo": "f1e4e1102.ogg",
+  "personagem": "Victor",
+  "fala": "Blake. Nem mais uma palavra.",
+  "tom": "neutro",
+  "contexto": "Os Nomes do Livro",
+  "onde": [
+   "missions_ethan.js:309"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f9a38d525",
+  "arquivo": "f9a38d525.ogg",
+  "personagem": "Vigia",
+  "fala": "Circulando, circulando.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:164"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f57b8cb0c",
+  "arquivo": "f57b8cb0c.ogg",
+  "personagem": "Vigia",
+  "fala": "Não vi nada, não sei de nada.",
+  "tom": "neutro",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:164"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f151a860a",
+  "arquivo": "f151a860a.ogg",
+  "personagem": "Vigia",
+  "fala": "Olha a viatura, hein...",
+  "tom": "hesitante / pensativo",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:164"
+  ],
+  "telefone": false,
+  "gravado": false
+ }
+]

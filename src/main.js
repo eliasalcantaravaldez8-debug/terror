@@ -37,6 +37,7 @@ import { Sky, TIMES } from './sky.js';
 import { EngineAudio, crowdAmbience } from './audio.js';
 import { Stadium, ST, TROPHIES } from './stadium.js';
 import { Praca } from './praca.js';
+import { Voice } from './voice.js';
 import { Match, AWAYS } from './football.js';
 import { Fx } from './fx.js';
 import { Pet, BREEDS, DOG_NAMES, CAT_NAMES, warmBreeds, breedReady } from './animals.js';
@@ -44,7 +45,7 @@ import { mats as _mats } from './materials.js';
 import { rand, pick, setSeed, rr, glowTex, blobTex } from './textures.js';
 
 // ---------------- CONFIGURAÇÕES ----------------
-const DEFAULTS = { sensitivity: 1.0, invertY: false, quality: 'media', autoFollow: true, fov: 68, showFps: true, time: 'entardecer', sound: true, adaptive: true, autoDialog: false, freeWeapons: true };
+const DEFAULTS = { sensitivity: 1.0, invertY: false, quality: 'media', autoFollow: true, fov: 68, showFps: true, time: 'entardecer', sound: true, adaptive: true, autoDialog: false, freeWeapons: true, voiceVol: 1 };
 function loadSettings() {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('entreSombras.settings') || '{}') }; } catch (e) { return { ...DEFAULTS }; }
 }
@@ -184,7 +185,7 @@ function build() {
   fx = new Fx(scene); G.fx = fx;
   Object.assign(G, { plane, grass, blackwood, westhaven, world, sky, city, zones, cars, drivers, player, npcs, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera, lampLights, glow, blobs });
   G.aiDrivers = []; G.police = [];
-  G.audio = new EngineAudio();
+  G.audio = new EngineAudio(); G.voice = new Voice(G);
   G.state = SAVE.newState();
   G.story = new Story(G);
   G.phone = new Phone(G);
@@ -275,6 +276,8 @@ function syncSettingsUI() {
   $('opt-fov').value = settings.fov; $('opt-fov-v').textContent = settings.fov;
   $('opt-quality').value = settings.quality; $('opt-fps').checked = settings.showFps;
   $('opt-time').value = G.sky.current || 'dia'; $('opt-sound').checked = settings.sound;
+  $('opt-voice').value = settings.voiceVol ?? 1; $('opt-voice-v').textContent = Math.round((settings.voiceVol ?? 1) * 100) + '%';
+  $('voice-info').textContent = G.voice && G.voice.count ? `Dublagem: ${G.voice.count} falas gravadas encontradas em dist/voz/` : 'Dublagem: nenhum arquivo de voz encontrado em dist/voz/ (falas só com legenda). Veja voz/ROTEIRO_DUBLAGEM.md';
   $('opt-adaptive').checked = settings.adaptive; $('opt-auto').checked = settings.autoDialog; $('opt-guns').checked = settings.freeWeapons; G.freeWeapons = settings.freeWeapons;
   $('gpu-info').textContent = (gpuName ? 'Placa de vídeo: ' + gpuName.replace(/ANGLE \(|\)$/g, '') : '') + ' · resolução ' + Math.round(pixelRatio * 100) + '%';
   $('opt-dist').value = G.cam ? G.cam.footDist : 4.2; $('opt-dist-v').textContent = (G.cam ? G.cam.footDist : 4.2).toFixed(1);
@@ -287,6 +290,7 @@ function bindUI() {
   $('opt-fov').oninput = (e) => { settings.fov = +e.target.value; $('opt-fov-v').textContent = settings.fov; G.cam.fovBase = settings.fov; saveSettings(); };
   $('opt-dist').oninput = (e) => { G.cam.footDist = +e.target.value; $('opt-dist-v').textContent = G.cam.footDist.toFixed(1); };
   $('opt-fps').onchange = (e) => { settings.showFps = e.target.checked; G.perf.toggle(settings.showFps); saveSettings(); };
+  $('opt-voice').oninput = (e) => { settings.voiceVol = +e.target.value; $('opt-voice-v').textContent = Math.round(settings.voiceVol * 100) + '%'; if (G.voice) G.voice.setVolume(settings.voiceVol); saveSettings(); };
   $('opt-auto').onchange = (e) => { settings.autoDialog = e.target.checked; saveSettings(); };
   $('opt-guns').onchange = (e) => { settings.freeWeapons = e.target.checked; G.freeWeapons = settings.freeWeapons; saveSettings(); };
   $('opt-adaptive').onchange = (e) => { settings.adaptive = e.target.checked; saveSettings(); if (!settings.adaptive) G.setPixelRatio(Q.pr); };
@@ -1734,7 +1738,7 @@ function step(dt) {
   if (active && !locked2 && hit('KeyF')) playerPunch();
   punchCd -= dt; pulsoCd -= dt;
   updateEat(dt);
-  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers(); updateWrecks(dt); updatePets(dt); updateWesthaven(dt); updateStadium(dt); if (G.praca) G.praca.update(dt, G);
+  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers(); updateWrecks(dt); updatePets(dt); updateWesthaven(dt); updateStadium(dt); if (G.praca) G.praca.update(dt, G); if (G.voice) G.voice.update(dt);
   // interiores das casas: só desenha os que estão perto (o jogador ou a câmera)
   if ((interiorT -= dt) <= 0) { interiorT = 0.25; const cx = G.camera.position.x, cz = G.camera.position.z; for (const it of G.city.interiors) { const dx = it.x - p.x, dz = it.z - p.z, ex = it.x - cx, ez = it.z - cz; const R = (it.r || 40) * LODM; it.group.visible = dx * dx + dz * dz < R * R || ex * ex + ez * ez < R * R * 0.56; } }
   if (active && !locked2 && hit('KeyQ') && G.campaign().tools.pulso) {

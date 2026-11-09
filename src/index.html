@@ -174,12 +174,15 @@
     <div class="row"><label for="opt-sound">Som do motor</label><input id="opt-sound" type="checkbox"></div>
     <div class="row"><label for="opt-adaptive">Resolução automática (mantém o FPS)</label><input id="opt-adaptive" type="checkbox"></div>
     <div class="row"><label for="opt-fps">Painel de desempenho (F3) · medição (F4)</label><input id="opt-fps" type="checkbox"></div>
+    <div class="row"><label for="opt-voice">Volume das vozes (dublagem)</label><span><input id="opt-voice" type="range" min="0" max="2" step="0.05"> <span id="opt-voice-v"></span></span></div>
+    <div class="row" style="font-size:12px;opacity:.75"><span id="voice-info"></span></div>
     <div class="row"><label for="opt-auto">Diálogos avançam sozinhos</label><input id="opt-auto" type="checkbox"></div>
     <div class="row"><label for="opt-guns">Todas as armas liberadas (sem precisar comprar)</label><input id="opt-guns" type="checkbox"></div>
     <div id="gpu-info" style="font-size:11px;opacity:.6;max-width:340px"></div>
     <div class="row-btns"><button id="btn-resume">CONTINUAR</button><button id="btn-save">SALVAR</button><button id="btn-load2">CARREGAR</button><button id="btn-switch">TROCAR PERSONAGEM</button></div>
   </div>
 </div>
+<script src="voz/disponiveis.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
