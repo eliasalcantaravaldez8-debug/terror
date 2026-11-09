@@ -4,6 +4,30 @@ import * as TX from './textures.js';
 import { productAtlas, shopWindowCanvas, homeAtlas } from './products.js';
 
 export const nightMats = []; // materiais cujo brilho depende da noite: {mat, base, night}
+// VARIAÇÃO EM LARGA ESCALA: manchas pela posição no mundo (quebra a repetição da textura) — poucas instruções no shader
+const MACRO_GLSL = `
+float mvHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float mvNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mvHash(i), mvHash(i + vec2(1.0, 0.0)), f.x), mix(mvHash(i + vec2(0.0, 1.0)), mvHash(i + vec2(1.0, 1.0)), f.x), f.y); }`;
+export function macroVariation(mat, kind) {
+  // kind: grass (tons amarelados/escuros), asphalt (remendos e desgaste), paving (sujeira leve)
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    if (prev) prev(sh, r);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vMacroXZ;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n{ vec4 mw = modelMatrix * vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\n mw = modelMatrix * instanceMatrix * vec4(transformed, 1.0);\n#endif\n vMacroXZ = mw.xz; }');
+    let f;
+    if (kind === 'grass') f = `{ float a = mvNoise(vMacroXZ * 0.035), b = mvNoise(vMacroXZ * 0.13 + 7.3), c = mvNoise(vMacroXZ * 0.6);
+      vec3 dry = diffuseColor.rgb * vec3(1.18, 1.08, 0.72); vec3 lush = diffuseColor.rgb * vec3(0.78, 0.92, 0.80);
+      diffuseColor.rgb = mix(lush, dry, smoothstep(0.35, 0.8, a) * 0.75); diffuseColor.rgb *= 0.86 + 0.22 * b + 0.06 * (c - 0.5);
+      diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), diffuseColor.rgb, 0.82); }`;
+    else if (kind === 'asphalt') f = `{ float a = mvNoise(vMacroXZ * 0.05), b = mvNoise(vMacroXZ * 0.21 + 3.1), c = mvNoise(vMacroXZ * 1.7);
+      float patchK = smoothstep(0.62, 0.66, b) * 0.10; diffuseColor.rgb *= (0.9 + 0.16 * a) * (1.0 - patchK) * (0.97 + 0.06 * c); }`;
+    else f = `{ float a = mvNoise(vMacroXZ * 0.07), b = mvNoise(vMacroXZ * 0.45 + 5.0); diffuseColor.rgb *= 0.9 + 0.12 * a + 0.05 * (b - 0.5); }`;
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vMacroXZ;' + MACRO_GLSL).replace('#include <map_fragment>', '#include <map_fragment>\n' + f);
+  };
+  mat.customProgramCacheKey = () => 'macro-' + kind + (mat.polygonOffset ? 'po' : '');
+  return mat;
+}
 function lam(opts, ud = {}) { const m = new THREE.MeshLambertMaterial(opts); Object.assign(m.userData, ud); return m; }
 function night(mat, base, n) { nightMats.push({ mat, base, night: n }); return mat; }
 // "tinta": material compartilhado com cor por vértice (reduz chamadas de desenho)
@@ -20,12 +44,15 @@ export function mats() {
   const road = (map, k, extra = {}) => new THREE.MeshPhongMaterial({ map, ...N2(map, 2.2, k), shininess: 18, specular: 0x262626, ...extra });
   M.road = road(TX.roadTex(), 'road'); M.road.userData.castShadow = false;
   M.asphalt = road(TX.asphaltTex(), 'asphalt'); M.asphalt.userData.castShadow = false;
+  macroVariation(M.road, 'asphalt'); macroVariation(M.asphalt, 'asphalt');
   M.cross = road(TX.crosswalkTex(), 'cross', { polygonOffset: true, polygonOffsetFactor: -2 }); M.cross.userData.castShadow = false;
   M.sidewalk = lam({ map: TX.sidewalkTex(), ...N2(TX.sidewalkTex(), 3, 'sidewalk') }, { castShadow: false });
   M.grass = lam({ map: TX.grassTex(), ...N2(TX.grassTex(), 2.5, 'grass') }, { castShadow: false });
+  macroVariation(M.grass, 'grass');
   M.dirt = lam({ map: TX.dirtTex(), ...N2(TX.dirtTex(), 3, 'dirt') }, { castShadow: false });
   M.concrete = lam({ map: TX.concreteTex(), ...N2(TX.concreteTex(), 1.5, 'concrete') });
   M.concreteFlat = lam({ map: TX.concreteTex(), polygonOffset: true, polygonOffsetFactor: -1 }, { castShadow: false });
+  macroVariation(M.sidewalk, 'paving'); macroVariation(M.concreteFlat, 'paving'); macroVariation(M.dirt, 'paving');
   M.parking = road(TX.parkingTex(), 'parking', { polygonOffset: true, polygonOffsetFactor: -1 }); M.parking.userData.castShadow = false;
   M.facade = {};
   for (const k of ['brick', 'concrete', 'office', 'plaster', 'apartment']) {
