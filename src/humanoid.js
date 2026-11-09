@@ -197,6 +197,10 @@ export class Humanoid {
     this.root.rotation.order = 'YXZ';
   }
   punch() { this.punchT = 0.35; }
+  // chute (futebol): perna direita vai para trás e chuta para a frente
+  kick(power = 1) { this.kickT = 0.42; this.kickP = power; }
+  // arremesso lateral / goleiro com a bola: braços sobre a cabeça
+  throwIn() { this.throwT = 0.6; }
   // tranco ao levar um tiro/soco (ang: direção do impacto em relação ao corpo)
   flinch(ang = 0) { this.flinchT = 0.3; this.flinchA = ang; }
 
@@ -314,6 +318,12 @@ export class Humanoid {
       }
     }
     if (p.aim) { T.shoulderR = [-1.55, 0, 0.05]; T.elbowR = [-0.05, 0, 0]; T.shoulderL = [-1.35, 0, -0.55]; T.elbowL = [-0.55, 0, 0]; T.chest = [0, 0.1, 0]; T.head = [0, -0.1, 0]; }
+    if (this.kickT > 0) { // chute: recua a perna e bate na bola
+      this.kickT -= dt; const t = 1 - Math.max(0, this.kickT / 0.42), p2 = this.kickP || 1;
+      const sw = t < 0.45 ? (t / 0.45) * 0.9 : 0.9 - ((t - 0.45) / 0.55) * (0.9 + 1.5 * p2);
+      T.thighR = [sw, 0, -0.05]; T.kneeR = [t < 0.45 ? 1.3 * (t / 0.45) : Math.max(0, 1.3 - (t - 0.45) * 5), 0, 0]; T.spine = [0.08, 0, 0]; T.shoulderL = [-0.6, 0, 0.5]; T.shoulderR = [0.4, 0, -0.4];
+    }
+    if (this.throwT > 0) { this.throwT -= dt; const t = 1 - Math.max(0, this.throwT / 0.6); const a = t < 0.5 ? -2.9 : -2.9 + (t - 0.5) * 3.5; T.shoulderL = [a, 0, 0.2]; T.shoulderR = [a, 0, -0.2]; T.elbowL = [-0.6, 0, 0]; T.elbowR = [-0.6, 0, 0]; T.spine = [t < 0.5 ? -0.25 : 0.2, 0, 0]; }
     if (this.flinchT > 0) { // tranco do impacto: tronco e cabeça jogados para trás e para o lado
       this.flinchT -= dt; const k = Math.max(0, this.flinchT / 0.3) ** 0.7, sx = Math.sin(this.flinchA || 0), cz = Math.cos(this.flinchA || 0);
       T.spine = [T.spine[0] - 0.32 * k * cz, T.spine[1], T.spine[2] + 0.25 * k * sx]; T.chest = [T.chest[0] - 0.18 * k * cz, T.chest[1] + 0.2 * k * sx, T.chest[2]]; T.head = [T.head[0] - 0.35 * k, T.head[1], T.head[2] + 0.2 * k * sx];
@@ -330,7 +340,7 @@ export class Humanoid {
       T.shoulderL = [-0.6, 0, 0.2]; T.elbowL = [-1.6, 0, 0];
       T.spine = [T.spine[0] + 0.1, -0.35 * k, 0];
     }
-    const blendK2 = this.punchT > 0 || this.flinchT > 0 ? 30 : blendK;
+    const blendK2 = this.punchT > 0 || this.flinchT > 0 || this.kickT > 0 || this.throwT > 0 ? 30 : blendK;
     for (const [k, b] of Object.entries(this.bones)) {
       const c = this.cur[k], t = T[k];
       c.x = damp(c.x, t[0], blendK2, dt); c.y = damp(c.y, t[1], blendK2, dt); c.z = damp(c.z, t[2], blendK2, dt);

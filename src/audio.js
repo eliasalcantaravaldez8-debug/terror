@@ -86,6 +86,15 @@ export function sfx(ctx, name, dur = 1) {
   } else if (name === 'reload') { // pente saindo e entrando
     for (const [dt2, fq] of [[0, 900], [0.45, 1300], [0.55, 700]]) { const n = noise(0.06); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = fq; f.Q.value = 4; const gg = ctx.createGain(); n.connect(f); f.connect(gg); gg.connect(out);
       gg.gain.setValueAtTime(0.5, t + dt2); gg.gain.exponentialRampToValueAtTime(0.001, t + dt2 + 0.05); n.start(t + dt2); n.stop(t + dt2 + 0.06); }
+  } else if (name === 'whistle' || name === 'whistle3') { // apito do árbitro (com trinado)
+    const n2 = name === 'whistle3' ? 3 : 1;
+    for (let i = 0; i < n2; i++) { const t0 = t + i * 0.45; const o = osc('sine', 3100); const lfo = osc('square', 28); const lg = ctx.createGain(); lg.gain.value = 120; lfo.connect(lg); lg.connect(o.frequency); const gg = ctx.createGain(); o.connect(gg); gg.connect(out);
+      const len = i === n2 - 1 && n2 > 1 ? 0.8 : 0.32; gg.gain.setValueAtTime(0.0001, t0); gg.gain.exponentialRampToValueAtTime(0.09, t0 + 0.02); gg.gain.setValueAtTime(0.09, t0 + len - 0.05); gg.gain.exponentialRampToValueAtTime(0.0001, t0 + len); o.start(t0); lfo.start(t0); o.stop(t0 + len); lfo.stop(t0 + len); }
+  } else if (name === 'kick') { // chute na bola
+    const o = osc('sine', 160); o.frequency.exponentialRampToValueAtTime(60, t + 0.08); o.connect(out); out.gain.setValueAtTime(0.35, t); out.gain.exponentialRampToValueAtTime(0.001, t + 0.1); o.start(t); o.stop(t + 0.11);
+  } else if (name === 'goalHome' || name === 'goalAway') { // explosão da torcida num gol
+    const len = name === 'goalHome' ? 5.5 : 3; const n = noise(len); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 0.5; n.connect(f); f.connect(out);
+    const peak = name === 'goalHome' ? 0.55 : 0.3; out.gain.setValueAtTime(0.02, t); out.gain.linearRampToValueAtTime(peak, t + 0.35); out.gain.linearRampToValueAtTime(peak * 0.6, t + len * 0.6); out.gain.linearRampToValueAtTime(0.0001, t + len); n.start(t); n.stop(t + len);
   } else if (name === 'buzzer') { // campainha da cela
     const o = osc('square', 110); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; o.connect(f); f.connect(out);
     out.gain.setValueAtTime(0.12, t); out.gain.setValueAtTime(0.12, t + dur - 0.05); out.gain.linearRampToValueAtTime(0, t + dur); o.start(t); o.stop(t + dur);
@@ -137,4 +146,22 @@ export function sfx(ctx, name, dur = 1) {
     const o = osc('sine', name === 'cash' ? 1500 : name === 'ping' ? 1320 : 400); o.connect(out);
     out.gain.setValueAtTime(0.06, t); out.gain.exponentialRampToValueAtTime(0.001, t + 0.35); o.start(t); o.stop(t + 0.35);
   }
+}
+
+// barulho constante da torcida (murmúrio que cresce com a empolgação) + palmas ritmadas quando está animada
+export function crowdAmbience(ctx) {
+  const len = 4, b = ctx.createBuffer(1, ctx.sampleRate * len, ctx.sampleRate), d = b.getChannelData(0);
+  let last = 0; for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5 + w * 0.15; }
+  const src = ctx.createBufferSource(); src.buffer = b; src.loop = true;
+  const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 650; f.Q.value = 0.6;
+  const g = ctx.createGain(); g.gain.value = 0; src.connect(f); f.connect(g); g.connect(ctx.destination); src.start();
+  let clapT = 0;
+  return {
+    set(level, excite, dt) {
+      const t = ctx.currentTime; g.gain.setTargetAtTime(level * (0.05 + excite * 0.16), t, 0.25); f.frequency.setTargetAtTime(500 + excite * 600, t, 0.4);
+      // palmas ritmadas (cantoria) quando empolgada
+      if (level > 0.15 && excite > 0.5 && (clapT -= dt) <= 0) { clapT = 0.55; const n = ctx.createBufferSource(); const nb = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate); const nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1) * (1 - i / nd.length);
+        n.buffer = nb; const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1200; const cg = ctx.createGain(); cg.gain.value = level * 0.12 * excite; n.connect(hp); hp.connect(cg); cg.connect(ctx.destination); n.start(); }
+    },
+  };
 }

@@ -516,8 +516,8 @@ export function tileFloorTex() {
 }
 
 // Atlas de placas: 4096x2048, células de 341x64
-export function signAtlas() {
-  return cached('signAtlas', () => {
+export function signAtlas(page = 0) {
+  return cached('signAtlas' + (page || ''), () => {
     const W = 4096, H = 2048, cw = 341, ch = 64, cols = 12, rows = 32; // 384 placas (lojas, ruas, shopping, placas de carro)
     const [c, g] = canvas(W, H);
     g.fillStyle = '#222'; g.fillRect(0, 0, W, H);
@@ -528,7 +528,7 @@ export function signAtlas() {
       region(text, opts) {
         const key = text + JSON.stringify(opts);
         if (slots.has(key)) return slots.get(key);
-        if (n >= cols * rows) { this.full = (this.full || 0) + 1; return slots.values().next().value; }
+        if (n >= cols * rows) return null; // página cheia: o chamador usa a próxima
         const col = n % cols, row = Math.floor(n / cols); n++;
         const sub = signCanvas(text, { ...opts, w: cw * 2, h: ch * 2 });
         g.drawImage(sub, col * cw + 1, row * ch + 1, cw - 2, ch - 2);

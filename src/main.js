@@ -4,7 +4,7 @@ import { GRADED_TONEMAPPING } from './grade.js';
 import { Grass } from './grass.js';
 import { Batcher } from './geo.js';
 import { CollisionWorld } from './collision.js';
-import { City, LAYOUT, N, P, ROAD, HALF, roadC, blockC, BLOCK } from './city.js';
+import { City, LAYOUT, N, P, ROAD, HALF, roadC, blockC, BLOCK, CURB } from './city.js';
 const P_ = P;
 import { Zones } from './zones.js';
 import { PLACES, BW, bwRoad, bwRoadZ, bwBlock, bwBlockZ, RIVER } from './places.js';
@@ -34,7 +34,9 @@ import { NPC } from './npc.js';
 import { CHARACTERS, randomPedestrian, shopkeeperLook, policeLook, SHOP_LINES, PED_LINES, POLICE_LINES } from './characters.js';
 import { TrafficLights, spawnTraffic } from './traffic.js';
 import { Sky, TIMES } from './sky.js';
-import { EngineAudio } from './audio.js';
+import { EngineAudio, crowdAmbience } from './audio.js';
+import { Stadium, ST, TROPHIES } from './stadium.js';
+import { Match, AWAYS } from './football.js';
 import { Fx } from './fx.js';
 import { Pet, BREEDS, DOG_NAMES, CAT_NAMES, warmBreeds, breedReady } from './animals.js';
 import { mats as _mats } from './materials.js';
@@ -1216,6 +1218,72 @@ function updateWesthaven(dt) {
     }
   }
 }
+// ESTÁDIO DE WESTHAVEN: jogos todo dia às 13h e às 20h (horário do jogo). Ingresso R$ 200 na bilheteria.
+G.onWesthavenBuild = (wh) => { wh.onStadium = (B) => { const s = new Stadium(scene, G.world || wh.world, wh.city); s.build(B); s.buildCrowd(Math.round(1400 + (Q.peds || 70) * 22)); G.stadium = s;
+  wh.city.crowds.push({ x: s.spots.ticketClerk[0], z: s.spots.ticketClerk[1], r: 45, hours: [0, 24], people: [{ kind: 'staff', x: s.spots.ticketClerk[0], z: s.spots.ticketClerk[1], heading: 0, y: CURB, name: 'Bilheteria do Estádio', lines: ['Ingresso para o jogo de hoje: R$ 200.', 'Os portões abrem uma hora antes da partida.'] }] }); }; };
+const MATCH_SLOTS = [13, 20];
+const SD = { match: null, key: null, played: new Set(), amb: null, scoreT: 0, seat: null, trophyT: 0 };
+G.stadiumState = SD;
+function matchInfo() { // partida em andamento ou a próxima (hoje)
+  const h = G.state.hour, day = G.state.day;
+  if (SD.match) return { live: true, key: SD.key, slot: SD.slot, away: SD.match.away };
+  for (const sl of MATCH_SLOTS) { const key = day + '-' + sl; if (SD.played.has(key)) continue; if (h < sl + 0.25) return { live: false, key, slot: sl, soon: h >= sl - 1, away: AWAYS[(day * 2 + MATCH_SLOTS.indexOf(sl)) % AWAYS.length] }; }
+  return { live: false, key: null, slot: MATCH_SLOTS[0], tomorrow: true };
+}
+G.startMatchNow = () => { const day = G.state.day; const sl = MATCH_SLOTS.find((x) => !SD.played.has(day + '-' + x)) ?? 13; startMatch(day + '-' + sl, sl); };
+function startMatch(key, slot) {
+  const S2 = G.stadium; if (!S2 || SD.match) return; const away = AWAYS[(G.state.day * 2 + MATCH_SLOTS.indexOf(slot)) % AWAYS.length];
+  const tun = S2.spots.playerTunnel; SD.match = new Match(scene, { away, ox: ST.x, oz: ST.z, tunnel: [tun[0] - ST.x, tun[1] - ST.z], sound: (n) => { const P = G.player; if (Math.hypot(P.x - ST.x, P.z - ST.z) < 160) G.sound(n); } });
+  SD.key = key; SD.slot = slot; SD.played.add(key);
+  if (Math.hypot(G.player.x - ST.x, G.player.z - ST.z) < 400) toast(`Começou: Westhaven FC x ${away.name} no Estádio de Westhaven`, 3);
+}
+function updateStadium(dt) {
+  const S2 = G.stadium; if (!started || !S2) return; const P = G.player, C = G.campaign();
+  const d = Math.hypot(P.x - ST.x, P.z - ST.z);
+  // agenda
+  const info = matchInfo();
+  if (!SD.match && info.key && G.state.hour >= info.slot && G.state.hour < info.slot + 0.25 && !G.flight) startMatch(info.key, info.slot);
+  const M2 = SD.match;
+  if (M2) {
+    M2.setVisible(d < 240); M2.update(dt);
+    const ex = M2.excite, goal = M2.goalT > 0 ? 1 : 0;
+    S2.crowdU.uTime.value += dt; S2.crowdU.uExcite.value = ex; S2.crowdU.uCheer.value = goal ? (M2.cheerSide === 0 ? 1 : -1) : 0; S2.crowdU.uGoal.value = goal;
+    if ((SD.scoreT -= dt) <= 0) { SD.scoreT = 0.5; S2.drawScore('WESTHAVEN', M2.away.short, M2.score[0], M2.score[1], 'WESTHAVEN FC x ' + M2.away.name.toUpperCase(), M2.clock()); }
+    if (M2.over) { C.flags.lastMatch = `Westhaven FC ${M2.score[0]} x ${M2.score[1]} ${M2.away.name}`; if (d < 300) toast('Fim de jogo: ' + C.flags.lastMatch, 4); G.phone && G.phone.addPost && G.phone.addPost({ user: 'westhaven_fc', tag: 'FUTEBOL', text: 'Fim de jogo no Estádio de Westhaven: ' + C.flags.lastMatch + '.', notify: false }); M2.dispose(); SD.match = null; S2.setCrowd(false); S2.drawScore('WESTHAVEN', '—', M2.score[0], M2.score[1], 'ÚLTIMO JOGO', 'FIM DE JOGO'); }
+  }
+  S2.setCrowd(!!SD.match && d < 260);
+  // som da torcida
+  if (G.audio && G.audio.ctx && settings.sound) { if (!SD.amb) SD.amb = crowdAmbience(G.audio.ctx); SD.amb.set(SD.match ? Math.max(0, 1 - d / 220) : 0, SD.match ? SD.match.excite : 0, dt); }
+  // catracas: abertas sem jogo; com jogo (ou 1h antes) só com ingresso
+  const needTicket = info.live || info.soon; const hasTicket = C.ticket && C.ticket === info.key;
+  for (const t of S2.turnstiles) t.set(!needTicket || hasTicket);
+  // troféus 3D: só desenhados perto da sala
+  if ((SD.trophyT -= dt) <= 0) { SD.trophyT = 0.5; const near = Math.hypot(P.x - S2.trophyRoomAt[0], P.z - S2.trophyRoomAt[1]) < 40; for (const m of S2.trophyMeshes) m.visible = near; }
+  // sentado na arquibancada
+  if (SD.seat) { const st = SD.seat; P.place(st.x, st.z, st.heading); P.y = st.y; P.pose = 'chair'; P.vx = P.vz = 0; }
+}
+// interações do estádio (chamadas na lista de interações a pé). Retorna o texto do aviso ou null
+function stadiumPrompt(free) {
+  const S2 = G.stadium; if (!S2) return null; const P = G.player, C = G.campaign();
+  if (Math.hypot(P.x - ST.x, P.z - ST.z) > 90) return null;
+  if (SD.seat) { if (free && G.consumeInteract()) { const st = SD.seat; SD.seat = null; P.pose = null; P.place(st.x - Math.sin(st.heading) * -0.0 + Math.sin(st.heading) * 0.5, st.z + Math.cos(st.heading) * 0.5, st.heading); } return '[E] Levantar'; }
+  const [tx, tz] = S2.spots.ticket;
+  if (Math.hypot(P.x - tx, P.z - tz) < 2.2) {
+    const info = matchInfo();
+    if (!info.key) return 'Bilheteria: não há mais jogos hoje. Próximo: amanhã às 13h';
+    if (C.ticket === info.key) return `Ingresso comprado: Westhaven FC x ${info.away.name} (${info.slot}h)`;
+    if (free && G.consumeInteract()) {
+      if (C.money < 200) toast(`Dinheiro insuficiente: o ingresso custa R$ 200 (você tem R$ ${C.money})`, 3);
+      else { G.addMoney(-200); C.ticket = info.key; G.sound('cash'); toast(`Ingresso comprado! Westhaven FC x ${info.away.name} às ${info.slot}h — passe pela catraca`, 4); }
+    }
+    return `[E] Comprar ingresso — R$ 200 (Westhaven FC x ${info.away.name}, ${info.live ? 'jogo em andamento' : 'às ' + info.slot + 'h'})`;
+  }
+  for (const T of S2.trophySpots) if (Math.hypot(P.x - T.x, P.z - T.z) < 1.7) { const tr = TROPHIES[T.i]; if (free && G.consumeInteract()) G.showDocument(`${tr.name} — ${tr.year}`, `<p style="font-size:18px"><b>${tr.name}</b></p><p>Ano da conquista: <b>${tr.year}</b></p><p>Clube: <b>${tr.club}</b></p><p>Troféu original exposto na Sala de Troféus do Estádio de Westhaven.</p>`); return `[E] Ver troféu: ${tr.name} ${tr.year}`; }
+  const seat = S2.nearestSeat(P.x, P.z, 1.1);
+  if (seat && Math.abs(P.y - seat.y) < 0.9 && P.mode === 'foot') { if (free && G.consumeInteract()) { SD.seat = seat; } return SD.match ? '[E] Sentar e assistir ao jogo' : '[E] Sentar'; }
+  return null;
+}
+G.stadiumPrompt = stadiumPrompt;
 // RACHA DE LOS VALLES: avisa no celular quando abre e junta curiosos na largada
 let rachaWasOpen = false; const rachaFans = [];
 function updateRacha() {
@@ -1664,7 +1732,7 @@ function step(dt) {
   if (active && !locked2 && hit('KeyF')) playerPunch();
   punchCd -= dt; pulsoCd -= dt;
   updateEat(dt);
-  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers(); updateWrecks(dt); updatePets(dt); updateWesthaven(dt);
+  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers(); updateWrecks(dt); updatePets(dt); updateWesthaven(dt); updateStadium(dt);
   // interiores das casas: só desenha os que estão perto (o jogador ou a câmera)
   if ((interiorT -= dt) <= 0) { interiorT = 0.25; const cx = G.camera.position.x, cz = G.camera.position.z; for (const it of G.city.interiors) { const dx = it.x - p.x, dz = it.z - p.z, ex = it.x - cx, ez = it.z - cz; const R = (it.r || 40) * LODM; it.group.visible = dx * dx + dz * dz < R * R || ex * ex + ez * ez < R * R * 0.56; } }
   if (active && !locked2 && hit('KeyQ') && G.campaign().tools.pulso) {
@@ -1681,13 +1749,14 @@ function step(dt) {
     const H = G.city.ethanHouse; const lm = G.city.landmarks;
     const nearHosp = lm.find((l) => l.kind === 'hospital' && Math.hypot(l.x - p.x, l.z - p.z) < 5);
     const nearDoor = !G.mission && (Math.hypot(H.door[0] - p.x, H.door[1] - p.z) < 1.8 || (H.bed && Math.hypot(H.bed[0] - p.x, H.bed[1] - p.z) < 2.0));
-    const free = active && !locked2 && !S.cut;
+    const free = active && !locked2 && !S.cut; let stadiumMsg = null;
     if (G.jack) prompt = '';
     else if (G.storyPrompt) prompt = G.storyPrompt;
     else if (startM) { prompt = `[E] Iniciar missão: ${startM.title}`; if (free && G.consumeInteract()) runMission(startM, 0, false); }
     else if (nearDoor) { prompt = '[E] Dormir (8 horas e salvar)'; if (free && G.consumeInteract()) sleep(); }
     else if (nearHosp && !G.mission) { prompt = '[E] Atendimento médico (R$ 150)'; if (free && G.consumeInteract()) service('hospital'); }
     else if (npc && (!car || nd < 1.8) && !G.mission) { prompt = `[E] Falar com ${npc.name}`; if (free && G.consumeInteract()) interactNPC(npc); }
+    else if (!car && G.stadium && (stadiumMsg = stadiumPrompt(free))) { prompt = stadiumMsg; }
     else if (nearestPet() && !car) { const a = nearestPet(); prompt = `[E] Fazer carinho no ${a.label} (${a.name})`; if (free && G.consumeInteract()) petAnimal(a); }
     else if (!G.mission && G.plane && !G.plane.crashed && G.plane.onGround && planeBoardSpot()) { const st = planeBoardSpot(); prompt = st.stairs ? '[E] Subir a escada e embarcar no avião' : '[E] Entrar no avião'; if (free && G.consumeInteract()) boardPlane(st); }
     else if (car) {

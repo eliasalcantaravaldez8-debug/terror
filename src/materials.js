@@ -92,7 +92,11 @@ export function mats() {
   M.bark = lam({ map: TX.barkTex(), ...N2(TX.barkTex(), 3, 'bark') });
   M.flag = lam({ color: 0xffffff, side: THREE.DoubleSide });
   M.signAtlas = TX.signAtlas();
-  M.sign = night(lam({ map: M.signAtlas.texture, emissiveMap: M.signAtlas.texture, emissive: 0xffffff, emissiveIntensity: 0.4 }, { castShadow: false }), 0.25, 0.9);
+  const signPage = (A) => night(lam({ map: A.texture, emissiveMap: A.texture, emissive: 0xffffff, emissiveIntensity: 0.4 }, { castShadow: false }), 0.25, 0.9);
+  M.sign = signPage(M.signAtlas);
+  // páginas extras do atlas de placas, criadas sob demanda quando a anterior enche
+  M.signPages = [{ atlas: M.signAtlas, mat: M.sign }];
+  M.newSignPage = () => { const A = TX.signAtlas(M.signPages.length); const pg = { atlas: A, mat: signPage(A) }; M.signPages.push(pg); return pg; };
   M.flat = flat;
   const GA = TX.graffitiAtlas();
   M.graffiti = lam({ map: GA.texture, transparent: true, alphaTest: 0.25, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }, { castShadow: false });
@@ -125,5 +129,6 @@ export function homeMat(key, glow = false) {
 // placa: região do atlas (uma textura para todas as placas => 1 material)
 export function signMat(text, opts = {}) {
   const m = mats();
-  return { isSign: true, mat: m.sign, region: m.signAtlas.region(text, opts) };
+  for (const pg of m.signPages) { const r = pg.atlas.region(text, opts); if (r) return { isSign: true, mat: pg.mat, region: r }; }
+  const pg = m.newSignPage(); return { isSign: true, mat: pg.mat, region: pg.atlas.region(text, opts) };
 }
