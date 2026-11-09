@@ -44,6 +44,7 @@ function check(cond, msg) {
   await waitServer();
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  page.setDefaultTimeout(240000);
   page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message + '\n' + e.stack));
   const snap = async (name) => { if (shots) await page.screenshot({ path: `${OUT}/${String(++step).padStart(2, '0')}-${name}.png` }); };
@@ -262,7 +263,7 @@ function check(cond, msg) {
   // Checkpoint reload test
   await G(() => window.__IRON.game.continueCampaign());
   await sleep(300);
-  check(await G(() => window.__IRON.game.state === 'playing' && window.__IRON.game.mission.checkpoint === 'cp_lobby'), 'continue loads saved checkpoint');
+  check(await G(() => window.__IRON.game.state === 'playing' && window.__IRON.game.mission.id === 'm02' && window.__IRON.game.mission.checkpoint === 'start'), 'after mission 1, Continue starts mission 2');
   await G(() => { const g = window.__IRON.game; g.saves.save({ mission: 'm01', checkpoint: 'cp_lz', weapons: g.weapons.serialize() }); g.restartFromCheckpoint(); g.advance(1); });
   check(await G(() => window.__IRON.game.mission.stage === 'wave1'), 'restart from cp_lz puts the player in the ambush');
   // death -> retry

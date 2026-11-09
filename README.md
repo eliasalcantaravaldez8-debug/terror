@@ -4,7 +4,13 @@ FPS militar single-player em 3D — guerra moderna fictícia, 2029.
 O Capitão **Daniel Mercer** e a Força-Tarefa Iron investigam a organização
 **VÉRTICE**, responsável por ataques coordenados pelo mundo.
 
-> **Estado atual: v0.2 — Missão 1 "Primeiro Contato" jogável do início ao fim.**
+> **Estado atual: v0.3 — Missões 1 e 2 jogáveis do início ao fim.**
+>
+> **Missão 2 — "Sinal Morto"** (entardecer): sem rádio, a equipe sai do Halden,
+> enfrenta uma patrulha na avenida, rompe um bloqueio na rua transversal, toma
+> a estação de TV de Teresk e defende o transmissor — mas quem responde não é a coalizão.
+>
+> **Missão 1 — "Primeiro Contato"**:
 > Abertura no helicóptero → pouso no distrito de Teresk → emboscada do atirador →
 > combate em três ondas pela Avenida Verkhov → arrombamento do Edifício Halden →
 > combate no saguão → download dos servidores sob contra-ataque → reviravolta.
@@ -73,7 +79,7 @@ volumes, inverter Y, legendas, vozes provisórias, contador de FPS.
 
 ```bash
 npm test          # unitários: colisão, navegação A*, armas, saves
-npm run test:e2e  # jogatina automatizada completa no Chromium + capturas
+npm run test:e2e  # jogatina automatizada das missões 1 e 2 no Chromium + capturas
 ```
 
 ## Documentação

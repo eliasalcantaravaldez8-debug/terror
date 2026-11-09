@@ -13,6 +13,12 @@ export const QUALITY_PRESETS = {
   high: { pixelRatio: 1.5, shadows: true, shadowSize: 4096, shadowRange: 60, post: true, bloom: true, ao: true, msaa: 4, rain: 3000, particles: 1.0, fogBoost: 1.0, farLights: true },
 };
 
+/** Lighting presets per time of day. */
+export const TIME_OF_DAY = {
+  morning: { elevation: 9, azimuth: 120, turbidity: 9, rayleigh: 1.6, mie: 0.012, sun: 0xffd2a1, sunI: 2.4, sky: 0xb9c6d2, ground: 0x4a4136, hemiI: 0.75, fog: 0x9ea4a6, fogD: 0.0062, exposure: 1.0, rain: 0.6 },
+  dusk: { elevation: 2.5, azimuth: 255, turbidity: 13, rayleigh: 3.4, mie: 0.022, sun: 0xff8040, sunI: 1.6, sky: 0x76829a, ground: 0x2c2622, hemiI: 0.55, fog: 0x6e6870, fogD: 0.0075, exposure: 0.92, rain: 0.85 },
+};
+
 /** Cinematic grade: vignette, contrast, subtle desaturation, film grain, damage tint. */
 const GradeShader = {
   uniforms: {
@@ -66,6 +72,7 @@ export class RenderPipeline {
     this.vmCamera = new THREE.PerspectiveCamera(66, 16 / 9, 0.01, 10);
 
     this._setupEnvironment();
+    this.timeOfDay = 'morning';
     this.applyQuality(settings.get('quality'));
     window.addEventListener('resize', () => this.resize());
     this.resize();
@@ -106,7 +113,9 @@ export class RenderPipeline {
     this.envMap = pmrem.fromScene(envScene, 0.02).texture;
     scene.environment = this.envMap;
     this.vmScene.environment = this.envMap;
-    pmrem.dispose();
+    this._pmrem = pmrem;
+    this._envScene = envScene;
+    this._envSky = sky2;
 
     scene.fog = new THREE.FogExp2(0x9ea4a6, 0.0062);
     this.baseFogDensity = 0.0062;
@@ -132,6 +141,34 @@ export class RenderPipeline {
     this.vmFlash = new THREE.PointLight(0xffb060, 0, 3, 2);
     this.vmFlash.position.set(0.1, -0.05, -0.8);
     this.vmScene.add(this.vmFlash);
+  }
+
+  /** Switch lighting/sky/fog to a time-of-day preset (see TIME_OF_DAY). */
+  setTimeOfDay(name) {
+    const t = TIME_OF_DAY[name] || TIME_OF_DAY.morning;
+    if (this.timeOfDay === name) return t;
+    this.timeOfDay = name;
+    const sun = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - t.elevation), THREE.MathUtils.degToRad(t.azimuth));
+    this.sunDir.copy(sun);
+    for (const sk of [this.sky, this._envSky]) {
+      const u = sk.material.uniforms;
+      u.turbidity.value = t.turbidity; u.rayleigh.value = t.rayleigh; u.mieCoefficient.value = t.mie;
+      u.sunPosition.value.copy(sun);
+    }
+    this.sunLight.color.setHex(t.sun); this.sunLight.intensity = t.sunI;
+    this.hemi.color.setHex(t.sky); this.hemi.groundColor.setHex(t.ground); this.hemi.intensity = t.hemiI;
+    this.vmSun.color.setHex(t.sun);
+    this.scene.fog.color.setHex(t.fog);
+    this.baseFogDensity = t.fogD;
+    this.scene.fog.density = t.fogD * (this.quality?.fogBoost ?? 1);
+    this.renderer.toneMappingExposure = t.exposure;
+    this.rainIntensity = t.rain;
+    const old = this.envMap;
+    this.envMap = this._pmrem.fromScene(this._envScene, 0.02).texture;
+    this.scene.environment = this.envMap;
+    this.vmScene.environment = this.envMap;
+    old?.dispose();
+    return t;
   }
 
   applyQuality(name) {

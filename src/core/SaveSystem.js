@@ -31,5 +31,16 @@ export class SaveSystem {
   }
 
   hasSave() { return this.load() !== null; }
+
+  /** Campaign progress (unlocked missions) survives across checkpoints. */
+  progress() {
+    try { return JSON.parse(this.storage?.getItem(KEY + '.progress')) || { unlocked: ['m01'] }; } catch { return { unlocked: ['m01'] }; }
+  }
+  unlock(id) {
+    const p = this.progress();
+    if (!p.unlocked.includes(id)) p.unlocked.push(id);
+    try { this.storage?.setItem(KEY + '.progress', JSON.stringify(p)); } catch { /* ignore */ }
+    return p;
+  }
   clear() { try { this.storage?.removeItem(KEY); } catch { /* ignore */ } }
 }

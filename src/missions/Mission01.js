@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { Soldier } from '../ai/Soldier.js';
-import { EnemyBrain, AllyBrain } from '../ai/Brains.js';
+import { MissionBase, setTimeoutGame } from './MissionBase.js';
 import { SoldierModel, APPEARANCE } from '../characters/SoldierModel.js';
 import { buildHelicopter, HelicopterController, SEATS, CABIN } from '../world/Helicopter.js';
 import { LZ, FIRES, SMOKE_COLUMNS } from '../world/districtLayout.js';
@@ -102,10 +101,14 @@ const WAVES = [
 ];
 const DOWNLOAD_TIME = 40;
 
-export class Mission01 {
+export class Mission01 extends MissionBase {
   constructor(game) {
-    this.game = game;
-    this.id = MISSION_ID;
+    super(game, MISSION_ID, { waves: WAVES, checkpoints: CHECKPOINTS, title: 'Primeiro Contato' });
+    this.number = 1;
+    this.completeText = {
+      top: 'MISSÃO 1 CONCLUÍDA', main: 'PRIMEIRO CONTATO',
+      body: 'Os códigos encontrados no Halden pertencem ao próprio Comando da Coalizão.<br>Alguém de dentro está ajudando o VÉRTICE — e a equipe Iron perdeu contato com Bastião.<br><b>A seguir: Missão 2 — Sinal Morto.</b>',
+    };
     this.heliParts = buildHelicopter(game.mats, { interior: true });
     game.scene.add(this.heliParts.root);
     this.heli = new HelicopterController(this.heliParts, FLIGHT);
@@ -131,89 +134,25 @@ export class Mission01 {
     this.heliAudio = null;
   }
 
-  checkpointLabel(id) { return CHECKPOINTS[id] || ''; }
-
   // ------------------------------------------------------------ setup
-  clearActors() {
-    const g = this.game;
-    for (const a of g.actors) if (!a.isPlayer) a.dispose();
-    g.actors.length = 0;
-    g.actors.push(g.player);
-    g.squad.clear();
-    g.ai.tokens.clear();
-  }
+  spawnSquad() { super.spawnSquad(['kane', 'ruiz', 'okafor', 'briggs']); }
 
-  spawnSquad() {
-    const g = this.game;
-    const defs = [
-      { id: 'kane', name: 'KANE', look: { beard: true, skin: 0xb88a6c } },
-      { id: 'ruiz', name: 'RUIZ', look: { skin: 0xc8a07e, backpack: false } },
-      { id: 'okafor', name: 'OKAFOR', look: { skin: 0x5e4030, glasses: false } },
-      { id: 'briggs', name: 'BRIGGS', look: { skin: 0xd8b090 } },
-    ];
-    this.squadById = {};
-    for (const d of defs) {
-      const s = new Soldier(g, { team: 'ally', name: d.name, id: d.id, x: 0, z: 0, invulnerable: d.id !== 'briggs', look: d.look });
-      s.brain = new AllyBrain(s, g.squad);
-      g.actors.push(s);
-      g.squad.add(s);
-      g.dialogue.registerActor(d.name, s);
-      this.squadById[d.id] = s;
-    }
-  }
-
-  spawnWave(index, activateNow = false) {
-    const g = this.game;
-    const wave = WAVES[index];
-    const list = [];
-    for (const e of wave.enemies) {
-      let x = e.x, y = e.y || 0, z = e.z, isStatic = !!e.static;
-      if (e.balcony) {
-        const spot = g.city.balconySpots.filter((b) => b.face === 'px').sort((a, b) => Math.hypot(a.x - e.balcony.x, a.z - e.balcony.z) - Math.hypot(b.x - e.balcony.x, b.z - e.balcony.z))[0];
-        if (!spot) continue;
-        x = spot.x + 0.2; y = spot.y; z = spot.z; isStatic = true;
-      }
-      const s = new Soldier(g, { team: 'enemy', x, y, z, kind: e.kind, static: isStatic, look: { cap: Math.random() < 0.3 && !isStatic, mask: Math.random() < 0.25 }, id: e.id, yaw: 0 });
-      s.pos.y = y;
-      s.groundY = y;
-      s.brain = new EnemyBrain(s, { zone: wave.zone });
-      s.brain.rush = !!e.rush;
-      s.faceYaw = e.face ? Math.atan2(e.face[0], e.face[1]) : 0; // look toward the street
-      if (e.face) { s.staticBase = s.pos.clone(); s.edgeFace = new THREE.Vector3(e.face[0], 0, e.face[1]); }
-      s.waveIndex = index;
-      s.spawnDelay = e.delay || 0;
-      if (e.delay) { s.model.root.visible = false; s.alive = true; s.hiddenUntilActive = true; }
-      g.actors.push(s);
-      list.push(s);
-      if (e.id) this.named[e.id] = s;
-    }
-    this.waves[index] = { soldiers: list, active: false, done: false, t: 0 };
-    if (activateNow) this.activateWave(index);
-    return list;
-  }
-
-  activateWave(index) {
-    const w = this.waves[index];
-    if (!w || w.active) return;
-    w.active = true;
-    w.t = 0;
-    this.game.audio.battleIntensity = 1;
+  /** Called when another mission takes over the world. */
+  exit() {
+    this.heli.removeColliders(this.game.world);
+    this.heliParts.root.visible = false;
+    this.wingParts.root.visible = false;
+    this.heliAudio?.stop();
+    this.heliAudio = null;
+    if (this.lzSmoke) { this.game.effects.removeEmitter(this.lzSmoke); this.lzSmoke = null; }
   }
 
   /** Reset world state and start from a checkpoint id. */
   start(checkpoint = 'start') {
     const g = this.game;
-    this.clearActors();
-    g.combat.reset();
-    g.pickups.clear();
-    g.effects.reset();
-    g.dialogue.clear();
-    g.hud.reset();
-    this.timeline = [];
-    this.named = {};
-    this.waves = [];
-    this.t = 0;
-    this.stage = null;
+    this.resetWorld();
+    g.effects.rainIntensity = g.pipeline.setTimeOfDay('morning').rain;
+    this.setEastGate(true, false);
     this.checkpoint = checkpoint;
     this.endTriggered = false;
     this.heli.removeColliders(g.world);
@@ -478,14 +417,6 @@ export class Mission01 {
     this.departing = true;
   }
 
-  saveCheckpoint(id) {
-    const g = this.game;
-    this.checkpoint = id;
-    g.saves.save({ mission: MISSION_ID, checkpoint: id, weapons: g.weapons.serialize(), stats: g.stats });
-    g.hud.toast('CHECKPOINT SALVO', 2200);
-    g.events.emit('checkpoint', { id });
-  }
-
   // ------------------------------------------------------------ stages after combat
   _stageAdvance1(fromCheckpoint) {
     const g = this.game;
@@ -589,16 +520,7 @@ export class Mission01 {
     return true;
   }
 
-  /** Open/close the Halden front door (collider + navigation). */
-  _setDoor(open) {
-    const g = this.game, d = g.city.namedProps.halden;
-    if (open && d.doorBox) { g.world.removeBox(d.doorBox); d.doorBox = null; }
-    if (!open && !d.doorBox) d.doorBox = g.world.addBox(-1.8, 0, -168.5, 1.8, 4.4, -168, { tag: 'door', surface: 'wood' });
-    d.open = open;
-    d.setOpen(open ? 1 : 0);
-    this.doorAnim = null;
-    g.nav.rebuild();
-  }
+  _setDoor(open) { this.setHaldenDoor(open); }
 
   // ------------------------------------------------------------ Halden interior
   _breach() {
@@ -693,19 +615,10 @@ export class Mission01 {
     ]);
   }
 
-  waveCleared(i) {
-    const w = this.waves[i];
-    if (!w || !w.active) return false;
-    if (w.done) return true;
-    if (w.soldiers.every((s) => !s.alive)) { w.done = true; return true; }
-    return false;
-  }
-
   // ------------------------------------------------------------ update
   update(dt) {
     const g = this.game, p = g.player;
-    this.t += dt;
-    while (this.timeline.length && this.timeline[0].at <= this.t) this.timeline.shift().fn();
+    this.updateCommon(dt);
 
     // helicopters
     if (this.heliParts.root.visible) {
@@ -728,14 +641,6 @@ export class Mission01 {
         s.model.update(dt, { seated: 1, aim: 0, speed: 0, talk: s.talk, lookYaw: Math.sin(this.t * 0.5 + s.attachedSeat.x * 3) * 0.5 + (s.talk ? 0.2 : 0) });
         s.model.root.getWorldPosition(s.pos);
       } else if (s.scripted && s.arrived && s.onArrive) { const f = s.onArrive; s.onArrive = null; f(); }
-    }
-    // delayed (hidden) spawns
-    for (const w of this.waves) {
-      if (!w || !w.active) continue;
-      w.t += dt;
-      for (const s of w.soldiers) {
-        if (s.hiddenUntilActive && w.t >= s.spawnDelay) { s.hiddenUntilActive = false; s.model.root.visible = true; s.brain.activate(); }
-      }
     }
     // sniper scope glint
     const sn = this.named.sniper;
@@ -814,7 +719,4 @@ export class Mission01 {
   }
 }
 
-/** Game-time timeout (respects pause / slow motion). */
-export function setTimeoutGame(game, delay, fn) {
-  game.timers.push({ t: delay, fn });
-}
+export { setTimeoutGame };

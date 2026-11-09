@@ -21,7 +21,10 @@ import { Pickups } from '../player/Pickups.js';
 import { HUD } from '../ui/HUD.js';
 import { Menus } from '../ui/Menus.js';
 import { Dialogue } from '../ui/Dialogue.js';
-import { Mission01, MISSION_ID } from '../missions/Mission01.js';
+import { Mission01 } from '../missions/Mission01.js';
+import { Mission02 } from '../missions/Mission02.js';
+
+export const MISSION_ORDER = ['m01', 'm02'];
 
 export const DIFFICULTY = {
   normal: { playerDamage: 1, enemyDamage: 1, enemyAccuracy: 1, allyAccuracy: 1, tokens: 2 },
@@ -65,7 +68,7 @@ export class Game {
     this.city = new CityBuilder(this.scene, this.world, this.mats).build();
     onProgress(0.6, 'Construindo navegação e coberturas');
     await nextFrame();
-    this.nav = new NavGrid(this.world, { minX: -75, minZ: -212, maxX: 75, maxZ: 78, cell: 0.75, agentRadius: 0.42 });
+    this.nav = new NavGrid(this.world, { minX: -75, minZ: -212, maxX: 138, maxZ: 78, cell: 0.75, agentRadius: 0.42 });
     this.cover = new CoverSystem(this.world, this.nav);
     this.cover.build();
     this.ai = { tokens: new AttackTokens(this.difficulty.tokens) };
@@ -86,7 +89,8 @@ export class Game {
     this.fade = new Fade(document.getElementById('fade'));
     onProgress(0.85, 'Preparando a missão');
     await nextFrame();
-    this.mission = new Mission01(this);
+    this.missions = { m01: new Mission01(this), m02: new Mission02(this) };
+    this.mission = this.missions.m01;
     this.interactables = this.city.interactables;
 
     this.events.on('playerDied', () => this.onPlayerDied());
@@ -125,12 +129,16 @@ export class Game {
   // ------------------------------------------------------------ front-end flow
   showMainMenu() { this.state = 'menu'; this.hud.show(false); this.menus.main(); this.fade.set(0); }
 
-  startNewCampaign() {
+  startNewCampaign() { this.startMission('m01'); }
+
+  /** Start a mission from its beginning. */
+  startMission(id) {
     this.audio.init();
     this.saves.clear();
     this.stats = { deaths: 0, startTime: this.time, elapsed: 0 };
     this.weapons.resetLoadout();
-    this._startPlaying('start');
+    this._startPlaying('start', null, id);
+    if (id !== 'm01') this.mission.saveCheckpoint('start');
   }
 
   continueCampaign() {
@@ -138,11 +146,13 @@ export class Game {
     const save = this.saves.load();
     if (!save) return this.startNewCampaign();
     this.stats = { deaths: 0, elapsed: 0, ...(save.stats || {}), startTime: this.time };
-    this._startPlaying(save.checkpoint, save.weapons);
+    this._startPlaying(save.checkpoint, save.weapons, save.mission);
   }
 
-  _startPlaying(checkpoint, weaponsData = null) {
+  _startPlaying(checkpoint, weaponsData = null, missionId = this.mission.id) {
     this.menus.hide();
+    const next = this.missions[missionId] || this.missions.m01;
+    if (next !== this.mission) { this.mission.exit?.(); this.mission = next; }
     this.timers.length = 0;
     this.timeScale = 1; this.slowMo = null;
     this.mission.start(checkpoint);
@@ -151,13 +161,14 @@ export class Game {
     this.hud.show(true);
     this.state = 'playing';
     if (checkpoint !== 'start') { this.fade.set(1); this.fade.to(0, 1.2); this.hud.toast('Checkpoint: ' + this.mission.checkpointLabel(checkpoint)); }
+    this.events.emit('missionStarted', { id: this.mission.id, checkpoint });
     if (!this.testMode) this.input.requestLock();
   }
 
   restartFromCheckpoint() {
     const save = this.saves.load();
     if (!save) return this._startPlaying('start');
-    this._startPlaying(save.checkpoint, save.weapons);
+    this._startPlaying(save.checkpoint, save.weapons, save.mission);
   }
 
   pause() {
@@ -201,7 +212,14 @@ export class Game {
       time: `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`,
       kills: p.kills, headshots: p.headshots, shots: p.shotsFired, hits: p.shotsHit, deaths: this.stats.deaths || 0,
     };
-    this.saves.save({ mission: MISSION_ID, checkpoint: 'cp_lobby', weapons: this.weapons.serialize(), stats: this.stats, completed: true });
+    const idx = MISSION_ORDER.indexOf(this.mission.id);
+    const nextId = MISSION_ORDER[idx + 1] || null;
+    if (nextId) {
+      this.saves.unlock(nextId);
+      this.saves.save({ mission: nextId, checkpoint: 'start', weapons: this.weapons.serialize(), stats: { deaths: 0 } });
+    }
+    stats.next = nextId;
+    stats.text = this.mission.completeText;
     this.hud.show(false);
     this.input.exitLock();
     this.audio.setMusicIntensity(0.2);
@@ -307,7 +325,7 @@ export class Game {
       best = it; bestD = d;
     }
     const pick = this.pickups.nearest(eye, p.forward, p.pos);
-    if (pick && (!best || bestD > 1.2)) {
+    if (pick && !best) { // mission objectives take priority over weapons on the ground
       this.hud.setPrompt(this.pickups.promptFor(pick));
       if (input.actionPressed('interact')) this.pickups.take(pick);
       return;

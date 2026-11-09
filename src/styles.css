@@ -148,3 +148,5 @@ table.controls td.k { color: var(--accent); letter-spacing: 1px; width: 45%; }
 #scope .scope-h { position: absolute; left: 50%; top: 50%; width: 88vh; height: 1px; transform: translate(-50%,-50%); background: linear-gradient(90deg, #000 0 30%, rgba(0,0,0,.8) 30% 70%, #000 70%); }
 #scope .scope-v { position: absolute; left: 50%; top: 50%; width: 1px; height: 88vh; transform: translate(-50%,-50%); background: linear-gradient(180deg, #000 0 30%, rgba(0,0,0,.8) 30% 100%); }
 #scope .scope-dot { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: #e3261a; box-shadow: 0 0 4px #e3261a; }
+
+.menu button:disabled { opacity: .4; cursor: default; }

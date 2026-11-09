@@ -25,11 +25,12 @@ export class Menus {
       <div class="logo">
         <div class="logo-top">OPERATION</div>
         <div class="logo-main">IRON SHADOW</div>
-        <div class="logo-sub">Campanha · Missão 1: Primeiro Contato</div>
+        <div class="logo-sub">Campanha · ${save ? 'Missão ' + (this.game.missions[save.mission]?.number || 1) + ': ' + (this.game.missions[save.mission]?.title || '') : 'Missão 1: Primeiro Contato'}</div>
       </div>
       <div class="menu-buttons">
-        ${hasSave ? `<button id="m-continue" class="primary">Continuar <small>${this.game.mission?.checkpointLabel(save.checkpoint) || ''}</small></button>` : ''}
+        ${hasSave ? `<button id="m-continue" class="primary">Continuar <small>${this.game.missions[save.mission]?.checkpointLabel(save.checkpoint) || ''}</small></button>` : ''}
         <button id="m-new" class="${hasSave ? '' : 'primary'}">Nova campanha</button>
+        ${this.game.saves.progress().unlocked.length > 1 ? '<button id="m-missions">Selecionar missão</button>' : ''}
         <button id="m-settings">Configurações</button>
         <button id="m-controls">Controles</button>
       </div>
@@ -37,8 +38,23 @@ export class Menus {
     `, 'main-menu');
     this._bind('m-new', () => this.game.startNewCampaign());
     this._bind('m-continue', () => this.game.continueCampaign());
+    this._bind('m-missions', () => this.missions());
     this._bind('m-settings', () => this.settings(() => this.main()));
     this._bind('m-controls', () => this.controls(() => this.main()));
+  }
+
+  missions() {
+    this.current = 'missions';
+    const unlocked = this.game.saves.progress().unlocked;
+    const list = Object.values(this.game.missions);
+    this._show(`
+      <h2>MISSÕES</h2>
+      <div class="menu-buttons">
+        ${list.map((m) => `<button id="ms-${m.id}" ${unlocked.includes(m.id) ? '' : 'disabled'}>Missão ${m.number} — ${m.title}${unlocked.includes(m.id) ? '' : ' <small>Bloqueada</small>'}</button>`).join('')}
+        <button id="ms-back" class="primary">Voltar</button>
+      </div>`, 'missions-menu');
+    for (const m of list) if (unlocked.includes(m.id)) this._bind('ms-' + m.id, () => this.game.startMission(m.id));
+    this._bind('ms-back', () => this.main());
   }
 
   pause() {
@@ -126,8 +142,8 @@ export class Menus {
     this.current = 'complete';
     const acc = stats.shots ? Math.min(100, Math.round((stats.hits / stats.shots) * 100)) : 0;
     this._show(`
-      <div class="logo small"><div class="logo-top">MISSÃO 1 CONCLUÍDA</div><div class="logo-main">PRIMEIRO CONTATO</div></div>
-      <p class="hint">Os códigos encontrados no Halden pertencem ao próprio Comando da Coalizão.<br>Alguém de dentro está ajudando o VÉRTICE — e a equipe Iron perdeu contato com Bastião.<br><b>Continua na Missão 2 — Sinal Morto.</b></p>
+      <div class="logo small"><div class="logo-top">${stats.text?.top || 'MISSÃO CONCLUÍDA'}</div><div class="logo-main">${stats.text?.main || ''}</div></div>
+      <p class="hint">${stats.text?.body || ''}</p>
       <table class="controls stats">
         <tr><td class="k">Tempo</td><td>${stats.time}</td></tr>
         <tr><td class="k">Hostis abatidos</td><td>${stats.kills}</td></tr>
@@ -135,7 +151,11 @@ export class Menus {
         <tr><td class="k">Precisão</td><td>${acc}%</td></tr>
         <tr><td class="k">Mortes</td><td>${stats.deaths}</td></tr>
       </table>
-      <div class="menu-buttons"><button id="e-menu" class="primary">Menu principal</button></div>`, 'complete-menu');
+      <div class="menu-buttons">
+        ${stats.next ? '<button id="e-next" class="primary">Próxima missão</button>' : ''}
+        <button id="e-menu" class="${stats.next ? '' : 'primary'}">Menu principal</button>
+      </div>`, 'complete-menu');
+    this._bind('e-next', () => this.game.startMission(stats.next));
     this._bind('e-menu', () => this.game.quitToMenu());
   }
 }

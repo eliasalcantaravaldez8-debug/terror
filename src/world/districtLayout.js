@@ -139,9 +139,8 @@ export const SMOKE_COLUMNS = [
 export const BOUNDS = [
   // plaza south road exit
   { x0: -8, x1: 8, z0: 72, z1: 73.5 },
-  // cross street ends
+  // cross street west end (the east end is a mission-controlled gate)
   { x0: -71, x1: -69, z0: -68, z1: -55 },
-  { x0: 69, x1: 71, z0: -68, z1: -55 },
   // alleys
   { x0: 30, x1: 32, z0: -28, z1: -22 },
   { x0: -29, x1: -27, z0: -117, z1: -113 },
@@ -149,4 +148,37 @@ export const BOUNDS = [
 ];
 
 /** Region excluded from the procedural background city. */
-export const MISSION_RECT = { x0: -72, x1: 72, z0: -210, z1: 76 };
+export const MISSION_RECT = { x0: -72, x1: 136, z0: -210, z1: 76 };
+
+/** East extension: Teresk TV station compound (Mission 2). */
+export const STATION = {
+  wall: { x0: 96, x1: 134, z0: -96, z1: -30, h: 3.2, gateZ0: -66, gateZ1: -57 },
+  main: { x0: 114, x1: 132, z0: -92, z1: -72, floors: 3 },
+  shed: { x0: 110, x1: 116, z0: -42, z1: -34, h: 3.6 },
+  panel: { x: 109.6, y: 1.4, z: -38 },
+  mast: { x: 124, z: -52, h: 42 },
+  tower: { x: 101, z: -40, h: 5 },
+};
+/** Buildings lining the cross street extension and filling the east side. */
+export const EAST_BUILDINGS = [
+  { id: 'EB1', x0: 72, x1: 94, z0: -92, z1: -68, floors: 4, style: 'grey', shop: 1 },
+  { id: 'EB2', x0: 72, x1: 94, z0: -55, z1: -34, floors: 3, style: 'brick', shop: 0 },
+  { id: 'EN1', x0: 72, x1: 134, z0: -140, z1: -98, floors: 5, style: 'soviet', shop: 2 },
+  { id: 'EN2', x0: 72, x1: 134, z0: -205, z1: -142, floors: 6, style: 'beige', shop: 1 },
+  { id: 'ES1', x0: 72, x1: 134, z0: -28, z1: 10, floors: 4, style: 'ochre', shop: 0 },
+  { id: 'ES2', x0: 72, x1: 134, z0: 12, z1: 74, floors: 3, style: 'pale', shop: 2 },
+  { id: 'EB3', x0: 72, x1: 94, z0: -66, z1: -57, floors: 0, style: 'grey', shop: 0, skip: true },
+];
+export const STATION_PROPS = [
+  { type: 'barrier', x: 92, z: -70, rot: 0.1 }, { type: 'barrier', x: 92, z: -53, rot: -0.1 },
+  { type: 'burnedCar', x: 84, z: -63, rot: Math.PI / 2 + 0.2 },
+  { type: 'car', x: 76, z: -58, rot: Math.PI / 2, color: 0x7a7f84 },
+  { type: 'sandbags', x: 103, z: -62, len: 4, rot: Math.PI / 2 },
+  { type: 'sandbags', x: 112, z: -56, len: 5, rot: 0 },
+  { type: 'sandbags', x: 108, z: -46, len: 4, rot: 0 },
+  { type: 'van', x: 106, z: -70, rot: 0.2, color: 0x2e3b2c },
+  { type: 'van', x: 121, z: -64, rot: Math.PI / 2, color: 0xdedbd2 },
+  { type: 'crates', x: 118, z: -40, ammo: true },
+  { type: 'dumpster', x: 99, z: -88, rot: 0 },
+  { type: 'barrier', x: 127, z: -40, rot: Math.PI / 2 },
+];

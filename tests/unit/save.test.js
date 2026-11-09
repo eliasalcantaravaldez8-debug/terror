@@ -31,3 +31,12 @@ test('settings persist and fall back to defaults', () => {
   a.set('sensitivity', 1.7);
   assert.equal(new Settings(st).get('sensitivity'), 1.7);
 });
+
+test('campaign progress unlocks missions independently of checkpoints', () => {
+  const s = new SaveSystem(new MemStorage());
+  assert.deepEqual(s.progress().unlocked, ['m01']);
+  s.unlock('m02'); s.unlock('m02');
+  assert.deepEqual(s.progress().unlocked, ['m01', 'm02']);
+  s.clear();
+  assert.deepEqual(s.progress().unlocked, ['m01', 'm02'], 'clearing the checkpoint keeps progress');
+});

@@ -15,6 +15,12 @@
 - [x] Reviravolta: os códigos são do próprio Comando da Coalizão; contato com Bastião perdido
 - [ ] Substituição dos primeiros recursos provisórios por arte definitiva
 
-## Etapa 3 — Campanha (≈10 missões, ≈5 h)
+## Etapa 3 — Missão 2 "Sinal Morto" (FEITO)
+- [x] Sistema de várias missões: seleção no menu, progresso desbloqueado, "Próxima missão"
+- [x] Iluminação de entardecer (sol baixo, neblina, chuva mais forte)
+- [x] Nova área: rua transversal leste e complexo da estação de TV (muro, portão, torre de vigia, mastro de transmissão, contêineres)
+- [x] Patrulha, bloqueio, assalto ao complexo e defesa do transmissor; segunda reviravolta (voz desconhecida)
+
+## Etapa 4 — Campanha (≈10 missões, ≈5 h)
 1. Primeiro Contato (Teresk) · 2. Sinal Morto · 3. Porto de Vareny · 4. Céu Cinzento (helicóptero)
 5. Infiltração noturna · 6. Comboio · 7. Queda (traição) · 8. Montanha · 9. Cerco · 10. Iron Shadow

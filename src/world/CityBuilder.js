@@ -4,6 +4,7 @@ import { TextureFactory } from '../render/TextureFactory.js';
 import { mulberry32, randRange } from '../utils/math.js';
 import {
   BUILDINGS, STYLES, SHOPS, HALDEN, PROPS, BOUNDS, MISSION_RECT, ROAD,
+  STATION, EAST_BUILDINGS, STATION_PROPS,
 } from './districtLayout.js';
 import {
   buildCarParts, jerseyBarrierGeometry, sandbagWallGeometry, streetLampGeometry,
@@ -39,7 +40,8 @@ export class CityBuilder {
     this.buildGround();
     for (const b of BUILDINGS) this.buildBuilding(b, this.near, true);
     this.buildHalden();
-    this.buildProps();
+    this.buildProps(PROPS);
+    this.buildStation();
     this.buildStreetFurniture();
     this.buildBoundaries();
     this.buildBackgroundCity();
@@ -459,7 +461,7 @@ export class CityBuilder {
     return box;
   }
 
-  buildProps() {
+  buildProps(list) {
     const m = this.mats;
     const rnd = this.rnd;
     const carCache = {};
@@ -468,7 +470,7 @@ export class CityBuilder {
       if (!carCache[k]) carCache[k] = buildCarParts(kind, m, { burned });
       return carCache[k];
     };
-    for (const p of PROPS) {
+    for (const p of list) {
       const rot = p.rot || 0;
       const mat4 = new THREE.Matrix4().makeRotationY(rot).setPosition(p.x, 0, p.z);
       switch (p.type) {
@@ -549,6 +551,117 @@ export class CityBuilder {
         }
       }
     }
+  }
+
+  /** Teresk TV station compound + east extension of the cross street. */
+  buildStation() {
+    const m = this.mats, B = this.near, W = this.world, S = STATION;
+    for (const b of EAST_BUILDINGS) if (!b.skip) this.buildBuilding(b, B, true);
+    // sidewalks along the extension
+    const sw = m.pavers(), curb = m.concrete('#8c8a84', 35);
+    for (const [x0, z0, x1, z1] of [[70, -71, 95, -68], [70, -55, 95, -52]]) {
+      B.box(x0, 0, z0, x1, 0.15, z1, { sides: curb, top: sw, tile: { w: 1, h: 1 }, topTile: 2 });
+      W.addBox(x0, 0, z0, x1, 0.15, z1, { tag: 'curb' });
+    }
+    // perimeter wall with a gate on the west side
+    const wallMat = m.concrete('#8d8a82', 59), w = S.wall;
+    const wall = (x0, z0, x1, z1) => {
+      B.box(x0, 0, z0, x1, w.h, z1, { sides: wallMat, top: wallMat, tile: { w: 3, h: 3 } });
+      W.addBox(x0, 0, z0, x1, w.h, z1, { tag: 'building' });
+    };
+    wall(w.x0, w.z0, w.x0 + 0.5, w.gateZ0); wall(w.x0, w.gateZ1, w.x0 + 0.5, w.z1);
+    wall(w.x0, w.z0, w.x1, w.z0 + 0.5); wall(w.x0, w.z1 - 0.5, w.x1, w.z1); wall(w.x1 - 0.5, w.z0, w.x1, w.z1);
+    // gate posts + sign
+    for (const z of [w.gateZ0 - 0.4, w.gateZ1 + 0.4]) {
+      B.box(w.x0 - 0.2, 0, z - 0.4, w.x0 + 0.7, 4.6, z + 0.4, { sides: m.paint('#6a6f6a', 77), top: m.paint('#6a6f6a', 77), tile: { w: 2, h: 2 } });
+      W.addBox(w.x0 - 0.2, 0, z - 0.4, w.x0 + 0.7, 4.6, z + 0.4, { tag: 'building' });
+    }
+    const signC = document.createElement('canvas'); signC.width = 512; signC.height = 96;
+    const sx = signC.getContext('2d'); sx.fillStyle = '#1d2a3a'; sx.fillRect(0, 0, 512, 96);
+    sx.fillStyle = '#e8e2d0'; sx.font = 'bold 54px Arial'; sx.textAlign = 'center'; sx.fillText('TV TERESK · KANAL 3', 256, 66);
+    const signT = new THREE.CanvasTexture(signC); signT.colorSpace = THREE.SRGBColorSpace;
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(9.5, 1.6), new THREE.MeshStandardMaterial({ map: signT, roughness: 0.6 }));
+    sign.position.set(w.x0 - 0.25, 5.2, (w.gateZ0 + w.gateZ1) / 2); sign.rotation.y = -Math.PI / 2; this.root.add(sign);
+    B.box(w.x0 - 0.2, 4.3, w.gateZ0 - 0.4, w.x0 + 0.1, 6.1, w.gateZ1 + 0.4, { sides: m.darkMetal(), top: m.darkMetal(), tile: { w: 2, h: 2 } });
+    // compound yard (concrete slab)
+    const yard = m.concrete('#7b7a76', 61);
+    B.quad(yard, [w.x0 + 0.5, 0.013, w.z1 - 0.5], [w.x1 - 0.5, 0.013, w.z1 - 0.5], [w.x1 - 0.5, 0.013, w.z0 + 0.5], [w.x0 + 0.5, 0.013, w.z0 + 0.5], [0, 1, 0],
+      [w.x0 / 4, w.z1 / 4], [w.x1 / 4, w.z1 / 4], [w.x1 / 4, w.z0 / 4], [w.x0 / 4, w.z0 / 4]);
+    // main station building with satellite dishes
+    this.buildBuilding({ ...S.main, style: 'soviet', shop: 1 }, B, true);
+    const mainH = 4.5 + (S.main.floors - 1) * 3;
+    for (const [dx, dz, r] of [[118, -86, 2.2], [126, -80, 1.6], [128, -88, 1.2]]) {
+      const dish = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.35), m.paint('#d8d6cf', 79));
+      dish.material.side = THREE.DoubleSide;
+      dish.position.set(dx, mainH + r * 0.9, dz); dish.rotation.set(-Math.PI / 2 + 0.6, 0, 0.9);
+      dish.castShadow = true; this.root.add(dish);
+      const leg = new THREE.CylinderGeometry(0.1, 0.12, r * 0.9, 8); leg.translate(dx, mainH + r * 0.45, dz); B.addGeometry(m.darkMetal(), leg);
+    }
+    // transmitter shed + control panel
+    const sh = S.shed;
+    B.box(sh.x0, 0, sh.z0, sh.x1, sh.h, sh.z1, { sides: m.paint('#8c8f86', 81), top: m.roof(), tile: { w: 3, h: 3 } });
+    W.addBox(sh.x0, 0, sh.z0, sh.x1, sh.h, sh.z1, { tag: 'building', surface: 'metal' });
+    B.box(sh.x0 - 0.25, 0.6, S.panel.z - 0.7, sh.x0, 2.0, S.panel.z + 0.7, { sides: m.darkMetal(), top: m.darkMetal(), tile: { w: 1, h: 1 } });
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.5), m.emissive(0x48ff8a, 0.45));
+    scr.position.set(sh.x0 - 0.26, 1.55, S.panel.z); scr.rotation.y = -Math.PI / 2; this.root.add(scr);
+    this.stationScreen = scr;
+    for (let i = 0; i < 6; i++) { // cable bundles to the mast
+      const c = new THREE.CylinderGeometry(0.04, 0.04, 9, 6); c.rotateZ(Math.PI / 2); c.rotateY(-0.9 + i * 0.02); c.translate(119.5, 0.05 + i * 0.05, -46); B.addGeometry(m.rubber(), c);
+    }
+    // lattice transmission mast with aviation lights
+    const ms = S.mast, steel = m.paint('#b23a2a', 83), steel2 = m.paint('#d8d6cf', 85);
+    const legs = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    const seg = 6;
+    for (let i = 0; i < Math.ceil(ms.h / seg); i++) {
+      const y0 = i * seg, y1 = Math.min(ms.h, y0 + seg);
+      const w0 = 2.0 * (1 - y0 / ms.h * 0.75), w1 = 2.0 * (1 - y1 / ms.h * 0.75);
+      const mat = i % 2 ? steel : steel2;
+      for (let k = 0; k < 4; k++) {
+        const [ax, az] = legs[k], [bx, bz] = legs[(k + 1) % 4];
+        const p0 = new THREE.Vector3(ms.x + ax * w0, y0, ms.z + az * w0), p1 = new THREE.Vector3(ms.x + ax * w1, y1, ms.z + az * w1);
+        const q0 = new THREE.Vector3(ms.x + bx * w0, y0, ms.z + bz * w0), q1 = new THREE.Vector3(ms.x + bx * w1, y1, ms.z + bz * w1);
+        for (const [a, b, r] of [[p0, p1, 0.09], [p0, q1, 0.04], [q0, p1, 0.04], [p1, q1, 0.05]]) {
+          const len = a.distanceTo(b);
+          const g = new THREE.CylinderGeometry(r, r, len, 5);
+          g.translate(0, len / 2, 0);
+          g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()));
+          g.translate(a.x, a.y, a.z);
+          B.addGeometry(mat, g);
+        }
+      }
+    }
+    W.addBox(ms.x - 2.1, 0, ms.z - 2.1, ms.x + 2.1, 3, ms.z + 2.1, { tag: 'mast', surface: 'metal' });
+    const beacon = m.emissive(0xff2010, 3);
+    for (const y of [ms.h, ms.h * 0.66, ms.h * 0.33]) {
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), beacon); b.position.set(ms.x, y + 0.2, ms.z); this.root.add(b);
+    }
+    this.mastBeacon = beacon;
+    // guard tower
+    const tw = S.tower;
+    for (const [dx, dz] of legs) { const g = new THREE.CylinderGeometry(0.12, 0.12, tw.h, 6); g.translate(tw.x + dx * 1.3, tw.h / 2, tw.z + dz * 1.3); B.addGeometry(m.darkMetal(), g); }
+    B.box(tw.x - 1.6, tw.h - 0.15, tw.z - 1.6, tw.x + 1.6, tw.h, tw.z + 1.6, { sides: m.wood(), top: m.wood(), bottom: m.wood(), tile: { w: 2, h: 2 } });
+    B.box(tw.x - 1.6, tw.h, tw.z - 1.6, tw.x + 1.6, tw.h + 1.0, tw.z - 1.5, { sides: m.wood(), top: m.wood(), tile: { w: 2, h: 2 } });
+    B.box(tw.x - 1.6, tw.h, tw.z + 1.5, tw.x + 1.6, tw.h + 1.0, tw.z + 1.6, { sides: m.wood(), top: m.wood(), tile: { w: 2, h: 2 } });
+    B.box(tw.x - 1.6, tw.h, tw.z - 1.5, tw.x - 1.5, tw.h + 1.0, tw.z + 1.5, { sides: m.wood(), top: m.wood(), tile: { w: 2, h: 2 } });
+    B.box(tw.x - 1.7, tw.h + 2.4, tw.z - 1.7, tw.x + 1.7, tw.h + 2.55, tw.z + 1.7, { sides: m.darkMetal(), top: m.darkMetal(), bottom: m.darkMetal(), tile: { w: 2, h: 2 } });
+    W.addBox(tw.x - 1.6, tw.h - 0.15, tw.z - 1.6, tw.x + 1.6, tw.h, tw.z + 1.6, { tag: 'platform' });
+    W.addBox(tw.x - 1.6, tw.h, tw.z - 1.6, tw.x - 1.5, tw.h + 1.0, tw.z + 1.6, { tag: 'parapet' });
+    for (const [dx, dz] of legs) W.addBlock(tw.x + dx * 1.3, 0, tw.z + dz * 1.3, 0.3, tw.h - 0.2, 0.3, { tag: 'pole' });
+    // shipping containers (tall cover)
+    const contMat = [m.paint('#7a3a28', 87), m.paint('#2f5266', 89), m.paint('#5d6b3a', 91)];
+    for (const [cx, cz, rot, ci] of [[104, -78, 0, 0], [104.2, -82, 0, 1], [118, -46.5, Math.PI / 2, 2], [128, -60, 0, 1]]) {
+      const lx = rot ? 2.4 : 6, lz = rot ? 6 : 2.4;
+      B.box(cx - lx / 2, 0, cz - lz / 2, cx + lx / 2, 2.6, cz + lz / 2, { sides: contMat[ci], top: contMat[ci], tile: { w: 2, h: 2.6 } });
+      const b = W.addBox(cx - lx / 2, 0, cz - lz / 2, cx + lx / 2, 2.6, cz + lz / 2, { tag: 'container', cover: true, surface: 'metal' });
+      this.coverBoxes.push(b);
+    }
+    // generators (low cover)
+    for (const [gx, gz] of [[110, -66], [124, -70]]) {
+      B.box(gx - 1, 0, gz - 0.6, gx + 1, 1.2, gz + 0.6, { sides: m.paint('#c9b13a', 93), top: m.paint('#c9b13a', 93), tile: { w: 1, h: 1 } });
+      this.coverBoxes.push(W.addBox(gx - 1, 0, gz - 0.6, gx + 1, 1.2, gz + 0.6, { tag: 'generator', cover: true, surface: 'metal' }));
+    }
+    this.buildProps(STATION_PROPS);
+    this.interactables.push({ id: 'transmitter', x: S.panel.x, y: S.panel.y, z: S.panel.z, radius: 2.0, prompt: 'Ligar o transmissor de longo alcance' });
   }
 
   buildBus(x, z, rot) {
