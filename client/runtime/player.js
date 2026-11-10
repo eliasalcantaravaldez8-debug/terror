@@ -12,6 +12,7 @@ let game = null;
 
 async function run(doc, assetUrl, test) {
   game?.dispose();
+  const original = structuredClone(doc); // cópia limpa para reiniciar a partida
   // Preferência de qualidade gráfica escolhida pelo jogador (menu Gráficos).
   try { const q = localStorage.getItem('nx_quality'); if (q && doc.settings?.rendering && !test) doc.settings.rendering.quality = q; } catch { /* sem armazenamento */ }
   stage.innerHTML = '';
@@ -19,6 +20,7 @@ async function run(doc, assetUrl, test) {
     assetUrl,
     onEvent: (name, data) => post({ type: 'nexplay:event', name, data: safe(data) }),
     onLog: (kind, message) => post({ type: 'nexplay:log', kind, message: String(message).slice(0, 500) }),
+    onRestart: () => setTimeout(() => run(original, assetUrl, null), 0),
   };
   try {
     game = doc.meta.dimension === '2d' ? new Game2D(stage, doc, opts) : new Game(stage, doc, opts);

@@ -488,6 +488,26 @@ export function validateProject(doc, { checkScript } = {}) {
   if (lights > 32) warnings.push(`${lights} luzes na cena: o desempenho pode cair.`);
   if (npcs > 80) warnings.push(`${npcs} NPCs com IA: considere usar multidões instanciadas.`);
   if ((doc.entities || []).length > 5000) warnings.push('Mais de 5.000 entidades: considere agrupar objetos.');
+  // Jogabilidade justa: o jogador precisa ver e se mexer antes de ser atacado.
+  if (doc.meta?.dimension !== '2d') {
+    const pl = (doc.entities || []).find((e) => e.id === doc.player?.entityId);
+    const pp = pl?.transform?.position;
+    if (pp) {
+      for (const e of doc.entities || []) {
+        const ai = e.components?.ai; const q = e.transform?.position;
+        if (!ai || !q || !['patrol', 'chase_player', 'guard'].includes(ai.behavior) || ai.team === 0) continue;
+        if (Math.hypot(q[0] - pp[0], q[2] - pp[2]) < 14) warnings.push(`"${e.name}" é inimigo e começa a menos de 14 m do jogador: afaste para 20 m ou mais (o motor afasta automaticamente).`);
+      }
+    }
+    const env = doc.settings?.environment || {};
+    const t = env.timeOfDay ?? 14;
+    const night = t < 6.5 || t > 18.5;
+    const ownLights = (doc.entities || []).filter((e) => e.type === 'light' && ['point', 'spot'].includes(e.props?.kind)).length;
+    if (night && ownLights === 0 && (env.ambientIntensity ?? 0.35) < 0.3) warnings.push('Cena noturna sem luzes: adicione uma lanterna (light spot com attachToCamera) e luzes em pontos importantes, ou aumente ambientIntensity.');
+  }
+  for (const [name, src] of Object.entries(doc.scripts || {})) {
+    if (/start\s*\([^)]*\)\s*\{[^}]*(player\.(health\s*=\s*0|damage\s*\()|gameOver)/.test(src)) warnings.push(`Script "${name}" causa dano/derrota no início da partida: o jogador morreria antes de jogar.`);
+  }
   return { errors, warnings, stats: { entities: (doc.entities || []).length, vegetation, lights, npcs, scripts: Object.keys(doc.scripts || {}).length, missions: (doc.missions || []).length } };
 }
 

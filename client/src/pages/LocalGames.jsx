@@ -149,7 +149,7 @@ export default function LocalGames() {
   const [busy, setBusy] = useState(false);
   const [playing, setPlaying] = useState(null);
   const [pasted, setPasted] = useState('');
-  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(true);
   const reload = () => localStore.all('games').then((g) => setGames(g.sort((a, b) => b.createdAt.localeCompare(a.createdAt)))).catch(() => setGames([]));
   useEffect(() => { reload(); }, []);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
@@ -219,7 +219,7 @@ export default function LocalGames() {
         <h3 style={{ margin: 0 }}>{games?.length ? 'Enviar outro jogo' : '1. Arquivo do jogo'}</h3>
         <FilePick className="btn primary lg" onFile={pick}><Icon name="upload" /> Escolher arquivo (.html ou .zip)</FilePick>
         <details className="small" open={pasteOpen} onToggle={(e) => setPasteOpen(e.currentTarget.open)}>
-          <summary style={{ cursor: 'pointer' }}><b>O botão não abriu?</b> Cole o código do jogo</summary>
+          <summary style={{ cursor: 'pointer' }}><b>O botão não abriu?</b> Cole o código do jogo aqui</summary>
           <p className="tiny muted">Se o seu jogo é um arquivo .html (por exemplo, feito com outra IA), abra o arquivo ou a conversa onde está o código, copie tudo e cole aqui.</p>
           <textarea className="input" rows={6} value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="<!doctype html> … cole aqui o código completo do jogo …" style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }} />
           <button className="btn sm" style={{ marginTop: 6 }} onClick={() => {

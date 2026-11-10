@@ -8,15 +8,22 @@ import { AudioSystem } from './audio.js';
 import { ScriptHost } from './scripting.js';
 
 const QUALITY_LABEL = { low: 'Baixa', medium: 'Média', high: 'Alta', ultra: 'Ultra' };
-function cycleQuality(cur) {
+function cycleQuality(cur, game) {
   const order = ['low', 'medium', 'high', 'ultra'];
   const next = order[(order.indexOf(cur) + 1) % order.length];
   try { localStorage.setItem('nx_quality', next); } catch { /* armazenamento indisponível */ }
-  location.reload();
+  if (game) game.restart(); else location.reload();
 }
+const BRIGHTNESS = [[1, 'Normal'], [1.45, 'Alto'], [2, 'Máximo']];
+const readBrightness = () => { try { return Number(localStorage.getItem('nx_brightness')) || 1; } catch { return 1; } };
+// Proteção no início da partida: o jogador não leva dano e inimigos não atacam (evita morrer antes de se mexer).
+const GRACE_MS = 6000;
+const HOSTILE = new Set(['patrol', 'chase_player', 'guard']);
 
 export class Game {
-  constructor(container, doc, { assetUrl, onEvent, onLog } = {}) {
+  constructor(container, doc, { assetUrl, onEvent, onLog, onRestart } = {}) {
+    this.onRestart = onRestart;
+    this.graceUntil = 0;
     this.container = container;
     this.doc = doc;
     this.assetUrl = assetUrl;
@@ -52,6 +59,8 @@ export class Game {
       if (rec.attachToCamera) this.camera.add(rec.object);
     }
     this.world.scene.add(this.camera);
+    this.world.brightness = readBrightness(); this.world.applyEnvironment();
+    this.applyFairness();
     this.missions = new Missions(this);
     if (doc.systems?.match && this.ball) this.match = new SoccerMatch(this, doc.systems.match);
     if (doc.systems?.race && this.world.roads.length) this.race = new RaceSystem(this, doc.systems.race);
@@ -76,12 +85,12 @@ export class Game {
 
   titleMenu() {
     const main = (this.doc.ui.menus || []).find((m) => m.id === 'main');
-    const graphics = { label: `Gráficos: ${QUALITY_LABEL[this.doc.settings.rendering.quality] || 'Alta'}`, onClick: () => cycleQuality(this.doc.settings.rendering.quality) };
-    const start = () => { this.hud.menu({}); this.paused = false; this.audio.unlock(); if (!this.started) { this.started = true; this.scripts.call('start'); this.emit('start', {}); } };
+    const graphics = { label: `Gráficos: ${QUALITY_LABEL[this.doc.settings.rendering.quality] || 'Alta'}`, onClick: () => cycleQuality(this.doc.settings.rendering.quality, this) };
+    const start = () => { this.hud.menu({}); this.paused = false; this.audio.unlock(); if (!this.started) { this.started = true; this.graceUntil = performance.now() + GRACE_MS; this.hud.toast('Prepare-se!', 1800); this.scripts.call('start'); this.emit('start', {}); } };
     this.hud.menu({
       title: this.doc.ui.title || this.doc.meta.name,
       text: this.doc.meta.description || 'WASD para mover · Shift para correr · Espaço para pular · F/clique para ação · E para interagir · Esc para pausar',
-      items: [...(main ? main.items.map((it) => ({ label: it.label, onClick: () => this.menuAction(it.action, start) })) : [{ label: 'Jogar', onClick: start }]), graphics],
+      items: [...(main ? main.items.map((it) => ({ label: it.label, onClick: () => this.menuAction(it.action, start) })) : [{ label: 'Jogar', onClick: start }]), graphics, { label: this.brightnessLabel(), onClick: () => this.cycleBrightness(false) }],
     });
   }
 
@@ -89,7 +98,7 @@ export class Game {
     if (action === 'start' || action === 'resume') return start ? start() : this.resume();
     if (action?.startsWith('menu:')) return this.showMenu(action.slice(5));
     if (action?.startsWith('event:')) { this.emit(action.slice(6), {}); return start?.(); }
-    if (action === 'restart') return location.reload();
+    if (action === 'restart') return this.restart();
   }
 
   showMenu(id) {
@@ -101,21 +110,64 @@ export class Game {
 
   pauseMenu() {
     this.paused = true;
-    this.hud.menu({ title: 'Pausado', items: [{ label: 'Continuar', onClick: () => this.resume() }, { label: `Gráficos: ${QUALITY_LABEL[this.doc.settings.rendering.quality] || 'Alta'}`, onClick: () => cycleQuality(this.doc.settings.rendering.quality) }, { label: 'Reiniciar', onClick: () => location.reload() }] });
+    this.hud.menu({ title: 'Pausado', items: [{ label: 'Continuar', onClick: () => this.resume() }, { label: `Gráficos: ${QUALITY_LABEL[this.doc.settings.rendering.quality] || 'Alta'}`, onClick: () => cycleQuality(this.doc.settings.rendering.quality, this) }, { label: this.brightnessLabel(), onClick: () => this.cycleBrightness(true) }, { label: 'Reiniciar', onClick: () => this.restart() }] });
   }
 
   resume() { this.hud.menu({}); this.paused = false; }
 
+  /** Recomeça a partida. Dentro da NEXPLAY o app remonta o jogo; fora dela, recarrega a página. */
+  restart() { if (this.onRestart) this.onRestart(); else location.reload(); }
+
+  get inGrace() { return performance.now() < this.graceUntil; }
+
+  brightnessLabel() { return `Brilho: ${(BRIGHTNESS.find(([v]) => v === this.world.brightness) || BRIGHTNESS[0])[1]}`; }
+  cycleBrightness(pauseMenu) {
+    const i = BRIGHTNESS.findIndex(([v]) => v === this.world.brightness);
+    const [v] = BRIGHTNESS[(i + 1) % BRIGHTNESS.length];
+    try { localStorage.setItem('nx_brightness', String(v)); } catch { /* sem armazenamento */ }
+    this.world.brightness = v; this.world.applyEnvironment();
+    if (pauseMenu) this.pauseMenu(); else this.titleMenu();
+  }
+
+  /**
+   * Regras de jogabilidade justa aplicadas pelo motor a QUALQUER projeto:
+   * inimigos não começam colados no jogador e, em cenas noturnas sem luz própria, o jogador ganha uma lanterna.
+   */
+  applyFairness() {
+    const p = this.player?.object?.position;
+    if (p) {
+      for (const rec of this.world.entities.values()) {
+        const ai = rec.e.components?.ai;
+        if (!rec.npcBrain || !ai || !HOSTILE.has(ai.behavior) || ai.team === 0) continue;
+        const o = rec.object.position; const d = Math.hypot(o.x - p.x, o.z - p.z);
+        if (d < 14) {
+          const dir = d > 0.01 ? new THREE.Vector3(o.x - p.x, 0, o.z - p.z).normalize() : new THREE.Vector3(0, 0, 1);
+          o.x = p.x + dir.x * 18; o.z = p.z + dir.z * 18; o.y = this.world.groundAt(o.x, o.z, o.y + 2);
+          rec.npcBrain.home?.copy?.(o);
+          this.log('warn', `${rec.e.name} começava muito perto do jogador e foi afastado (jogabilidade justa).`);
+        }
+      }
+    }
+    const t = this.doc.settings.environment?.timeOfDay ?? 14;
+    const hasCamLight = [...this.world.entities.values()].some((r) => r.attachToCamera);
+    if ((t < 6.5 || t > 18.5 || this.doc.settings.environment?.dayNightCycle?.enabled) && !hasCamLight && this.doc.player.controller !== 'vehicle') {
+      const lamp = new THREE.SpotLight('#fff3d6', 200, 60, 0.6, 0.55, 1.2);
+      lamp.position.set(0.25, -0.2, 0); lamp.target.position.set(0, -0.6, -6);
+      this.camera.add(lamp); this.camera.add(lamp.target);
+      this.autoLamp = lamp;
+    }
+  }
+
   victory() {
     if (this.ended) return; this.ended = true;
     this.emit('victory', { score: this.score });
-    setTimeout(() => { this.paused = true; this.hud.menu({ title: 'Vitória!', text: `Pontuação: ${this.score}`, items: [{ label: 'Jogar novamente', onClick: () => location.reload() }, { label: 'Continuar explorando', onClick: () => this.resume() }] }); }, 1500);
+    setTimeout(() => { this.paused = true; this.hud.menu({ title: 'Vitória!', text: `Pontuação: ${this.score}`, items: [{ label: 'Jogar novamente', onClick: () => this.restart() }, { label: 'Continuar explorando', onClick: () => this.resume() }] }); }, 1500);
   }
 
   gameOver(text) {
     if (this.ended) return; this.ended = true;
     this.emit('game_over', { score: this.score });
-    setTimeout(() => { this.paused = true; this.hud.menu({ title: 'Fim de jogo', text, items: [{ label: 'Tentar novamente', onClick: () => location.reload() }] }); }, 1200);
+    setTimeout(() => { this.paused = true; this.hud.menu({ title: 'Fim de jogo', text, items: [{ label: 'Tentar novamente', onClick: () => this.restart() }] }); }, 1200);
   }
 
   emit(name, data) { this.scripts?.dispatch(name, data); this.onEvent(name, data); }
@@ -219,6 +271,7 @@ export class Game {
       const t = this.world.time * 0.05; const c = this.player.object?.position || new THREE.Vector3();
       this.camera.position.set(c.x + Math.sin(t) * 22, c.y + 9, c.z + Math.cos(t) * 22); this.camera.lookAt(c.x, c.y + 1, c.z);
     }
+    if (this.autoLamp) this.autoLamp.visible = (this.world.dayFactor ?? 0) < 0.6;
     for (const rec of this.world.entities.values()) rec.animator?.update(this.paused && this.started ? 0 : dt, rec.object);
     this.world.update(this.paused && this.started ? 0 : dt, this.camera);
     if (this.composer) this.composer.render(); else this.renderer.render(this.world.scene, this.camera);

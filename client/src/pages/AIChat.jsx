@@ -17,7 +17,7 @@ const IDEAS = [
 ];
 // Pedido feito antes de o projeto existir: sobrevive à troca de rota /criar-com-ia → /criar-com-ia/:id.
 let pendingPrompt = null;
-const NEXT = ['Upgrade em tudo: gráficos, jogabilidade, menus e desafio', 'Melhore os gráficos', 'Deixe mais difícil', 'Adicione mais inimigos', 'Mude para noite com chuva', 'Adicione placar e cronômetro', 'Crie uma segunda fase'];
+const NEXT = ['Upgrade em tudo: gráficos, jogabilidade, menus e desafio', 'Está muito escuro, não dá para ver', 'Morri logo no começo, corrija', 'Corrija os problemas do jogo', 'Melhore os gráficos', 'Deixe mais difícil', 'Adicione mais inimigos', 'Mude para noite com chuva', 'Adicione placar e cronômetro', 'Crie uma segunda fase'];
 const STEP = {
   get_project_overview: 'Analisando o jogo…', get_entities: 'Analisando objetos…', read_script: 'Lendo o código…', add_entities: 'Montando o cenário e os objetos…',
   update_entities: 'Ajustando objetos…', remove_entities: 'Removendo objetos…', set_material: 'Aplicando materiais e texturas…', set_environment: 'Ajustando céu, clima e luz…',

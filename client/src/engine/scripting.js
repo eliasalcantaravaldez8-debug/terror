@@ -11,7 +11,7 @@ export function makeHandle(game, rec) {
     id: rec.e.id, name: rec.e.name, type: rec.e.type, object3d: o, position: o.position, rotation: o.rotation, props: rec.e.props,
     get visible() { return o.visible; }, set visible(v) { o.visible = v; },
     get health() { return rec.npcBrain?.health ?? (rec === game.player?.rec ? game.player.health : undefined); },
-    set health(v) { if (rec.npcBrain) rec.npcBrain.health = v; else if (rec === game.player?.rec) game.player.health = v; },
+    set health(v) { if (rec.npcBrain) rec.npcBrain.health = v; else if (rec === game.player?.rec) { if (game.inGrace && v < game.player.health) return; game.player.health = v; if (v <= 0) game.player.damage(1); } },
     playAnimation: (clip, opts = {}) => { rec.animator?.play(clip, opts); if (rec.mixer && rec.clips) { const c = rec.clips.find((x) => x.name === clip); if (c) { rec.action?.fadeOut(0.2); rec.action = rec.mixer.clipAction(c).reset().fadeIn(0.2).play(); } } },
     distanceTo: (h) => o.position.distanceTo(h.position || h),
     lookAt: (v) => { o.rotation.y = Math.atan2(v.x - o.position.x, v.z - o.position.z); },

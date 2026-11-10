@@ -73,6 +73,7 @@ export class PlayerController {
     this.speedNow = 0;
     this.kickCooldown = 0;
     this.health = cfg.health || 100;
+    this.maxHealth = this.health;
     if (this.kind === 'first_person' && this.rec) this.rec.object.visible = false;
   }
 
@@ -189,7 +190,7 @@ export class PlayerController {
   }
 
   damage(n) {
-    if (n <= 0) return;
+    if (n <= 0 || this.g.inGrace || this.g.ended) return;
     this.health = Math.max(0, this.health - n);
     this.g.audio.play('hit');
     this.g.hud.flash('#ef4444');
@@ -262,7 +263,11 @@ export class NPCBrain {
   update(dt) {
     if (this.dead) return;
     const o = this.rec.object; const player = this.g.player?.object; const anim = this.rec.animator;
-    const speed = this.ai.speed || 2; const det = this.ai.detectRadius || 15;
+    // Jogabilidade justa: inimigos nunca são mais rápidos que a corrida do jogador (sempre dá para fugir).
+    const pcfg = this.g.doc?.player || {};
+    const hostile = ['patrol', 'chase_player', 'guard'].includes(this.behavior);
+    const runSpeed = (pcfg.speed || 5) * (pcfg.sprintMultiplier || 1.7);
+    const speed = hostile ? Math.min(this.ai.speed || 2, runSpeed * 0.55) : (this.ai.speed || 2); const det = this.ai.detectRadius || 15;
     const pd = player ? o.position.distanceTo(player.position) : Infinity;
     this.cooldown -= dt;
     let moving = 0;
@@ -294,10 +299,10 @@ export class NPCBrain {
     }
   }
   attack() {
-    if (this.cooldown > 0) return;
+    if (this.cooldown > 0 || this.g.inGrace) return;
     this.cooldown = 1.2;
     this.rec.animator?.play('attack');
-    setTimeout(() => { if (!this.dead && this.g.player?.object && this.rec.object.position.distanceTo(this.g.player.object.position) < 1.8) this.g.player.damage(this.ai.attackDamage || 10); }, 280);
+    setTimeout(() => { if (!this.dead && this.g.player?.object && this.rec.object.position.distanceTo(this.g.player.object.position) < 1.8) this.g.player.damage(Math.min(this.ai.attackDamage || 10, Math.ceil((this.g.player.maxHealth || 100) * 0.34))); }, 280);
   }
   hurt(n) {
     if (this.dead) return;

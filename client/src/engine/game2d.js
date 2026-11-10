@@ -5,8 +5,8 @@ import { Input } from './gameplay.js';
 import { AudioSystem } from './audio.js';
 
 export class Game2D {
-  constructor(container, doc, { mode = 'play', onEvent, onLog, assetUrl } = {}) {
-    this.container = container; this.doc = doc; this.mode = mode;
+  constructor(container, doc, { mode = 'play', onEvent, onLog, assetUrl, onRestart } = {}) {
+    this.container = container; this.doc = doc; this.mode = mode; this.onRestart = onRestart;
     this.onEvent = onEvent || (() => {}); this.onLog = onLog || (() => {}); this.assetUrl = assetUrl;
     this.canvas = document.createElement('canvas');
     this.canvas.style.cssText = 'display:block;width:100%;height:100%;image-rendering:auto';
@@ -129,7 +129,7 @@ export class Game2D {
       this.hud = new Hud(this.container, { ...this.doc.ui, hud: { ...this.doc.ui.hud, showMinimap: false } }, this.input);
       this.audio = new AudioSystem();
       this.paused = true;
-      this.hud.menu({ title: this.doc.ui.title || this.doc.meta.name, text: 'Setas/WASD para mover · Espaço para pular', items: [{ label: 'Jogar', onClick: () => { this.hud.menu({}); this.paused = false; this.audio.unlock(); } }] });
+      this.hud.menu({ title: this.doc.ui.title || this.doc.meta.name, text: 'Setas/WASD para mover · Espaço para pular', items: [{ label: 'Jogar', onClick: () => { this.hud.menu({}); this.paused = false; this.audio.unlock(); if (this.player) this.player.inv = Math.max(this.player.inv || 0, 2.5); } }] });
       this.missionDone = false;
     }
     this.running = true;
@@ -137,6 +137,8 @@ export class Game2D {
     const loop = (t) => { if (!this.running) return; this.raf = requestAnimationFrame(loop); const dt = Math.min((t - last) / 1000, 1 / 20); last = t; if (this.mode === 'play' && !this.paused) this.update(dt); this.draw(); this.input?.endFrame(); };
     this.raf = requestAnimationFrame(loop);
   }
+
+  restart() { if (this.onRestart) this.onRestart(); else location.reload(); }
 
   reset() {
     const p = this.doc.entities.find((e) => e.id === this.doc.player.entityId);
@@ -176,7 +178,7 @@ export class Game2D {
       const key = `${t.r},${t.c}`;
       if (t.kind === 'coin' && !this.collected.has(key)) { this.collected.add(key); this.rows[t.r][t.c] = '0'; this.score += 10; this.audio.play('pickup'); this.burst(t.c * this.tile + 16, t.r * this.tile + 16, '#facc15'); this.onEvent('pickup', { item: 'coin' }); }
       if (t.kind === 'hazard') this.hurt();
-      if (t.kind === 'goal' && !this.missionDone) { this.missionDone = true; this.audio.play('goal'); this.hud.toast('Fase concluída!', 4000); this.onEvent('victory', { score: this.score }); setTimeout(() => { this.paused = true; this.hud.menu({ title: 'Vitória!', text: `Pontuação: ${this.score}`, items: [{ label: 'Jogar novamente', onClick: () => location.reload() }] }); }, 1200); }
+      if (t.kind === 'goal' && !this.missionDone) { this.missionDone = true; this.audio.play('goal'); this.hud.toast('Fase concluída!', 4000); this.onEvent('victory', { score: this.score }); setTimeout(() => { this.paused = true; this.hud.menu({ title: 'Vitória!', text: `Pontuação: ${this.score}`, items: [{ label: 'Jogar novamente', onClick: () => this.restart() }] }); }, 1200); }
     }
     for (const en of this.enemies) {
       if (!en.alive) continue;
@@ -207,7 +209,7 @@ export class Game2D {
     const p = this.player; if (p.inv > 0 && !fell) return;
     p.hp -= 1; p.inv = 1.2; this.audio.play('hit'); this.hud.flash('#ef4444');
     if (fell || p.hp <= 0) {
-      if (p.hp <= 0) { this.paused = true; this.hud.menu({ title: 'Fim de jogo', text: `Pontuação: ${this.score}`, items: [{ label: 'Tentar novamente', onClick: () => location.reload() }] }); this.onEvent('game_over', { score: this.score }); return; }
+      if (p.hp <= 0) { this.paused = true; this.hud.menu({ title: 'Fim de jogo', text: `Pontuação: ${this.score}`, items: [{ label: 'Tentar novamente', onClick: () => this.restart() }] }); this.onEvent('game_over', { score: this.score }); return; }
       p.x = p.e.transform.position[0]; p.y = p.e.transform.position[1]; p.vx = p.vy = 0;
     } else p.vy = -300;
   }

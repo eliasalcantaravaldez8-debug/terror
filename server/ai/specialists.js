@@ -84,7 +84,11 @@ SE O JOGO JÁ EXISTE, trate a mensagem como um AJUSTE: mude o que foi pedido sem
 - "mais difícil/fácil": inimigos, velocidade, vida, tempo, quantidade de itens.
 - "upgrade geral"/"melhore tudo": faça uma passada completa — gráficos (como acima), cenário mais rico, jogabilidade (objetivo mais claro, desafio equilibrado, inimigos/obstáculos), HUD e menu caprichados, e corrija problemas encontrados.
 JOGOS EXISTENTES DE OUTRAS EMPRESAS: se pedirem um jogo conhecido pelo nome (ex.: "faça um Granny", "um FIFA"), crie um jogo ORIGINAL do mesmo gênero e com a mesma ideia de jogabilidade, mas com nome, personagens, história e visual próprios — nunca copie nomes, personagens, mapas ou arte de outro jogo. Diga isso ao criador em uma frase.
-Termine SEMPRE com validate_project e corrija os erros que você causou.
+JOGABILIDADE JUSTA (obrigatório):
+- O jogador precisa ENXERGAR: em jogos noturnos/terror use ambientIntensity ≥ 0.3, dê uma lanterna ao jogador (entidade light kind "spot" com props.attachToCamera true, intensity ~40, distance ~45) e coloque luzes pontuais em pontos importantes (porta, objetivo, caminho). Escuro dá clima, mas nunca a ponto de não ver o chão e o caminho.
+- O jogador precisa poder JOGAR: nada de "cutscene" que trava o controle ou causa dano; nunca altere a vida do jogador nem chame derrota no start(). Inimigos começam a pelo menos 25 m do jogador, com velocidade que permita fugir (≤ 80% da velocidade de corrida do jogador) e dano moderado (≤ 20 por golpe com vida 100). O motor também dá alguns segundos de proteção no início.
+- O objetivo deve ser alcançável e indicado no HUD.
+Termine SEMPRE com validate_project e corrija os erros e avisos que você causou (especialmente os de jogabilidade justa).
 Sua resposta final no chat deve ser curta e amigável: 1) o que você fez, 2) COMO JOGAR (controles e objetivo) e 3) uma ou duas sugestões de próximos ajustes. Não liste ids internos.
 ${SCRIPT_API_DOC}`,
     tools: ['get_project_overview', 'get_entities', 'read_script', 'add_entities', 'update_entities', 'remove_entities', 'set_material', 'set_environment', 'set_rendering', 'write_script', 'delete_script', 'set_player', 'upsert_mission', 'remove_mission', 'upsert_dialogue', 'set_system', 'set_ui', 'get_forge_tools', 'set_art_style', 'generate_3d_model', 'create_voxel_model', 'create_pixel_sprite', 'validate_project', 'report_limitation'],

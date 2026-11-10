@@ -130,20 +130,24 @@ export class World {
     this.sun.position.copy(this.sunDir).multiplyScalar(150);
     this.sun.intensity = day * 4.2 * (1 - storm * 0.6);
     this.sun.color.setHSL(0.1 - golden * 0.05, 0.6 + golden * 0.3, 0.9 - golden * 0.25);
-    this.moon.intensity = (1 - day) * 0.35;
+    this.dayFactor = day;
+    // Visibilidade mínima à noite (jogabilidade): luar e ambiente nunca caem a ponto de não se ver nada.
+    const bright = this.brightness || 1;
+    this.moon.intensity = (1 - day) * 0.6 * bright;
     this.moon.position.set(-this.sunDir.x * 100, Math.abs(this.sunDir.y) * 100 + 30, -this.sunDir.z * 100);
     const amb = env.ambientIntensity ?? 0.35;
-    this.hemi.intensity = amb * (0.4 + day * 2.4) + this.lightning * 3;
+    this.hemi.intensity = (Math.max(amb * (0.4 + day * 2.4), 0.5 * (1 - day)) + this.lightning * 3) * bright;
     this.hemi.color.setHSL(0.6, 0.5, 0.45 + day * 0.35);
     this.stars.material.opacity = (1 - day) * (1 - storm);
     const artificial = this.nightLights.some((l) => l.isDirectionalLight) && day < 0.6;
     // O céu físico é muito luminoso: a exposição base é reduzida e o sol/ambiente compensam.
-    this.renderer.toneMappingExposure = (env.exposure ?? 0.9) * (artificial ? 1.05 : 0.6 + day * 0.15);
+    this.renderer.toneMappingExposure = Math.max(env.exposure ?? 0.9, 0.7) * (artificial ? 1.05 : 0.72 + day * 0.03) * bright;
     if (this.scene.fog) {
       const base = new THREE.Color(env.fog.color);
-      const night = new THREE.Color('#05070d');
+      const night = new THREE.Color('#0d1220');
       this.scene.fog.color.copy(night).lerp(base, Math.max(day, 0.08));
-      this.scene.fog.density = (env.fog.density ?? 0.003) * (1 + storm * 1.5);
+      // Neblina limitada para o jogador sempre enxergar o caminho próximo.
+      this.scene.fog.density = Math.min((env.fog.density ?? 0.003) * (1 + storm * 1.5), 0.012);
     }
     for (const l of this.nightLights) l.visible = day < 0.6;
     if (rebuildEnvMap) {

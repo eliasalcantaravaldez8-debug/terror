@@ -19,28 +19,30 @@ export async function sandboxInfo() {
  */
 function LocalPreview({ doc, onLog, onEvent, test, onTestResult }) {
   const box = useRef(null);
+  const [runId, setRunId] = useState(0); // "Tentar novamente"/"Reiniciar" remontam o jogo sem recarregar o app
   useEffect(() => {
     let game = null; let dead = false;
     const el = document.createElement('div'); el.style.cssText = 'width:100%;height:100%';
     box.current.appendChild(el);
     const d = structuredClone(doc);
     try { const q = localStorage.getItem('nx_quality'); if (q && d.settings?.rendering && !test) d.settings.rendering.quality = q; } catch { /* sem armazenamento */ }
-    const opts = { onEvent: (n, x) => onEvent?.(n, x), onLog: (k, m) => onLog?.(k, String(m).slice(0, 500)) };
+    const opts = { onEvent: (n, x) => onEvent?.(n, x), onLog: (k, m) => onLog?.(k, String(m).slice(0, 500)), onRestart: () => setTimeout(() => setRunId((r) => r + 1), 0) };
     (async () => {
       try {
         game = d.meta.dimension === '2d' ? new Game2D(el, d, opts) : new Game(el, d, opts);
         if (test) game.testMode = true;
         await game.init();
+        el.__nxGame = game; // acesso para testes automatizados
         if (dead) return;
         onLog?.('info', 'Pré-visualização iniciada.');
-        if (test?.full) onTestResult?.(await game.runGameTest().catch((e) => ({ ok: false, frames: 0, errors: [e.message] })));
+        if (test?.full && runId === 0) onTestResult?.(await game.runGameTest().catch((e) => ({ ok: false, frames: 0, errors: [e.message] })));
       } catch (e) {
         onLog?.('error', `Não foi possível iniciar: ${e.message}`);
         if (test?.full) onTestResult?.({ ok: false, frames: 0, errors: [`Falha ao iniciar: ${e.message}`] });
       }
     })();
     return () => { dead = true; try { game?.dispose(); } catch { /* já liberado */ } el.remove(); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [runId]); // eslint-disable-line react-hooks/exhaustive-deps
   return <div ref={box} style={{ width: '100%', height: '100%', position: 'relative', background: '#000' }} />;
 }
 
