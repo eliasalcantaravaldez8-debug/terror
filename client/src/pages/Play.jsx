@@ -2,12 +2,11 @@
 // faz a ponte do NEXPLAY SDK (conquistas, dados do jogador, multiplayer).
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { api } from '../api.js';
+import { api, sandboxPerms, postTarget, fromSandbox } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { useLoad, Loader, useToast, Field, ActionButton } from '../components/ui.jsx';
 import { Icon } from '../components/icons.jsx';
 
-const SANDBOX_PERMS = 'allow-scripts allow-same-origin allow-pointer-lock allow-orientation-lock allow-popups allow-forms allow-modals';
 
 export default function Play() {
   const { slug } = useParams();
@@ -41,14 +40,14 @@ export default function Play() {
     return () => clearInterval(t);
   }, [session]);
 
-  const toGame = (msg) => frame.current?.contentWindow?.postMessage(msg, session?.sandboxOrigin || '*');
+  const toGame = (msg) => frame.current?.contentWindow?.postMessage(msg, postTarget(session?.sandboxOrigin || '*'));
 
   // Ponte do SDK: mensagens vindas do jogo isolado.
   useEffect(() => {
     if (!session) return undefined;
     const onMsg = async (ev) => {
       if (ev.source !== frame.current?.contentWindow) return;
-      if (ev.origin !== session.sandboxOrigin && !ev.origin.endsWith(new URL(session.sandboxOrigin).host)) return;
+      if (!fromSandbox(ev, session.sandboxOrigin)) return;
       const m = ev.data || {};
       if (m.type === 'nexplay:achievement') {
         try { const r = await api.post(`/games/${slug}/achievements/${encodeURIComponent(m.code)}/unlock`); if (r.unlocked) toast('Conquista desbloqueada!', 'ok'); } catch { /* conquista inexistente */ }
@@ -102,7 +101,7 @@ export default function Play() {
             {error && <div className="error-box">{error}</div>}
             {session && (
               <iframe ref={frame} title={game.title} src={session.url} className={`play-frame ${full ? 'full' : ''}`}
-                sandbox={SANDBOX_PERMS} allow="fullscreen; gamepad; autoplay; screen-wake-lock" referrerPolicy="origin" />
+                sandbox={sandboxPerms(session.sandboxOrigin)} allow="fullscreen; gamepad; autoplay; screen-wake-lock" referrerPolicy="origin" />
             )}
             {full && <button className="btn" style={{ position: 'fixed', top: 12, right: 12, zIndex: 310 }} onClick={() => setFull(false)}><Icon name="x" /> Sair da tela cheia</button>}
             {!session && !error && <div className="spinner" />}

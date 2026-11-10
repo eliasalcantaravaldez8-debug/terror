@@ -25,8 +25,12 @@ import { recoverJobs } from './pipeline/index.js';
 import { createSandboxApp, mountRuntime } from './sandbox/server.js';
 import { recoverAutopilotRuns } from './ai/autopilot.js';
 
-export function createApp() {
+export function createApp({ sandboxApp } = {}) {
   const app = express();
+  if (config.singleOrigin && sandboxApp) {
+    // Rotas do sandbox antes dos cabeçalhos do app (elas têm política própria).
+    app.use((req, res, next) => (req.path.startsWith('/p/') || req.path.startsWith('/runtime/') ? sandboxApp(req, res, next) : next()));
+  }
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy);
 
@@ -41,7 +45,7 @@ export function createApp() {
       "img-src 'self' data: blob:",
       "media-src 'self' blob:",
       `connect-src 'self' ${config.isProd ? '' : 'ws: '}wss: ${sandbox}`,
-      `frame-src ${sandbox}${wildcard} https://www.youtube-nocookie.com https://player.vimeo.com`,
+      `frame-src ${config.singleOrigin ? "'self'" : sandbox}${wildcard} https://www.youtube-nocookie.com https://player.vimeo.com`,
       "worker-src 'self' blob:",
       "object-src 'none'",
       "base-uri 'self'",
@@ -73,7 +77,8 @@ export function createApp() {
       payments: config.payments.provider === 'stripe' ? 'configured' : 'not_configured',
       forge: { tripo: Boolean(process.env.TRIPO_API_KEY), meshy: Boolean(process.env.MESHY_API_KEY), blender: Boolean(process.env.BLENDER_PATH || process.env.NEXPLAY_BPY_PYTHON) },
     },
-    sandboxOrigin: config.sandboxOrigin,
+    sandboxOrigin: config.singleOrigin ? 'null' : config.sandboxOrigin,
+    sandboxUrl: config.singleOrigin ? '' : config.sandboxOrigin,
   }));
   app.use('/api/auth', authRoutes);
   app.use('/api/users', userRoutes);
@@ -118,18 +123,20 @@ export function createApp() {
 export async function start() {
   recoverAutopilotRuns();
   recoverJobs();
-  const app = createApp();
+  const sandboxApp = createSandboxApp();
+  await mountRuntime(sandboxApp);
+  const app = createApp({ sandboxApp });
   const server = http.createServer(app);
   attachMultiplayer(server);
   await new Promise((resolve) => server.listen(config.port, resolve));
-
-  const sandboxApp = createSandboxApp();
-  await mountRuntime(sandboxApp);
-  const sandboxServer = http.createServer(sandboxApp);
-  await new Promise((resolve) => sandboxServer.listen(config.sandboxPort, resolve));
+  let sandboxServer = null;
+  if (!config.singleOrigin) {
+    sandboxServer = http.createServer(sandboxApp);
+    await new Promise((resolve) => sandboxServer.listen(config.sandboxPort, resolve));
+  }
 
   console.log(`NEXPLAY API:      http://localhost:${config.port}`);
-  console.log(`NEXPLAY Sandbox:  ${config.sandboxOrigin} (porta ${config.sandboxPort})`);
+  console.log(config.singleOrigin ? 'NEXPLAY Sandbox:  modo de origem única (/p e /runtime, iframe de origem opaca)' : `NEXPLAY Sandbox:  ${config.sandboxOrigin} (porta ${config.sandboxPort})`);
   if (!config.ai.enabled) console.log('Aviso: NEXPLAY AI desativada (defina ANTHROPIC_API_KEY).');
   if (!mailConfigured()) console.log('Aviso: SMTP não configurado — e-mails serão exibidos neste console.');
   if (config.payments.provider !== 'stripe') console.log('Aviso: pagamentos desativados (defina STRIPE_SECRET_KEY).');

@@ -32,6 +32,10 @@ export const config = {
   sandboxPort,
   // Origem pública do app principal e da origem isolada que executa jogos.
   // Em produção use domínios diferentes (ex.: nexplay.com e nexplay-games.net).
+  // Modo de origem única (demonstrações/pré-visualização com uma porta só): os jogos são servidos pelo
+  // mesmo host em /p e /runtime, mas executam em iframe com ORIGEM OPACA (sem allow-same-origin),
+  // portanto continuam sem acesso a cookies, armazenamento ou à página da NEXPLAY.
+  singleOrigin: env.SINGLE_ORIGIN === '1',
   appOrigin: env.APP_ORIGIN || `http://localhost:${isProd ? port : 5173}`,
   sandboxOrigin: env.SANDBOX_ORIGIN || `http://localhost:${sandboxPort}`,
   dataDir: path.resolve(ROOT, env.DATA_DIR || 'storage'),

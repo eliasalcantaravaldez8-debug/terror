@@ -23,8 +23,11 @@ export function createSandboxApp() {
 
   app.use((req, res, next) => {
     // Só pode ser embutido pelo app principal; o próprio documento já é tratado como sandbox.
-    res.setHeader('Content-Security-Policy',
-      `sandbox allow-scripts allow-same-origin allow-pointer-lock allow-orientation-lock allow-popups allow-forms allow-modals; frame-ancestors ${config.appOrigin}`);
+    res.setHeader('Content-Security-Policy', config.singleOrigin
+      ? "sandbox allow-scripts allow-pointer-lock allow-orientation-lock allow-popups allow-forms allow-modals; frame-ancestors 'self'"
+      : `sandbox allow-scripts allow-same-origin allow-pointer-lock allow-orientation-lock allow-popups allow-forms allow-modals; frame-ancestors ${config.appOrigin}`);
+    // Documentos de origem opaca precisam de CORS para buscar os próprios arquivos (o acesso é protegido pelo token).
+    if (config.singleOrigin) res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');

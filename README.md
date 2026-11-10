@@ -40,6 +40,15 @@ npm run build && npm start  # app + API em :3000, sandbox em :3001
 
 Veja [docs/DEPLOY.md](docs/DEPLOY.md) para domínios, TLS, proxy e serviços externos.
 
+### Testar rapidamente em uma única porta
+
+```bash
+npm run build
+SINGLE_ORIGIN=1 NODE_ENV=production npm start   # tudo em http://localhost:3000
+```
+
+No modo `SINGLE_ORIGIN=1` os jogos são servidos pelo mesmo endereço, mas rodam em iframe de origem opaca (sem acesso à conta). Para o Blender na FORGE, defina também `NEXPLAY_BPY_PYTHON` (Python com `pip install bpy`) ou `BLENDER_PATH`.
+
 ## Testes
 
 ```bash

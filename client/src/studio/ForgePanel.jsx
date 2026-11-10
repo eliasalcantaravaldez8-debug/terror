@@ -1,7 +1,8 @@
 // NEXPLAY FORGE no Studio: ferramentas disponíveis, estilo do projeto, criação/importação de assets,
 // acompanhamento das etapas e teste automático de cada asset dentro do motor do jogo.
 import { useEffect, useRef, useState } from 'react';
-import { api } from '../api.js';
+import { api, sandboxPerms, postTarget } from '../api.js';
+import { sandboxInfo } from './Preview.jsx';
 import { useLoad, Loader, useToast } from '../components/ui.jsx';
 import PixelEditor from './PixelEditor.jsx';
 
@@ -127,9 +128,10 @@ function JobCard({ job, projectId, onCancel }) {
 export function ForgeTester({ project, jobs, onTested }) {
   const frame = useRef(null);
   const [current, setCurrent] = useState(null);
-  const [origin, setOrigin] = useState(null);
+  const [sb, setSb] = useState(null);
+  const origin = sb?.origin;
   const tried = useRef(new Set());
-  useEffect(() => { api.get('/health').then((h) => setOrigin(h.sandboxOrigin)); }, []);
+  useEffect(() => { sandboxInfo().then(setSb); }, []);
   useEffect(() => {
     if (current || !origin) return;
     const next = jobs.find((j) => j.status === 'done' && j.result?.entityId && !j.result?.test && !tried.current.has(j.id));
@@ -150,18 +152,18 @@ export function ForgeTester({ project, jobs, onTested }) {
         const { doc } = await api.get(`/projects/${project.id}`);
         const assets = {};
         await Promise.all((doc.assets || []).map(async (a) => { if (!a.assetId) return; const r = await fetch(`/api/projects/${project.id}/assets/${a.assetId}/file`, { credentials: 'same-origin' }); if (r.ok) assets[a.id] = await r.arrayBuffer(); }));
-        frame.current.contentWindow.postMessage({ type: 'nexplay:load', doc, assets, test: { entityId: current.result.entityId, jobId: current.id } }, origin, Object.values(assets));
+        frame.current.contentWindow.postMessage({ type: 'nexplay:load', doc, assets, test: { entityId: current.result.entityId, jobId: current.id } }, postTarget(origin), Object.values(assets));
       } else if (m.type === 'nexplay:test_result' && m.jobId === current.id) finish(sanitize(m.result));
     };
     window.addEventListener('message', onMsg);
     const timeout = setTimeout(() => finish({ loaded: false, error: 'O teste não respondeu em 60 s.' }), 60_000);
     return () => { window.removeEventListener('message', onMsg); clearTimeout(timeout); };
   }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!current || !origin) return null;
+  if (!current || !sb) return null;
   return (
     <div style={{ position: 'absolute', right: 10, bottom: 10, width: 320, zIndex: 5 }} className="card">
       <div className="tiny"><b>Teste no jogo:</b> {current.prompt.slice(0, 40)}</div>
-      <iframe ref={frame} title="Teste do asset" src={`${origin}/runtime/player.html`} sandbox="allow-scripts allow-same-origin" referrerPolicy="origin" style={{ width: '100%', height: 170, border: 0, borderRadius: 8, marginTop: 6 }} />
+      <iframe ref={frame} title="Teste do asset" src={`${sb.url}/runtime/player.html`} sandbox={sandboxPerms(origin, '')} referrerPolicy="origin" style={{ width: '100%', height: 170, border: 0, borderRadius: 8, marginTop: 6 }} />
     </div>
   );
 }

@@ -35,6 +35,7 @@ export function verifyPlayToken(token) {
 
 /** URL base do sandbox para um jogo. Com SANDBOX_GAME_SUBDOMAINS=1 cada jogo tem seu próprio subdomínio. */
 export function sandboxBase(gameId) {
+  if (config.singleOrigin) return '';
   if (process.env.SANDBOX_GAME_SUBDOMAINS === '1') {
     const u = new URL(config.sandboxOrigin);
     return `${u.protocol}//g${gameId}.${u.host}`;

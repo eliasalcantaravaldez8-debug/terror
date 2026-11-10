@@ -63,7 +63,7 @@ export function csrfGuard(req, _res, next) {
   if (req.path.startsWith('/api/payments/webhook')) return next();
   if (req.get('x-nx-client') !== '1') return next(new HttpError(403, 'Requisição bloqueada (CSRF).', 'csrf'));
   const origin = req.get('origin');
-  if (origin && config.isProd && origin !== config.appOrigin) {
+  if (origin && config.isProd && !config.singleOrigin && origin !== config.appOrigin) {
     return next(new HttpError(403, 'Origem não permitida.', 'bad_origin'));
   }
   next();

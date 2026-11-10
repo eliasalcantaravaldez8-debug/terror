@@ -466,7 +466,7 @@ r.post('/:id/play', requireAuth, (req, res) => {
   });
   const recent = one(`SELECT 1 FROM activities WHERE user_id=? AND game_id=? AND type='played' AND created_at >= ?`, req.user.id, g.id, new Date(Date.now() - 6 * 3600_000).toISOString());
   if (!recent) logActivity(req.user.id, 'played', g.id);
-  res.json({ url, sandboxOrigin: new URL(base).origin, sessionId, versionId: v.id, buildKind: v.build_kind });
+  res.json({ url, sandboxOrigin: base ? new URL(base).origin : 'null', isolation: base ? 'origin' : 'opaque', sessionId, versionId: v.id, buildKind: v.build_kind });
 });
 
 /**

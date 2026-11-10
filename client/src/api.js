@@ -39,6 +39,19 @@ export const api = {
   },
 };
 
+/**
+ * Isolamento dos jogos. Origem separada (produção): iframe com allow-same-origin numa OUTRA origem.
+ * Origem única (demonstração): sandboxOrigin === 'null' → iframe de origem opaca, sem allow-same-origin.
+ */
+export const sandboxPerms = (origin, extra = 'allow-pointer-lock allow-orientation-lock allow-popups allow-forms allow-modals') =>
+  `allow-scripts ${origin === 'null' ? '' : 'allow-same-origin '}${extra}`.trim();
+export const postTarget = (origin) => (origin === 'null' ? '*' : origin);
+export function fromSandbox(ev, origin) {
+  if (origin === 'null') return ev.origin === 'null';
+  if (ev.origin === origin) return true;
+  try { return new URL(ev.origin).host.endsWith(`.${new URL(origin).host}`); } catch { return false; }
+}
+
 export const brl = (cents) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 export const nc = (n) => `${Number(n).toLocaleString('pt-BR')} NC`;
 export const ago = (iso) => {
