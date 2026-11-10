@@ -54,7 +54,7 @@ export async function runSpecialist({ userId, doc, specialist, prompt, history =
   let jsonRetries = 0;
   let stopReason = null;
 
-  for (let i = 0; i < Math.min(tier.maxIterations, config.ai.maxToolIterations + 16); i++) {
+  for (let i = 0; i < Math.min(Math.max(tier.maxIterations, spec.minIterations || 0), config.ai.maxToolIterations + 16); i++) {
     if (signal?.aborted) throw new HttpError(499, 'Tarefa cancelada.');
     let msg;
     try {

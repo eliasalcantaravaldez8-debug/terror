@@ -24,7 +24,7 @@ function Hero({ data, user }) {
       <h1 style={{ marginTop: 12 }}>Jogue, conecte-se e <span className="gradient-text">crie jogos</span> com a NEXPLAY AI.</h1>
       <p className="muted" style={{ maxWidth: 620 }}>Publique seus jogos, construa mundos 2D e 3D no NEXPLAY STUDIO e use especialistas de IA para programar, montar cenários, texturas, animações e testes.</p>
       <div className="row mt">
-        <Link className="btn primary lg" to={user ? '/studio/novo' : '/cadastro'}><Icon name="plus" /> {user ? 'Criar jogo' : 'Criar conta grátis'}</Link>
+        <Link className="btn primary lg" to={user ? '/criar-com-ia' : '/cadastro'}><Icon name="sparkles" /> {user ? 'Criar jogo com IA' : 'Criar conta grátis'}</Link>
         <Link className="btn lg" to="/arcade"><Icon name="gamepad" /> NEXPLAY Arcade</Link>
       </div>
     </section>

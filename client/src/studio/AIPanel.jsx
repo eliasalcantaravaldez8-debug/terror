@@ -21,7 +21,7 @@ export default function AIPanel({ project, onChanged, busy, setBusy }) {
   const toast = useToast();
   const status = useLoad(() => api.get('/ai/status'), []);
   const convo = useLoad(() => api.get(`/ai/projects/${project.id}/conversation`), [project.id]);
-  const [specialist, setSpecialist] = useState('artist3d');
+  const [specialist, setSpecialist] = useState('criadora');
   const [prompt, setPrompt] = useState('');
   const [withTester, setWithTester] = useState(false);
   const [live, setLive] = useState([]);

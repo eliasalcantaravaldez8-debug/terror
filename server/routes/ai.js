@@ -37,7 +37,7 @@ r.get('/projects/:projectId/conversation', requireAuth, (req, res) => {
  */
 r.post('/projects/:projectId/command', requireAuth, async (req, res) => {
   const { project } = loadProject(req, 'edit');
-  const b = parse(z.object({ prompt: z.string().trim().min(2).max(8000), specialist: z.enum(Object.keys(SPECIALISTS)).default('programmer'), withTester: z.boolean().default(false) }), req.body);
+  const b = parse(z.object({ prompt: z.string().trim().min(2).max(8000), specialist: z.enum(Object.keys(SPECIALISTS)).default('criadora'), withTester: z.boolean().default(false) }), req.body);
   res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Accel-Buffering', 'no');

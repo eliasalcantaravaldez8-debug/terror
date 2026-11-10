@@ -32,6 +32,7 @@ const Studios = lazy(() => import('./pages/Studios.jsx'));
 const StudioPage = lazy(() => import('./pages/StudioPage.jsx'));
 const StudioHome = lazy(() => import('./pages/StudioHome.jsx'));
 const SubmitGame = lazy(() => import('./pages/SubmitGame.jsx'));
+const AIChat = lazy(() => import('./pages/AIChat.jsx'));
 const StudioEditor = lazy(() => import('./studio/StudioEditor.jsx'));
 const DeluxeLab = lazy(() => import('./pages/DeluxeLab.jsx'));
 const Admin = lazy(() => import('./pages/admin/Admin.jsx'));
@@ -40,7 +41,7 @@ const Terms = lazy(() => import('./pages/Terms.jsx'));
 const NAV = [
   ['Descobrir', [['/', 'home', 'Início'], ['/arcade', 'gamepad', 'NEXPLAY Arcade'], ['/explorar', 'compass', 'Explorar'], ['/multiplayer', 'users', 'MULTIPLAYER'], ['/lancamentos', 'rocket', 'LANÇAMENTOS'], ['/picks', 'star', 'NEXPLAY PICKS']]],
   ['Comunidade', [['/comunidade', 'globe', 'Comunidade'], ['/eventos', 'trophy', 'Eventos e Awards'], ['/estudios', 'building', 'Estúdios']]],
-  ['Criar', [['/studio/novo', 'plus', 'Criar jogo'], ['/enviar-jogo', 'upload', 'Enviar jogo pronto'], ['/studio', 'cube', 'NEXPLAY STUDIO'], ['/criador', 'chart', 'Painel do criador'], ['/deluxe-lab', 'sparkles', 'DELUXE LAB']]],
+  ['Criar', [['/criar-com-ia', 'sparkles', 'Criar com IA'], ['/studio/novo', 'plus', 'Criar jogo'], ['/enviar-jogo', 'upload', 'Enviar jogo pronto'], ['/studio', 'cube', 'NEXPLAY STUDIO'], ['/criador', 'chart', 'Painel do criador'], ['/deluxe-lab', 'sparkles', 'DELUXE LAB']]],
   ['Conta', [['/rewards', 'gift', 'NEXPLAY REWARDS'], ['/planos', 'crown', 'Planos'], ['/biblioteca', 'bookmark', 'Biblioteca']]],
 ];
 
@@ -124,7 +125,7 @@ function Topbar({ onMenu }) {
 }
 
 function MobileNav() {
-  const items = [['/', 'home', 'Início'], ['/arcade', 'gamepad', 'Arcade'], ['/studio', 'cube', 'Studio'], ['/comunidade', 'globe', 'Social'], ['/rewards', 'gift', 'Rewards']];
+  const items = [['/', 'home', 'Início'], ['/arcade', 'gamepad', 'Arcade'], ['/criar-com-ia', 'sparkles', 'Criar com IA'], ['/studio', 'cube', 'Studio'], ['/comunidade', 'globe', 'Social']];
   return <nav className="mobile-nav">{items.map(([to, icon, label]) => <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}><Icon name={icon} />{label}</NavLink>)}</nav>;
 }
 
@@ -137,7 +138,7 @@ export function RequireAuth({ children }) {
 }
 
 // Versão sem servidor: só o que roda no aparelho (Início, Arcade, Studio com editor e NEXPLAY AI).
-const LOCAL_OK = /^\/($|arcade$|studio($|\/)|termos$)/;
+const LOCAL_OK = /^\/($|arcade$|studio($|\/)|criar-com-ia($|\/)|termos$)/;
 function ServerOnly() {
   return (
     <div className="empty fade-in">
@@ -160,7 +161,7 @@ export default function App() {
       <div className="main">
         <Topbar onMenu={() => setOpen(true)} />
         <main className={fullBleed ? '' : 'content'}>
-          {STANDALONE && !fullBleed && <div className="tiny muted" style={{ marginBottom: 12, padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 10 }}>Versão para celular, sem servidor: seus projetos ficam salvos <b>neste aparelho</b>. Publicar no Arcade e enviar jogos prontos só na plataforma completa.</div>}
+          {STANDALONE && !fullBleed && !loc.pathname.startsWith('/criar-com-ia') && <div className="tiny muted" style={{ marginBottom: 12, padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 10 }}>Versão para celular, sem servidor: seus projetos ficam salvos <b>neste aparelho</b>. Publicar no Arcade e enviar jogos prontos só na plataforma completa.</div>}
           <Suspense fallback={<div className="spinner" />}>
             {STANDALONE && !LOCAL_OK.test(loc.pathname) ? <ServerOnly /> : (
             <Routes>
@@ -190,6 +191,8 @@ export default function App() {
               <Route path="/estudios" element={<Studios />} />
               <Route path="/estudios/:slug" element={<StudioPage />} />
               <Route path="/studio" element={<RequireAuth><StudioHome /></RequireAuth>} />
+              <Route path="/criar-com-ia" element={<RequireAuth><AIChat /></RequireAuth>} />
+              <Route path="/criar-com-ia/:id" element={<RequireAuth><AIChat /></RequireAuth>} />
               <Route path="/studio/novo" element={<RequireAuth><StudioHome /></RequireAuth>} />
               <Route path="/studio/:id" element={<RequireAuth><StudioEditor /></RequireAuth>} />
               <Route path="/enviar-jogo" element={<RequireAuth><SubmitGame /></RequireAuth>} />

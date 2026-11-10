@@ -31,6 +31,7 @@ export default function StudioHome() {
         <div className="row">
           {!STANDALONE && <Link className="btn" to="/enviar-jogo"><Icon name="upload" /> Enviar jogo pronto</Link>}
           <label className="btn"><Icon name="download" /> Importar backup<input type="file" accept=".json" hidden onChange={async (e) => { const f = e.target.files[0]; if (!f) return; try { const d = await api.post('/projects/import', JSON.parse(await f.text())); nav(`/studio/${d.project.id}`); } catch (x) { toast(x.message, 'error'); } }} /></label>
+          <Link className="btn" to="/criar-com-ia"><Icon name="sparkles" /> Criar com IA</Link>
           <button className="btn primary" onClick={() => setCreating(true)}><Icon name="plus" /> Criar jogo</button>
         </div>
       </div>
@@ -53,6 +54,7 @@ export default function StudioHome() {
                       <div className="tiny muted">Projeto nº {p.id}</div>
                       <div className="row" style={{ gap: 6, marginTop: 8 }}>
                         <Link className="btn sm primary" to={`/studio/${p.id}`}><Icon name="settings" /> Abrir e editar</Link>
+                        <Link className="btn sm" to={`/criar-com-ia/${p.id}`}><Icon name="sparkles" /> Chat da IA</Link>
                         {p.role === 'owner' && <button className="btn sm" onClick={() => setRenaming(p)}>Renomear</button>}
                         {p.role === 'owner' && <button className="btn sm danger" onClick={() => remove(p)} aria-label={`Excluir ${p.name}`}>Excluir</button>}
                       </div>

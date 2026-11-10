@@ -231,3 +231,23 @@ test('"Enviar jogo pronto": validação, detecção da ferramenta, análise e o 
   const play = await (await newUser('jog')).post(`/api/games/${g.slug}/play`);
   assert.match(play.data.url, /^http:\/\/sandbox\.test\/p\//);
 });
+
+test('Criar com IA: o chat usa a IA Criadora no MESMO projeto a cada pedido', async () => {
+  const dev = await newUser('chat');
+  const st = (await dev.get('/api/ai/status')).data;
+  assert.ok(st.specialists.some((s) => s.key === 'criadora'));
+  const p = (await dev.post('/api/projects', { name: 'Terror: floresta', dimension: '3d', genre: 'terror' })).data.project;
+  const run = async (prompt) => {
+    const res = await fetch(`${base}/api/ai/projects/${p.id}/command`, { method: 'POST', headers: { 'X-NX-Client': '1', 'Content-Type': 'application/json', Cookie: dev.cookie() }, body: JSON.stringify({ prompt }) });
+    const events = (await res.text()).trim().split('\n').map((l) => JSON.parse(l));
+    return events.find((e) => e.type === 'result');
+  };
+  const r1 = await run('Um jogo de terror numa floresta à noite');
+  assert.ok(r1.changes.length > 0, 'a IA alterou o projeto');
+  const r2 = await run('Melhore os gráficos');
+  assert.ok(r2);
+  const convo = (await dev.get(`/api/ai/projects/${p.id}/conversation`)).data.messages;
+  assert.equal(convo.filter((m) => m.role === 'user').length, 2);
+  assert.ok(convo.every((m) => m.role === 'user' || m.specialist === 'criadora'));
+  assert.equal((await dev.get('/api/projects')).data.projects.length, 1, 'continua no mesmo projeto');
+});
