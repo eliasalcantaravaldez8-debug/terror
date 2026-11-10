@@ -175,3 +175,19 @@ export function ReportButton({ type, id }) {
     </>
   );
 }
+
+/**
+ * Botão de escolher arquivo que funciona também em WebViews de celular (ex.: app do Claude):
+ * o <input type=file> fica VISÍVEL (transparente) por cima do botão, e o toque cai direto nele.
+ * Inputs escondidos (display:none) acionados por <label> não abrem o seletor em alguns aparelhos.
+ */
+export function FilePick({ onFile, onFiles, accept, multiple, className = 'btn', children, disabled, style }) {
+  return (
+    <span className={className} style={{ position: 'relative', overflow: 'hidden', display: 'inline-flex', alignItems: 'center', gap: 8, alignSelf: 'flex-start', ...style }} aria-disabled={disabled || undefined}>
+      {children}
+      <input type="file" accept={accept} multiple={multiple} disabled={disabled}
+        onChange={(e) => { const fs = [...(e.target.files || [])]; e.target.value = ''; if (!fs.length) return; if (onFiles) onFiles(fs); else onFile?.(fs[0]); }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', fontSize: 100 }} />
+    </span>
+  );
+}

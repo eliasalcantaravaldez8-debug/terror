@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, GENRE_LABEL, MODE_LABEL } from '../api.js';
-import { Field, ActionButton, useToast } from '../components/ui.jsx';
+import { Field, ActionButton, useToast, FilePick } from '../components/ui.jsx';
 import { Icon } from '../components/icons.jsx';
 
 const ENGINES = {
@@ -119,7 +119,7 @@ export default function SubmitGame() {
           <select className="input" value={f.engine} onChange={set('engine')} disabled={!!scan}>{Object.entries(ENGINES).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</select>
         </Field>
         <div className="info-box small">{ENGINES[f.engine][1]}</div>
-        <label className="btn" style={{ alignSelf: 'flex-start' }}><Icon name="upload" /> Selecionar arquivo (.zip ou .html)<input type="file" accept=".zip,.html,.htm,application/zip" hidden disabled={!!scan} onChange={(e) => pickBuild(e.target.files[0])} /></label>
+        <FilePick className="btn" disabled={!!scan} onFile={pickBuild}><Icon name="upload" /> Selecionar arquivo (.zip ou .html)</FilePick>
         {build && <div className="small">Selecionado: <b>{build.name}</b> ({fmt(build.size)})</div>}
         <p className="tiny muted" style={{ margin: 0 }}>Limite: {maxMB} MB. Aceitos dentro do .zip: HTML, JS, WebAssembly, imagens, áudio, vídeo, fontes, modelos 3D e dados (.pck, .data, .unityweb, .br, .gz…). Executáveis e scripts de servidor são bloqueados.</p>
       </section>
@@ -151,8 +151,8 @@ export default function SubmitGame() {
       <section className="card stack">
         <h3 style={{ margin: 0 }}>3. Capa e imagens</h3>
         <div className="row">
-          <label className="btn"><Icon name="upload" /> Capa<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(e) => setCover(e.target.files[0] || null)} /></label>
-          <label className="btn"><Icon name="upload" /> Imagens ({images.length}/6)<input type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif" hidden disabled={!!game} onChange={(e) => setImages([...images, ...e.target.files].slice(0, 6))} /></label>
+          <FilePick className="btn" accept="image/*" onFile={setCover}><Icon name="upload" /> Capa</FilePick>
+          <FilePick className="btn" accept="image/*" multiple disabled={!!game} onFiles={(fs) => setImages([...images, ...fs].slice(0, 6))}><Icon name="upload" /> Imagens ({images.length}/6)</FilePick>
         </div>
         <div className="row" style={{ gap: 6 }}>
           {cover && <img src={URL.createObjectURL(cover)} alt="Capa" style={{ height: 90, borderRadius: 8 }} />}

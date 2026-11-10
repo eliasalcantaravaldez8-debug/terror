@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { unzipSync } from 'three/examples/jsm/libs/fflate.module.js';
 import { GENRE_LABEL } from '../api.js';
 import { localStore } from '../localdb.js';
-import { Field, useToast } from '../components/ui.jsx';
+import { Field, useToast, FilePick } from '../components/ui.jsx';
 import { Icon } from '../components/icons.jsx';
 
 const GENRES = ['acao', 'aventura', 'terror', 'sobrevivencia', 'corrida', 'plataforma', 'mundo_aberto', 'futebol', 'esportes', 'rpg', 'estrategia', 'puzzle', 'simulacao', 'tiro', 'luta', 'casual', 'musical', 'educativo', 'outro'];
@@ -148,6 +148,8 @@ export default function LocalGames() {
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
   const [playing, setPlaying] = useState(null);
+  const [pasted, setPasted] = useState('');
+  const [pasteOpen, setPasteOpen] = useState(false);
   const reload = () => localStore.all('games').then((g) => setGames(g.sort((a, b) => b.createdAt.localeCompare(a.createdAt)))).catch(() => setGames([]));
   useEffect(() => { reload(); }, []);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
@@ -215,7 +217,21 @@ export default function LocalGames() {
 
       <section className="card stack">
         <h3 style={{ margin: 0 }}>{games?.length ? 'Enviar outro jogo' : '1. Arquivo do jogo'}</h3>
-        <label className="btn primary" style={{ alignSelf: 'flex-start' }}><Icon name="upload" /> Escolher arquivo (.html ou .zip)<input type="file" accept=".zip,.html,.htm,application/zip,text/html" hidden onChange={(e) => pick(e.target.files[0])} /></label>
+        <FilePick className="btn primary lg" onFile={pick}><Icon name="upload" /> Escolher arquivo (.html ou .zip)</FilePick>
+        <details className="small" open={pasteOpen} onToggle={(e) => setPasteOpen(e.currentTarget.open)}>
+          <summary style={{ cursor: 'pointer' }}><b>O botão não abriu?</b> Cole o código do jogo</summary>
+          <p className="tiny muted">Se o seu jogo é um arquivo .html (por exemplo, feito com outra IA), abra o arquivo ou a conversa onde está o código, copie tudo e cole aqui.</p>
+          <textarea className="input" rows={6} value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="<!doctype html> … cole aqui o código completo do jogo …" style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }} />
+          <button className="btn sm" style={{ marginTop: 6 }} onClick={() => {
+            setErr(null);
+            const code = pasted.trim();
+            if (!/<(html|body|canvas|script|div)/i.test(code)) return setErr('Isso não parece código HTML de um jogo. Cole o arquivo .html completo.');
+            const buf = new TextEncoder().encode(code).buffer;
+            setBuild({ files: { 'index.html': buf }, entry: 'index.html', notes: [], engine: 'html5', name: 'código colado', size: buf.byteLength, count: 1 });
+            setPasteOpen(false);
+          }}>Usar este código</button>
+        </details>
+        <p className="tiny muted" style={{ margin: 0 }}>Se nenhum seletor de arquivos aparecer no app do Claude, abra este mesmo link no navegador do celular (Chrome, Safari…) já logado no Claude, ou use a opção de colar o código.</p>
         {busy && <div className="spinner" />}
         {build && <div className="info-box small">✓ <b>{build.name}</b> · {fmt(build.size)} · {build.count} arquivo(s) · início: {build.entry}{build.engine !== 'html5' ? ` · feito com ${build.engine}` : ''}</div>}
         {build?.notes?.map((n) => <div key={n} className="warn-box small">{n}</div>)}
@@ -227,7 +243,7 @@ export default function LocalGames() {
         <Field label="Descrição (opcional)"><textarea className="input" rows={3} value={f.description} onChange={set('description')} /></Field>
         <Field label="Controles (opcional)"><input className="input" value={f.controls} onChange={set('controls')} placeholder="Ex.: toque para chutar" /></Field>
         <label className="row small"><input type="checkbox" checked={f.multiplayer} onChange={set('multiplayer')} /> Tem multiplayer</label>
-        <label className="btn sm" style={{ alignSelf: 'flex-start' }}><Icon name="upload" /> Capa (opcional)<input type="file" accept="image/*" hidden onChange={async (e) => { try { setCover(await readCover(e.target.files[0])); } catch (x) { setErr(x.message); } }} /></label>
+        <FilePick className="btn sm" accept="image/*" onFile={async (file) => { try { setCover(await readCover(file)); } catch (x) { setErr(x.message); } }}><Icon name="upload" /> Capa (opcional)</FilePick>
         {cover && <img src={cover} alt="Capa" style={{ maxWidth: 220, borderRadius: 8 }} />}
         {err && <div className="error-box small">{err}</div>}
         <button className="btn primary lg" disabled={busy} onClick={save}><Icon name="play" /> Salvar e jogar</button>
