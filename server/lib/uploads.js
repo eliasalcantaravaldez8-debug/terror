@@ -160,6 +160,7 @@ export function extractGameZip(zipPath, destKey) {
     fs.rmSync(dest, { recursive: true, force: true });
     throw new HttpError(400, 'O jogo precisa ter um index.html na raiz do .zip.');
   }
+  const compat = detectEngine(dest, names);
   const high = findings.some((f) => f.severity === 'high');
   const medium = findings.some((f) => f.severity === 'medium');
   return {
@@ -167,6 +168,42 @@ export function extractGameZip(zipPath, destKey) {
     fileCount: files.length,
     sizeBytes: total,
     scanStatus: high ? 'failed' : medium ? 'flagged' : 'passed',
-    report: { findings, checkedAt: new Date().toISOString() },
+    report: { findings, engine: compat.engine, compatibility: compat.notes, checkedAt: new Date().toISOString() },
   };
+}
+
+/**
+ * Identifica a ferramenta que gerou o build (pelos arquivos) e aponta problemas conhecidos de execução no navegador.
+ * Não substitui o teste: só orienta o criador e a moderação.
+ */
+export function detectEngine(dir, names) {
+  const lower = names.map((n) => n.toLowerCase());
+  const has = (re) => lower.some((n) => re.test(n));
+  const read = (n) => { try { return fs.readFileSync(path.join(dir, n), 'utf8').slice(0, 400_000); } catch { return ''; } };
+  const notes = [];
+  let engine = 'html5';
+  if (has(/\.pck$/) && has(/\.wasm$/)) {
+    engine = 'godot';
+    const html = names.filter((n) => /\.html?$/i.test(n)).map(read).join('\n');
+    if (/GODOT_THREADS_ENABLED\s*=\s*true/.test(html) || /"ensureCrossOriginIsolationHeaders"\s*:\s*true/.test(html)) {
+      notes.push({ level: 'error', text: 'Build do Godot exportado com suporte a threads: precisa de isolamento entre origens (SharedArrayBuffer), que não está disponível dentro do player da NEXPLAY. Exporte de novo com "Thread Support" desligado (Godot 4.3+).' });
+    }
+  } else if (has(/(^|\/)build\/[^/]+\.loader\.js$/) || has(/\.unityweb$/) || has(/\.framework\.js(\.(br|gz))?$/)) {
+    engine = 'unity';
+    if (has(/\.(wasm|data|framework\.js)\.br$/)) notes.push({ level: 'info', text: 'Build do Unity com compressão Brotli: a NEXPLAY envia o cabeçalho de compressão correto.' });
+  } else if (has(/\.ue4\.js$/) || has(/ue4game/) || has(/\.uasset$/)) {
+    engine = 'unreal';
+    notes.push({ level: 'warn', text: 'A exportação HTML5 oficial do Unreal foi descontinuada (UE 4.24+). Builds antigos podem funcionar; versões novas do Unreal não exportam para navegador.' });
+  } else if (has(/(^|\/)c3runtime\.js$/) || has(/(^|\/)c2runtime\.js$/)) engine = 'construct';
+  else if (has(/phaser(\.min)?\.js$/)) engine = 'phaser';
+  else if (has(/three(\.module)?(\.min)?\.js$/)) engine = 'threejs';
+  if (!has(/\.wasm$/) && engine === 'godot') notes.push({ level: 'error', text: 'Faltou o arquivo .wasm do Godot no pacote.' });
+  return { engine, notes };
+}
+
+/** Empacota um único arquivo .html como build (vira index.html). */
+export function wrapHtmlAsZip(htmlPath, zipPath) {
+  const z = new AdmZip();
+  z.addFile('index.html', fs.readFileSync(htmlPath));
+  z.writeZip(zipPath);
 }

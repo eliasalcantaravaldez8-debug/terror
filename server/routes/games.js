@@ -8,17 +8,17 @@ import { config } from '../config.js';
 import { HttpError, rateLimiter, slugify, randomToken } from '../lib/security.js';
 import { requireAuth, publicUser } from '../lib/auth.js';
 import { parse, z, text, id, httpUrl } from '../lib/validate.js';
-import { saveImage, extractGameZip } from '../lib/uploads.js';
+import { saveImage, extractGameZip, wrapHtmlAsZip } from '../lib/uploads.js';
 import { getSetting } from '../db/index.js';
 import { notify, logActivity, audit, entitlements, activePlanCode } from '../lib/services.js';
 import { checkPlatformAchievements, unlockAchievement } from '../lib/rewards.js';
 import { signPlayToken, sandboxBase } from '../lib/playtoken.js';
 import { validateProject } from '../ai/project.js';
+import { GAME_GENRES } from '../../shared/project.js';
 
 const r = Router();
 
-export const GENRES = ['acao', 'aventura', 'terror', 'sobrevivencia', 'corrida', 'plataforma', 'mundo_aberto', 'futebol',
-  'esportes', 'rpg', 'estrategia', 'puzzle', 'simulacao', 'tiro', 'luta', 'casual', 'musical', 'educativo', 'outro'];
+export const GENRES = GAME_GENRES;
 export const MODES = ['solo', 'public_mp', 'private_rooms', 'coop', 'competitive', 'local'];
 export const ONLINE_MODES = ['public_mp', 'private_rooms', 'coop', 'competitive'];
 
@@ -39,7 +39,7 @@ export function gameCard(g) {
     id: g.id, slug: g.slug, title: g.title, shortDescription: g.short_description, coverUrl: g.cover_url,
     genre: g.genre, tags: JSON.parse(g.tags), ageRating: g.age_rating, platforms: g.platforms,
     modes: JSON.parse(g.modes), maxPlayers: g.max_players, priceCents: g.price_cents,
-    status: g.status, releaseStage: g.release_stage, expectedRelease: g.expected_release,
+    status: g.status, releaseStage: g.release_stage, expectedRelease: g.expected_release, buildKind: g.build_kind, sourceEngine: g.source_engine || null,
     rating: ratingOf(g.id), views: g.views, publishedAt: g.published_at,
     creator: creator && { username: creator.username, displayName: creator.display_name, avatarUrl: creator.avatar_url },
     studio: studio && { slug: studio.slug, name: studio.name, logoUrl: studio.logo_url },
@@ -383,7 +383,9 @@ r.get('/:id', (req, res) => {
 });
 
 // ───────── Criação e edição ─────────
+const ENGINES = ['godot', 'unity', 'unreal', 'construct', 'gamemaker', 'phaser', 'threejs', 'html5', 'outro'];
 const gameFields = z.object({
+  sourceEngine: z.enum(ENGINES).optional(),
   title: text(80).pipe(z.string().min(2, 'Título muito curto.')),
   shortDescription: text(200).default(''),
   description: text(20000).default(''),
@@ -429,6 +431,7 @@ r.post('/', requireAuth, writeLimiter, (req, res) => {
   slug, b.title, b.shortDescription, b.description, req.user.id, studioId, b.genre, JSON.stringify(b.tags), b.ageRating, b.platforms,
   b.controls, JSON.stringify(b.modes), b.maxPlayers, b.priceCents, b.acceptsCredits ? 1 : 0, b.acceptsDonations ? 1 : 0,
   b.releaseStage, b.expectedRelease ?? null, b.betaMode, b.rightsConfirmed ? 1 : 0);
+  if (b.sourceEngine) run('UPDATE games SET source_engine=? WHERE id=?', b.sourceEngine, g.lastInsertRowid);
   res.status(201).json({ game: gameCard(one('SELECT * FROM games WHERE id=?', g.lastInsertRowid)) });
 });
 
@@ -441,7 +444,7 @@ r.patch('/:id', requireAuth, writeLimiter, (req, res) => {
   const map = {
     title: 'title', shortDescription: 'short_description', description: 'description', genre: 'genre', ageRating: 'age_rating',
     platforms: 'platforms', controls: 'controls', maxPlayers: 'max_players', priceCents: 'price_cents', releaseStage: 'release_stage',
-    expectedRelease: 'expected_release', betaMode: 'beta_mode', studioId: 'studio_id',
+    expectedRelease: 'expected_release', betaMode: 'beta_mode', studioId: 'studio_id', sourceEngine: 'source_engine',
   };
   const sets = [];
   const vals = [];
@@ -521,8 +524,16 @@ r.post('/:id/versions', requireAuth, zipUpload.single('file'), (req, res) => {
   const cleanup = () => req.file && fs.rmSync(req.file.path, { force: true });
   try {
     const b = parse(versionFields, req.body);
-    if (!req.file) throw new HttpError(400, 'Envie o build do jogo em .zip.');
-    if (!/\.zip$/i.test(req.file.originalname)) throw new HttpError(400, 'O build precisa ser um arquivo .zip.');
+    if (!req.file) throw new HttpError(400, 'Envie o build do jogo (.zip ou .html).');
+    const lowerName = req.file.originalname.toLowerCase();
+    if (/\.(exe|apk|aab|ipa|dmg|app|msi|deb|rpm|x86_64|pck)$/.test(lowerName)) throw new HttpError(400, 'Executáveis e pacotes nativos não podem rodar com segurança no navegador. Exporte o jogo para Web/HTML5 e envie o .zip da exportação.', 'native_build');
+    if (/\.html?$/.test(lowerName)) {
+      // Jogo de arquivo único: vira index.html dentro de um pacote e segue a mesma verificação.
+      const zipped = `${req.file.path}.zip`;
+      wrapHtmlAsZip(req.file.path, zipped);
+      fs.rmSync(req.file.path, { force: true });
+      req.file.path = zipped;
+    } else if (!/\.zip$/.test(lowerName)) throw new HttpError(400, 'Envie um .zip com a exportação Web/HTML5 do jogo (com index.html) ou um único arquivo .html.');
     if (one('SELECT 1 FROM game_versions WHERE game_id=? AND version=?', g.id, b.version)) throw new HttpError(409, 'Esta versão já existe.');
     const key = nextVersionDir(g.id);
     const result = extractGameZip(req.file.path, key);
@@ -543,7 +554,8 @@ r.post('/:id/versions', requireAuth, zipUpload.single('file'), (req, res) => {
     result.scanStatus, JSON.stringify(result.report));
     run(`UPDATE games SET build_kind='html5', download_enabled=?, updated_at=? WHERE id=?`, b.downloadable ? 1 : g.download_enabled, new Date().toISOString(), g.id);
     queueReviewIfLive(g, v.lastInsertRowid);
-    res.status(201).json({ versionId: v.lastInsertRowid, scan: { status: result.scanStatus, findings: result.report.findings }, fileCount: result.fileCount });
+    if (result.report.engine && result.report.engine !== 'html5' && !g.source_engine) run('UPDATE games SET source_engine=? WHERE id=?', result.report.engine, g.id);
+    res.status(201).json({ versionId: v.lastInsertRowid, scan: { status: result.scanStatus, findings: result.report.findings, engine: result.report.engine, compatibility: result.report.compatibility }, fileCount: result.fileCount, sizeBytes: result.sizeBytes });
   } finally {
     cleanup();
   }

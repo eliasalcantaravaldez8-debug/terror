@@ -30,6 +30,9 @@ export function styleConflict(projectStyle, assetStyle) {
   return `estilo "${assetStyle}" em projeto "${projectStyle}"`;
 }
 
+/** Gêneros de jogo (os mesmos do catálogo/Arcade). O gênero é só uma informação do projeto: não carrega conteúdo. */
+export const GAME_GENRES = ['acao', 'aventura', 'terror', 'sobrevivencia', 'corrida', 'plataforma', 'mundo_aberto', 'futebol',
+  'esportes', 'rpg', 'estrategia', 'puzzle', 'simulacao', 'tiro', 'luta', 'casual', 'musical', 'educativo', 'outro'];
 export const GENRE_TEMPLATES = ['futebol', 'acao', 'terror', 'sobrevivencia', 'corrida', 'plataforma', 'mundo_aberto', 'aventura', 'vazio'];
 
 let counter = 0;
@@ -90,8 +93,12 @@ function baseDoc(name, dimension, genre) {
 const mat = (preset, extra = {}) => ({ type: 'pbr', preset, color: null, roughness: null, metalness: null, textureScale: 1, normalStrength: 1, emissive: null, emissiveIntensity: 0, opacity: 1, map: null, ...extra });
 
 /** Cria um projeto a partir de um modelo de gênero. Os modelos são pontos de partida editáveis, não jogos prontos. */
-export function createProject({ name, dimension = '3d', template = 'vazio' }) {
-  const doc = baseDoc(name, dimension, template);
+/**
+ * Cria o documento de um projeto NOVO. template 'vazio' (padrão) = estrutura inicial em branco (chão, luz e jogador);
+ * os demais modelos são pontos de partida opcionais com conteúdo de exemplo. genre é só metadado.
+ */
+export function createProject({ name, dimension = '3d', template = 'vazio', genre }) {
+  const doc = baseDoc(name, dimension, genre || (template === 'vazio' ? 'outro' : template));
   const add = (e) => { doc.entities.push(e); return e; };
   doc.materials.ground = mat('grass', { textureScale: 40 });
 
@@ -233,7 +240,7 @@ function defaultTilemap(template) {
   const W = 100;
   const H = 22;
   const rows = Array.from({ length: H }, () => '0'.repeat(W).split(''));
-  for (let x = 0; x < W; x++) { rows[H - 1][x] = '1'; rows[H - 2][x] = x % 17 === 9 || x % 17 === 10 ? '0' : '1'; }
+  for (let x = 0; x < W; x++) { rows[H - 1][x] = '1'; rows[H - 2][x] = template !== 'vazio' && (x % 17 === 9 || x % 17 === 10) ? '0' : '1'; }
   for (let x = 0; x < W; x++) if (rows[H - 2][x] === '0') rows[H - 1][x] = '4';
   if (template !== 'vazio') {
     for (const [x0, y, len] of [[12, 16, 5], [22, 13, 4], [34, 15, 6], [48, 12, 4], [60, 14, 5], [74, 11, 6], [86, 15, 4]]) {

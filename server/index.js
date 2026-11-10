@@ -70,6 +70,7 @@ export function createApp({ sandboxApp } = {}) {
 
   app.get('/api/health', (_req, res) => res.json({
     ok: true,
+    limits: { gameUploadMB: config.limits.gameUploadMB },
     services: {
       database: 'ok',
       email: mailConfigured() ? 'configured' : 'not_configured',

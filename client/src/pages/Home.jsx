@@ -24,7 +24,7 @@ function Hero({ data, user }) {
       <h1 style={{ marginTop: 12 }}>Jogue, conecte-se e <span className="gradient-text">crie jogos</span> com a NEXPLAY AI.</h1>
       <p className="muted" style={{ maxWidth: 620 }}>Publique seus jogos, construa mundos 2D e 3D no NEXPLAY STUDIO e use especialistas de IA para programar, montar cenários, texturas, animações e testes.</p>
       <div className="row mt">
-        <Link className="btn primary lg" to={user ? '/studio' : '/cadastro'}><Icon name="cube" /> {user ? 'Abrir o Studio' : 'Criar conta grátis'}</Link>
+        <Link className="btn primary lg" to={user ? '/studio/novo' : '/cadastro'}><Icon name="plus" /> {user ? 'Criar jogo' : 'Criar conta grátis'}</Link>
         <Link className="btn lg" to="/arcade"><Icon name="gamepad" /> NEXPLAY Arcade</Link>
       </div>
     </section>
@@ -44,8 +44,9 @@ export default function Home() {
               <Empty icon="gamepad" title="Ainda não temos jogos publicados.">
                 <p>Seja um dos primeiros criadores da NEXPLAY!</p>
                 <div className="row" style={{ justifyContent: 'center', marginTop: 14 }}>
-                  <Link className="btn primary" to={user ? '/studio' : '/cadastro'}><Icon name="plus" /> Criar meu jogo</Link>
+                  <Link className="btn primary" to={user ? '/studio/novo' : '/cadastro'}><Icon name="plus" /> Criar meu jogo</Link>
                   <Link className="btn" to="/studio"><Icon name="cube" /> Explorar o NEXPLAY Studio</Link>
+                  <Link className="btn" to={user ? '/enviar-jogo' : '/cadastro'}><Icon name="upload" /> Enviar jogo pronto</Link>
                 </div>
               </Empty>
             </div>

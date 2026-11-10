@@ -22,6 +22,8 @@ function open() {
 function migrate(database) {
   const cols = (t) => database.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
   if (!cols('project_assets').includes('meta')) database.exec(`ALTER TABLE project_assets ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'`);
+  if (!cols('projects').includes('genre')) database.exec(`ALTER TABLE projects ADD COLUMN genre TEXT`);
+  if (!cols('games').includes('source_engine')) database.exec(`ALTER TABLE games ADD COLUMN source_engine TEXT`);
   // CHECK de kind em project_assets passou a aceitar 'sprite'; tabelas antigas continuam usando 'texture' para sprites.
 }
 

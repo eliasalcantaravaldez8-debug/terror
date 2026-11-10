@@ -29,7 +29,7 @@ function client() {
     const t = await res.text(); let data; try { data = JSON.parse(t); } catch { data = t; }
     return { status: res.status, data };
   };
-  return { get: (u) => req('GET', u), post: (u, b) => req('POST', u, b ?? {}) };
+  return { get: (u) => req('GET', u), post: (u, b) => req('POST', u, b ?? {}), req, cookie: () => cookie };
 }
 let n = 0;
 async function newUser(p = 'u') { const c = client(); n++; const r = await c.post('/api/auth/register', { username: `${p}${n}`, email: `${p}${n}@t.dev`, password: 'senhaForte123', acceptTerms: true }); assert.equal(r.status, 201); c.user = r.data.user; return c; }
@@ -156,4 +156,78 @@ test('com publicação automática desligada, o jogo do Studio vai para a modera
   assert.equal(r.data.status, 'pending_review');
   assert.ok(!(await client().get('/api/games/arcade?tab=search&q=Na%20Fila')).data.games.length);
   setSetting('publishing', { auto_publish_studio: true, require_runtime_test: true });
+});
+
+test('"Criar jogo" sempre cria um projeto novo, independente e em branco', async () => {
+  const dev = await newUser('novo');
+  const a = await dev.post('/api/projects', { name: 'Meu Terror', dimension: '3d', genre: 'terror' });
+  assert.equal(a.status, 201, JSON.stringify(a.data));
+  assert.equal(a.data.project.template, 'vazio'); assert.equal(a.data.project.genre, 'terror'); assert.equal(a.data.project.blank, true);
+  const docA = (await dev.get(`/api/projects/${a.data.project.id}`)).data.doc;
+  assert.equal(docA.meta.genre, 'terror'); assert.equal(docA.meta.name, 'Meu Terror');
+  assert.deepEqual([...new Set(docA.entities.map((e) => e.type))].sort(), ['character', 'light', 'terrain']);
+  assert.equal(docA.missions.length, 0);
+  // Um segundo projeto é outro registro, com outro id e documento próprio
+  const b = await dev.post('/api/projects', { name: 'Plataforma Nova', dimension: '2d', genre: 'plataforma' });
+  assert.notEqual(b.data.project.id, a.data.project.id);
+  const docB = (await dev.get(`/api/projects/${b.data.project.id}`)).data.doc;
+  assert.equal(docB.meta.dimension, '2d'); assert.equal(docB.missions.length, 0);
+  const tiles = docB.entities.find((e) => e.type === 'tilemap').props.rows.join('');
+  assert.ok(!/[2345]/.test(tiles), 'mapa 2D em branco não tem plataformas, moedas, espinhos ou bandeira');
+  // Editar um não altera o outro
+  const ed = await dev.req('PUT', `/api/projects/${a.data.project.id}`, { doc: { ...docA, meta: { ...docA.meta, description: 'editado' } }, baseRevision: 1, source: 'manual' });
+  assert.equal(ed.status, 200, JSON.stringify(ed.data));
+  assert.equal((await dev.get(`/api/projects/${b.data.project.id}`)).data.doc.meta.description, '');
+  // Modelo com conteúdo só quando pedido
+  const t = await dev.post('/api/projects', { name: 'Com modelo', dimension: '3d', genre: 'terror', template: 'terror' });
+  assert.ok((await dev.get(`/api/projects/${t.data.project.id}`)).data.doc.missions.length > 0);
+  // Renomear e excluir
+  assert.equal((await dev.req('PATCH', `/api/projects/${b.data.project.id}`, { name: 'Plataforma 2', genre: 'casual' })).data.project.genre, 'casual');
+  assert.equal((await dev.req('DELETE', `/api/projects/${t.data.project.id}`)).status, 200);
+  const list = (await dev.get('/api/projects')).data.projects.map((p) => p.id);
+  assert.ok(list.includes(a.data.project.id) && list.includes(b.data.project.id) && !list.includes(t.data.project.id));
+  assert.equal((await dev.get(`/api/projects/${t.data.project.id}`)).status, 404);
+  // Nenhum projeto vira jogo no Arcade sozinho
+  assert.equal(Number(one('SELECT COUNT(*) AS c FROM games WHERE studio_project_id IN (?,?)', a.data.project.id, b.data.project.id).c), 0);
+});
+
+test('"Enviar jogo pronto": validação, detecção da ferramenta, análise e o mesmo Arcade', async () => {
+  const AdmZip = (await import('adm-zip')).default;
+  const dev = await newUser('envio'); const admin = await newUser('adm');
+  run(`UPDATE users SET role='admin' WHERE id=?`, admin.user.id);
+  const upload = async (gid, name, buf, version) => {
+    const fd = new FormData(); fd.append('file', new Blob([buf]), name); fd.append('version', version);
+    const res = await fetch(`${base}/api/games/${gid}/versions`, { method: 'POST', headers: { 'X-NX-Client': '1', Cookie: dev.cookie() }, body: fd });
+    return { status: res.status, data: await res.json() };
+  };
+  const g = (await dev.post('/api/games', { sourceEngine: 'godot', title: 'Cavernas', genre: 'aventura', ageRating: 'L', platforms: 'pc', controls: 'Setas', description: 'Um jogo de aventura feito no Godot e exportado para a Web, com cavernas e tesouros.', rightsConfirmed: true, releaseStage: 'released', betaMode: 'none' })).data.game;
+  assert.equal(g.sourceEngine, 'godot');
+  // Executável é recusado
+  assert.equal((await upload(g.id, 'jogo.exe', Buffer.from('MZ'), '0.1')).data.error.code, 'native_build');
+  // Godot exportado com threads → aviso de incompatibilidade
+  const zg = new AdmZip(); zg.addFile('index.html', Buffer.from('<script>const GODOT_THREADS_ENABLED = true;</script>')); zg.addFile('game.pck', Buffer.from('x')); zg.addFile('game.wasm', Buffer.from('x'));
+  const rg = await upload(g.id, 'godot.zip', zg.toBuffer(), '0.2');
+  assert.equal(rg.status, 201, JSON.stringify(rg.data)); assert.equal(rg.data.scan.engine, 'godot');
+  assert.ok(rg.data.scan.compatibility.some((n) => n.level === 'error'));
+  // Um único .html vira build com index.html
+  const rh = await upload(g.id, 'jogo.html', Buffer.from('<!doctype html><canvas></canvas><script>console.log("ok")</script>'), '1.0.0');
+  assert.equal(rh.status, 201, JSON.stringify(rh.data)); assert.equal(rh.data.scan.status, 'passed');
+  // Unity detectado
+  const g2 = (await dev.post('/api/games', { title: 'Corrida U', genre: 'corrida', ageRating: 'L', platforms: 'both', description: 'Corrida feita na Unity exportada em WebGL, com três pistas e modo contra o relógio.', rightsConfirmed: true })).data.game;
+  const zu = new AdmZip(); zu.addFile('index.html', Buffer.from('<canvas id="unity-canvas"></canvas>')); zu.addFile('Build/Corrida.loader.js', Buffer.from('//')); zu.addFile('Build/Corrida.wasm.br', Buffer.from('x'));
+  assert.equal((await upload(g2.id, 'unity.zip', zu.toBuffer(), '1.0')).data.scan.engine, 'unity');
+  // Envio para análise exige capa; depois de aprovado aparece no Arcade junto com jogos do Studio
+  assert.equal((await dev.post(`/api/games/${g.id}/submit`)).status, 400);
+  const fd = new FormData(); fd.append('file', new Blob([Buffer.from(PNG.split(',')[1], 'base64')]), 'c.png');
+  await fetch(`${base}/api/games/${g.id}/cover`, { method: 'POST', headers: { 'X-NX-Client': '1', Cookie: dev.cookie() }, body: fd });
+  assert.equal((await dev.post(`/api/games/${g.id}/submit`)).data.status, 'pending_review');
+  assert.ok(!(await client().get('/api/games/arcade?tab=search&q=Cavernas')).data.games.length, 'não aparece antes da análise');
+  assert.equal((await admin.post(`/api/admin/moderation/games/${g.id}`, { decision: 'approve' })).status, 200);
+  const found = (await client().get('/api/games/arcade?tab=search&q=Cavernas')).data.games[0];
+  assert.equal(found.buildKind, 'html5'); assert.equal(found.sourceEngine, 'godot'); assert.equal(found.creator.username, dev.user.username);
+  const kinds = new Set((await client().get('/api/games/arcade')).data.games.map((x) => x.buildKind));
+  assert.ok(kinds.has('studio') && kinds.has('html5'), 'Studio e envios prontos no mesmo Arcade');
+  // Jogo enviado roda na origem isolada, nunca no site principal
+  const play = await (await newUser('jog')).post(`/api/games/${g.slug}/play`);
+  assert.match(play.data.url, /^http:\/\/sandbox\.test\/p\//);
 });

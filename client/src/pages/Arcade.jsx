@@ -2,7 +2,7 @@
 // Nada aqui é pré-instalado. Rankings vêm de sessões de jogo reais registradas pelo servidor.
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { api, GENRE_LABEL } from '../api.js';
+import { api, GENRE_LABEL, originLabel } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { useLoad, Loader, GameCard } from '../components/ui.jsx';
 import { Icon } from '../components/icons.jsx';
@@ -22,9 +22,10 @@ function ArcadeEmpty({ user }) {
       <h2>Ainda não temos jogos publicados.</h2>
       <p className="muted">Seja um dos primeiros criadores da NEXPLAY!</p>
       <div className="row" style={{ justifyContent: 'center', marginTop: 18, flexWrap: 'wrap' }}>
-        <Link className="btn primary lg" to={user ? '/studio' : '/cadastro'}><Icon name="plus" /> Criar meu jogo</Link>
+        <Link className="btn primary lg" to={user ? '/studio/novo' : '/cadastro'}><Icon name="plus" /> Criar meu jogo</Link>
         <Link className="btn lg" to="/studio"><Icon name="cube" /> Explorar o NEXPLAY Studio</Link>
       </div>
+      <p className="small muted" style={{ marginTop: 14 }}>Já tem um jogo feito no Godot, Unity, Construct ou HTML5? <Link to={user ? '/enviar-jogo' : '/cadastro'}>Enviar jogo pronto</Link>.</p>
       <p className="tiny muted" style={{ marginTop: 18, maxWidth: 520 }}>Os modelos do Studio (futebol, terror, corrida, aventura…) são pontos de partida para criar o seu jogo — eles não aparecem aqui. Só entram no Arcade os jogos que criadores publicam.</p>
     </div>
   );
@@ -59,13 +60,14 @@ export default function Arcade() {
             <Icon name={icon} size={16} /> {label}
           </button>
         ))}
-        <Link className="btn primary sm arcade-side-cta" to={user ? '/studio' : '/cadastro'}><Icon name="plus" /> Publicar meu jogo</Link>
+        <Link className="btn primary sm arcade-side-cta" to={user ? '/studio/novo' : '/cadastro'}><Icon name="plus" /> Criar jogo</Link>
+        <Link className="btn sm arcade-side-cta" style={{ marginTop: 4 }} to={user ? '/enviar-jogo' : '/cadastro'}><Icon name="upload" /> Enviar jogo pronto</Link>
       </aside>
       <section className="arcade-main">
         <div className="row between" style={{ flexWrap: 'wrap', gap: 8 }}>
           <div>
             <h1 style={{ margin: 0 }}>{TABS.find(([k]) => k === tab)[2]}</h1>
-            <p className="muted small" style={{ margin: '4px 0 0' }}>Jogos criados pela comunidade no NEXPLAY Studio.</p>
+            <p className="muted small" style={{ margin: '4px 0 0' }}>Jogos da comunidade: criados no NEXPLAY Studio ou enviados prontos.</p>
           </div>
         </div>
         {tab === 'search' && <SearchFilters f={f} setF={setF} />}
@@ -83,7 +85,7 @@ export default function Arcade() {
                     <div key={g.id} className="arcade-item">
                       {(tab === 'month' || tab === 'week' || tab === 'trending') && <span className="arcade-rank">#{i + 1}</span>}
                       <GameCard game={g} />
-                      <div className="tiny muted" style={{ padding: '4px 2px' }}>{g.stats.playersTotal} {g.stats.playersTotal === 1 ? 'jogador' : 'jogadores'}</div>
+                      <div className="tiny muted" style={{ padding: '4px 2px' }}>{originLabel(g)} · {g.stats.playersTotal} {g.stats.playersTotal === 1 ? 'jogador' : 'jogadores'}</div>
                     </div>
                   ))}
                 </div>

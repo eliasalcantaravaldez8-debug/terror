@@ -68,3 +68,6 @@ export const MODE_LABEL = { solo: 'Solo', public_mp: 'Multiplayer público', pri
 export const PLATFORM_LABEL = { pc: 'PC', mobile: 'Celular', both: 'PC e celular' };
 export const STAGE_LABEL = { announced: 'Anunciado', in_development: 'Em desenvolvimento', early_access: 'Acesso antecipado', beta: 'Beta', released: 'Lançado' };
 export const isMobileDevice = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
+export const ENGINE_LABEL = { godot: 'Godot', unity: 'Unity', unreal: 'Unreal Engine', construct: 'Construct', gamemaker: 'GameMaker', phaser: 'Phaser', threejs: 'Three.js', html5: 'HTML5', outro: 'outra ferramenta' };
+/** De onde veio o jogo: criado no NEXPLAY Studio ou enviado pronto. */
+export const originLabel = (g) => (g.buildKind === 'studio' ? 'Criado no NEXPLAY Studio' : g.buildKind === 'html5' ? `Enviado pronto · ${ENGINE_LABEL[g.sourceEngine] || 'HTML5'}` : null);

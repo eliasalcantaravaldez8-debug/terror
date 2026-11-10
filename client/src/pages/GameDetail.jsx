@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { api, ago, brl, GENRE_LABEL, MODE_LABEL, PLATFORM_LABEL, STAGE_LABEL, isMobileDevice } from '../api.js';
+import { api, ago, brl, GENRE_LABEL, MODE_LABEL, PLATFORM_LABEL, STAGE_LABEL, isMobileDevice, originLabel } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { useLoad, Loader, Stars, Avatar, ActionButton, ReportButton, Tabs, Modal, Field, useToast } from '../components/ui.jsx';
 import { Icon } from '../components/icons.jsx';
@@ -84,6 +84,7 @@ export default function GameDetail() {
                 <div className="row small">
                   <Link to={game.studio ? `/estudios/${game.studio.slug}` : `/u/${game.creator.username}`} className="row"><Avatar user={game.creator} size={26} /> {game.studio?.name || game.creator.displayName}</Link>
                   <span className="muted">· {followers} seguidores</span>
+                  {originLabel(game) && <span className="pill">{originLabel(game)}</span>}
                 </div>
                 <div className="row"><Stars value={game.rating.avg} /><span className="small muted">{game.rating.count} avaliações</span></div>
                 <div className="small stack" style={{ gap: 4 }}>

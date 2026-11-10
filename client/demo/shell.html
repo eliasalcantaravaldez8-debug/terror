@@ -43,6 +43,19 @@ select { font: inherit; color: var(--fg); background: var(--panel); border: 1px 
 .tpl .desc { color: var(--muted); font-size: 14px; }
 .tpl .kind { font-size: 11px; letter-spacing: .12em; color: var(--cyan); font-weight: 600; }
 .tpl .tag { font-size: 12px; color: var(--violet); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.h2 { font: 700 22px var(--display); margin: 0; }
+.h2 small { font: 500 13px var(--body); color: var(--muted); }
+.form { display: grid; gap: 12px; max-width: 520px; }
+.form label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.form input:not([type=radio]) { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.seg { display: flex; gap: 8px; }
+.seg label { display: flex; align-items: center; gap: 6px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font-size: 15px; }
+.err { color: #fda4af; margin: 0; font-size: 13px; }
+.proj { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line); padding: 10px 0; }
+.proj:first-child { border-top: 0; }
+.proj .meta { color: var(--muted); font-size: 12px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
 .how { border-top: 1px solid var(--line); padding-top: 14px; color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
 #stage { position: fixed; inset: 0; background: #000; }
 #back { position: fixed; z-index: 50; top: calc(10px + env(safe-area-inset-top, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); font: 600 14px var(--body); color: var(--fg); background: rgba(18, 15, 38, .85); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; cursor: pointer; }
@@ -58,7 +71,7 @@ select { font: inherit; color: var(--fg); background: var(--panel); border: 1px 
     <h1>NEX<b>PLAY</b></h1>
     <nav class="top-nav" aria-label="Seções"><button data-view="arcade" aria-current="page">Arcade</button><button data-view="studio">NEXPLAY Studio</button></nav>
   </div>
-  <p class="notice">Prévia sem servidor: esta página <b>não está conectada ao banco de dados da NEXPLAY</b>, então não mostra jogos publicados nem permite publicar. Na plataforma completa, o Arcade lista os jogos que os criadores publicam pelo Studio.</p>
+  <p class="notice">Prévia sem servidor: esta página <b>não está conectada ao banco de dados da NEXPLAY</b>, então não mostra jogos publicados nem permite publicar ou enviar jogos. Na plataforma completa, o Arcade lista os jogos que os criadores publicam pelo Studio ou enviam prontos.</p>
 
   <section id="view-arcade" class="arcade" aria-label="NEXPLAY Arcade">
     <div class="side" role="tablist" aria-label="Seções do Arcade">
@@ -76,21 +89,42 @@ select { font: inherit; color: var(--fg); background: var(--panel); border: 1px 
         <div class="ic" aria-hidden="true">🎮</div>
         <h3>Ainda não temos jogos publicados.</h3>
         <p>Seja um dos primeiros criadores da NEXPLAY!</p>
-        <div class="row"><button class="btn primary" data-view="studio">＋ Criar meu jogo</button><button class="btn" data-view="studio">Explorar o NEXPLAY Studio</button></div>
+        <div class="row"><button class="btn primary" data-view="studio" data-focus="np-name">＋ Criar meu jogo</button><button class="btn" data-view="studio">Explorar o NEXPLAY Studio</button></div>
       </div>
     </div>
   </section>
 
-  <section id="view-studio" hidden aria-label="NEXPLAY Studio">
-    <h2 style="font:700 26px var(--display);margin:0">Modelos para começar</h2>
-    <p class="sub" style="color:var(--muted);margin:2px 0 12px">Pontos de partida do NEXPLAY Studio — não são jogos publicados. Toque para testar o motor no seu aparelho. Para editar, salvar e publicar no Arcade, use a plataforma completa (com conta e servidor).</p>
-    <div class="controls" style="margin-bottom:12px">
-      <label for="quality">Gráficos</label>
-      <select id="quality"><option value="low">Baixa (celular)</option><option value="medium">Média</option><option value="high">Alta</option><option value="ultra">Ultra</option></select>
-      <span>Comece pela Plataforma 2D se o aparelho for simples.</span>
+  <section id="view-studio" hidden aria-label="NEXPLAY Studio" style="display:grid;gap:18px">
+    <div class="panel">
+      <h2 class="h2">Criar jogo</h2>
+      <p class="sub">Cria um projeto <b>novo e em branco</b> (chão, luz e o personagem do jogador). Nesta prévia ele fica salvo <b>só neste aparelho</b>; o editor completo, a nuvem e a publicação no Arcade precisam da plataforma com servidor.</p>
+      <form id="new-form" class="form">
+        <label>Nome do projeto<input id="np-name" maxlength="60" placeholder="Ex.: Fuga da Cidade Neon" required></label>
+        <div class="seg" role="radiogroup" aria-label="Tipo"><label><input type="radio" name="np-dim" value="3d" checked> 3D</label><label><input type="radio" name="np-dim" value="2d"> 2D</label></div>
+        <label>Gênero<select id="np-genre" required><option value="">Escolha…</option></select></label>
+        <p id="np-err" class="err" hidden></p>
+        <button class="btn primary" type="submit">＋ Criar projeto</button>
+      </form>
     </div>
-    <div id="templates"></div>
-    <div class="how" style="margin-top:16px">
+    <div class="panel">
+      <h2 class="h2">Meus projetos <small>(neste aparelho)</small></h2>
+      <div id="my-projects"></div>
+    </div>
+    <div class="panel">
+      <h2 class="h2">Enviar jogo pronto</h2>
+      <p class="sub">Para jogos feitos no Godot, Unity, Construct, Phaser ou HTML5 (exportação Web em .zip ou .html). O envio, a verificação de segurança, o teste no player isolado e a análise acontecem no servidor da NEXPLAY — <b>nesta prévia sem servidor não é possível enviar</b>.</p>
+      <button class="btn" type="button" disabled title="Precisa do servidor da NEXPLAY">Enviar jogo pronto (requer servidor)</button>
+    </div>
+    <details class="panel">
+      <summary class="h2" style="cursor:pointer">Modelos de exemplo (opcional)</summary>
+      <p class="sub">Exemplos prontos do Studio para conhecer o motor — não são jogos publicados e não são o seu projeto.</p>
+      <div class="controls" style="margin-bottom:12px">
+        <label for="quality">Gráficos</label>
+        <select id="quality"><option value="low">Baixa (celular)</option><option value="medium">Média</option><option value="high">Alta</option><option value="ultra">Ultra</option></select>
+      </div>
+      <div id="templates"></div>
+    </details>
+    <div class="how">
       <span><b>Celular:</b> joystick à esquerda, botões PULO e AÇÃO à direita.</span>
       <span><b>Computador:</b> WASD ou setas para mover, Shift corre, Espaço pula, F ou clique para ação, E conversa, Esc pausa.</span>
     </div>

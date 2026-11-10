@@ -50,7 +50,7 @@ export default function PublishModal({ project, doc, save, onClose, sceneSnapsho
         platforms: game.platforms, modes: game.modes, maxPlayers: game.maxPlayers, controls: game.controls || '', version: bump(game.lastVersion), changelog: '',
         priceCents: game.priceCents, ageRating: game.ageRating, rightsConfirmed: false,
       } : {
-        title: doc.meta.name || project.name, shortDescription: '', description: doc.meta.description || '', genre: GENRE_FROM_TEMPLATE[project.template] || 'outro', tags: '',
+        title: doc.meta.name || project.name, shortDescription: '', description: doc.meta.description || '', genre: (project.genre && project.genre !== 'outro' ? project.genre : GENRE_FROM_TEMPLATE[project.template]) || 'outro', tags: '',
         platforms: 'both', modes: ['solo'], maxPlayers: 1,
         controls: is3d ? 'PC: WASD para mover, Shift corre, Espaço pula, E interage, Esc pausa. Celular: analógico na tela + botões AÇÃO e PULO.' : 'PC: setas/WASD para mover e Espaço para pular. Celular: analógico na tela + botão PULO.',
         version: '1.0.0', changelog: 'Primeira versão.', priceCents: 0, ageRating: 'L', rightsConfirmed: false,

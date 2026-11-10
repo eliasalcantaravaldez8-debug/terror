@@ -183,6 +183,7 @@ CREATE TABLE IF NOT EXISTS games (
   current_version_id INTEGER,
   download_enabled INTEGER NOT NULL DEFAULT 0,
   studio_project_id INTEGER,
+  source_engine TEXT,              -- ferramenta usada em jogos enviados prontos (godot, unity, ...)
   views INTEGER NOT NULL DEFAULT 0,
   published_at TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -630,7 +631,8 @@ CREATE TABLE IF NOT EXISTS projects (
   owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   dimension TEXT NOT NULL CHECK (dimension IN ('2d','3d')),
-  template TEXT NOT NULL,
+  template TEXT NOT NULL,          -- ponto de partida ('vazio' = em branco)
+  genre TEXT,                      -- gênero informado pelo criador (metadado)
   mode TEXT NOT NULL DEFAULT 'easy' CHECK (mode IN ('easy','advanced')),
   data TEXT NOT NULL,              -- documento do projeto (JSON)
   size_bytes INTEGER NOT NULL DEFAULT 0,

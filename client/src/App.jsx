@@ -30,6 +30,7 @@ const GameEditor = lazy(() => import('./pages/GameEditor.jsx'));
 const Studios = lazy(() => import('./pages/Studios.jsx'));
 const StudioPage = lazy(() => import('./pages/StudioPage.jsx'));
 const StudioHome = lazy(() => import('./pages/StudioHome.jsx'));
+const SubmitGame = lazy(() => import('./pages/SubmitGame.jsx'));
 const StudioEditor = lazy(() => import('./studio/StudioEditor.jsx'));
 const DeluxeLab = lazy(() => import('./pages/DeluxeLab.jsx'));
 const Admin = lazy(() => import('./pages/admin/Admin.jsx'));
@@ -38,7 +39,7 @@ const Terms = lazy(() => import('./pages/Terms.jsx'));
 const NAV = [
   ['Descobrir', [['/', 'home', 'Início'], ['/arcade', 'gamepad', 'NEXPLAY Arcade'], ['/explorar', 'compass', 'Explorar'], ['/multiplayer', 'users', 'MULTIPLAYER'], ['/lancamentos', 'rocket', 'LANÇAMENTOS'], ['/picks', 'star', 'NEXPLAY PICKS']]],
   ['Comunidade', [['/comunidade', 'globe', 'Comunidade'], ['/eventos', 'trophy', 'Eventos e Awards'], ['/estudios', 'building', 'Estúdios']]],
-  ['Criar', [['/studio', 'cube', 'NEXPLAY STUDIO'], ['/criador', 'chart', 'Painel do criador'], ['/deluxe-lab', 'sparkles', 'DELUXE LAB']]],
+  ['Criar', [['/studio/novo', 'plus', 'Criar jogo'], ['/enviar-jogo', 'upload', 'Enviar jogo pronto'], ['/studio', 'cube', 'NEXPLAY STUDIO'], ['/criador', 'chart', 'Painel do criador'], ['/deluxe-lab', 'sparkles', 'DELUXE LAB']]],
   ['Conta', [['/rewards', 'gift', 'NEXPLAY REWARDS'], ['/planos', 'crown', 'Planos'], ['/biblioteca', 'bookmark', 'Biblioteca']]],
 ];
 
@@ -53,7 +54,7 @@ function Sidebar({ open, onClose }) {
           <div key={section}>
             <div className="nav-section">{section}</div>
             {items.map(([to, icon, label]) => (
-              <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <NavLink key={to} to={to} end={to === '/' || to === '/studio'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                 <Icon name={icon} />{label}
                 {to === '/deluxe-lab' && <span className="nav-badge">LAB</span>}
               </NavLink>
@@ -173,7 +174,9 @@ export default function App() {
               <Route path="/estudios" element={<Studios />} />
               <Route path="/estudios/:slug" element={<StudioPage />} />
               <Route path="/studio" element={<RequireAuth><StudioHome /></RequireAuth>} />
+              <Route path="/studio/novo" element={<RequireAuth><StudioHome /></RequireAuth>} />
               <Route path="/studio/:id" element={<RequireAuth><StudioEditor /></RequireAuth>} />
+              <Route path="/enviar-jogo" element={<RequireAuth><SubmitGame /></RequireAuth>} />
               <Route path="/deluxe-lab" element={<DeluxeLab />} />
               <Route path="/admin/*" element={<RequireAuth><Admin /></RequireAuth>} />
               <Route path="/termos" element={<Terms />} />

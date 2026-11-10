@@ -11,6 +11,7 @@ import { parse, z, text, id } from '../lib/validate.js';
 import { entitlements, assertStorage, storageUsedBytes, notify, hasFeature } from '../lib/services.js';
 import { validateAsset, saveAsset } from '../lib/uploads.js';
 import { createProject, GENRE_TEMPLATES, validateProject, PROJECT_FORMAT, applyOps } from '../ai/project.js';
+import { GAME_GENRES } from '../../shared/project.js';
 
 const r = Router();
 const assetUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: config.limits.assetUploadMB * 1024 * 1024, files: 1 } });
@@ -28,7 +29,7 @@ export function loadProject(req, need = 'view') {
 }
 
 const summary = (p, role) => ({
-  id: p.id, name: p.name, dimension: p.dimension, template: p.template, mode: p.mode, revision: p.revision,
+  id: p.id, name: p.name, dimension: p.dimension, template: p.template, genre: p.genre || (p.template === 'vazio' ? 'outro' : p.template), blank: p.template === 'vazio', mode: p.mode, revision: p.revision,
   sizeBytes: p.size_bytes, thumbnail: p.thumbnail, createdAt: p.created_at, updatedAt: p.updated_at, role,
   owner: publicUser(one('SELECT * FROM users WHERE id=?', p.owner_id)),
 });
@@ -75,17 +76,22 @@ r.get('/', requireAuth, (req, res) => {
 });
 
 r.post('/', requireAuth, saveLimiter, (req, res) => {
-  const b = parse(z.object({ name: text(60).pipe(z.string().min(1)), dimension: z.enum(['2d', '3d']), template: z.enum(GENRE_TEMPLATES), mode: z.enum(['easy', 'advanced']).default('easy') }), req.body);
+  // Projeto novo: por padrão SEMPRE em branco (template 'vazio'). Um modelo com conteúdo só é usado se pedido explicitamente.
+  const b = parse(z.object({
+    name: text(60).pipe(z.string().min(1, 'Dê um nome ao projeto.')), dimension: z.enum(['2d', '3d']),
+    genre: z.enum(GAME_GENRES).optional(), template: z.enum(GENRE_TEMPLATES).default('vazio'), mode: z.enum(['easy', 'advanced']).default('easy'),
+  }), req.body);
+  const genre = b.genre || (b.template === 'vazio' ? 'outro' : (GAME_GENRES.includes(b.template) ? b.template : 'outro'));
   const plan = entitlements(req.user.id);
   if (Number(one('SELECT COUNT(*) AS c FROM projects WHERE owner_id=?', req.user.id).c) >= plan.max_projects) {
     throw new HttpError(402, `Seu plano ${plan.name} permite até ${plan.max_projects} projetos.`, 'project_limit');
   }
-  const doc = createProject({ name: b.name, dimension: b.dimension, template: b.template });
+  const doc = createProject({ name: b.name, dimension: b.dimension, template: b.template, genre });
   const data = JSON.stringify(doc);
   assertStorage(req.user.id, Buffer.byteLength(data) * 2);
   const pid = tx(() => {
-    const p = run('INSERT INTO projects(owner_id, name, dimension, template, mode, data, size_bytes) VALUES (?,?,?,?,?,?,?)',
-      req.user.id, b.name, b.dimension, b.template, b.mode, data, Buffer.byteLength(data));
+    const p = run('INSERT INTO projects(owner_id, name, dimension, template, genre, mode, data, size_bytes) VALUES (?,?,?,?,?,?,?,?)',
+      req.user.id, b.name, b.dimension, b.template, genre, b.mode, data, Buffer.byteLength(data));
     run('INSERT INTO project_versions(project_id, revision, label, source, author_id, data, size_bytes) VALUES (?,?,?,?,?,?,?)',
       p.lastInsertRowid, 1, 'Projeto criado', 'manual', req.user.id, data, Buffer.byteLength(data));
     return p.lastInsertRowid;
@@ -109,8 +115,8 @@ r.put('/:id', requireAuth, saveLimiter, (req, res) => {
 
 r.patch('/:id', requireAuth, (req, res) => {
   const { project, role } = loadProject(req, 'edit');
-  const b = parse(z.object({ name: text(60).pipe(z.string().min(1)).optional(), mode: z.enum(['easy', 'advanced']).optional(), thumbnail: z.string().max(400_000).regex(/^data:image\/(png|jpeg|webp);base64,/).optional() }), req.body);
-  run('UPDATE projects SET name=COALESCE(?,name), mode=COALESCE(?,mode), thumbnail=COALESCE(?,thumbnail) WHERE id=?', b.name ?? null, b.mode ?? null, b.thumbnail ?? null, project.id);
+  const b = parse(z.object({ name: text(60).pipe(z.string().min(1)).optional(), genre: z.enum(GAME_GENRES).optional(), mode: z.enum(['easy', 'advanced']).optional(), thumbnail: z.string().max(400_000).regex(/^data:image\/(png|jpeg|webp);base64,/).optional() }), req.body);
+  run('UPDATE projects SET name=COALESCE(?,name), genre=COALESCE(?,genre), mode=COALESCE(?,mode), thumbnail=COALESCE(?,thumbnail) WHERE id=?', b.name ?? null, b.genre ?? null, b.mode ?? null, b.thumbnail ?? null, project.id);
   res.json({ project: summary(one('SELECT * FROM projects WHERE id=?', project.id), role) });
 });
 

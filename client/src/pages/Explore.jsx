@@ -45,7 +45,7 @@ export default function Explore({ multiplayerOnly = false, title = 'Explorar jog
         ) : (
           <Empty icon={multiplayerOnly ? 'users' : 'compass'} title={multiplayerOnly ? 'Nenhum jogo multiplayer encontrado' : 'Nenhum jogo encontrado'}>
             {multiplayerOnly ? 'Aqui aparecem apenas jogos cujos criadores declararam suporte real a multiplayer.' : 'Tente outros filtros. O catálogo cresce conforme desenvolvedores publicam seus jogos.'}
-            <div className="mt"><Link to="/criador/jogos/novo" className="btn primary">Publicar um jogo</Link></div>
+            <div className="mt"><Link to="/studio/novo" className="btn primary">Criar jogo</Link> <Link to="/enviar-jogo" className="btn">Enviar jogo pronto</Link></div>
           </Empty>
         ))}
       </Loader>
