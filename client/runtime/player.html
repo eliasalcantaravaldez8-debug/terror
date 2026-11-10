@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>NEXPLAY Player</title>
+  <style>
+    html, body, #stage { margin: 0; height: 100%; background: #05030f; overflow: hidden; color: #e2e8f0; font-family: system-ui, sans-serif; }
+    #status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
+    .spin { width: 42px; height: 42px; border-radius: 50%; border: 3px solid #312e81; border-top-color: #22d3ee; animation: s 0.9s linear infinite; }
+    @keyframes s { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="status"><div class="spin"></div><div id="msg">Carregando jogo…</div></div>
+  <script type="module" src="./player.js"></script>
+</body>
+</html>
