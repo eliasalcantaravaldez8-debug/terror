@@ -11,17 +11,18 @@ const css = `
 .nx-obj small{display:block;font-size:11px;color:#22d3ee;text-transform:uppercase;letter-spacing:.12em}
 .nx-toast{position:absolute;top:22%;left:50%;transform:translateX(-50%);font-size:28px;font-weight:800;text-shadow:0 4px 24px rgba(139,92,246,.8);opacity:0;transition:opacity .35s;text-align:center}
 .nx-flash{position:absolute;inset:0;opacity:0;transition:opacity .4s}
-.nx-dialog{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);width:min(680px,92vw);pointer-events:auto;display:none}
+.nx-dialog{position:absolute;z-index:20;left:50%;bottom:28px;transform:translateX(-50%);width:min(680px,92vw);pointer-events:auto;display:none}
 .nx-dialog .box{background:rgba(10,8,25,.88);border:1px solid rgba(34,211,238,.5);border-radius:14px;padding:16px 18px}
 .nx-dialog b{color:#a78bfa}
 .nx-dialog button,.nx-menu button{display:block;width:100%;margin-top:8px;text-align:left;background:rgba(139,92,246,.18);border:1px solid rgba(139,92,246,.5);color:#fff;border-radius:10px;padding:9px 12px;font:inherit;cursor:pointer}
 .nx-dialog button:hover,.nx-menu button:hover{background:rgba(34,211,238,.25)}
-.nx-menu{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,3,15,.72);pointer-events:auto}
+.nx-menu{position:absolute;z-index:30;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,3,15,.72);pointer-events:auto}
 .nx-menu .box{width:min(380px,90vw);background:#120d2b;border:1px solid rgba(139,92,246,.6);border-radius:18px;padding:24px;text-align:center}
 .nx-menu h2{margin:0 0 10px;font-size:26px;background:linear-gradient(90deg,#a78bfa,#22d3ee);-webkit-background-clip:text;color:transparent}
 .nx-mini{position:absolute;right:16px;bottom:16px;border-radius:50%;border:2px solid rgba(34,211,238,.6);background:rgba(10,8,25,.6)}
 .nx-prompt{position:absolute;left:50%;bottom:120px;transform:translateX(-50%);display:none}
-.nx-touch{position:absolute;inset:auto 0 0 0;height:45%;pointer-events:auto;display:none}
+.nx-touch{position:absolute;z-index:10;inset:auto 0 0 0;height:45%;pointer-events:none;display:none}
+.nx-stick,.nx-btns button{pointer-events:auto}
 .nx-stick{position:absolute;left:24px;bottom:24px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2)}
 .nx-stick i{position:absolute;left:40px;top:40px;width:50px;height:50px;border-radius:50%;background:rgba(139,92,246,.7)}
 .nx-btns{position:absolute;right:24px;bottom:30px;display:flex;gap:14px}

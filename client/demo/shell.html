@@ -1,0 +1,53 @@
+<title>NEXPLAY Arcade</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: lista de jogos em tela única; ao tocar, o jogo ocupa a tela inteira. Visual escuro fixo (identidade NEXPLAY). */
+:root {
+  color-scheme: dark;
+  --bg: #07060f; --panel: #120f26; --line: rgba(139, 92, 246, .28); --fg: #ece9ff; --muted: #a39dc8;
+  --violet: #8b5cf6; --cyan: #22d3ee;
+  --display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif; --body: 'Inter', system-ui, -apple-system, sans-serif;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); }
+#picker { max-width: 960px; margin: 0 auto; padding-block: 20px 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 18px; }
+header h1 { font: 700 clamp(28px, 7vw, 44px)/1.05 var(--display); margin: 0; letter-spacing: -.02em; text-wrap: balance; }
+header h1 b { background: linear-gradient(90deg, var(--violet), var(--cyan)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+header p { margin: 8px 0 0; color: var(--muted); max-width: 62ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+select { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+#games { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+.game { text-align: left; font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 4px; cursor: pointer; min-width: 0; transition: border-color .2s, transform .15s; }
+.game:hover, .game:focus-visible { border-color: var(--cyan); transform: translateY(-2px); outline: none; }
+.game strong { font: 700 18px var(--display); }
+.game .desc { color: var(--muted); font-size: 14px; }
+.game .dim { font-size: 11px; letter-spacing: .12em; color: var(--cyan); font-weight: 600; }
+.game .tag { font-size: 12px; color: var(--violet); }
+.how { border-top: 1px solid var(--line); padding-top: 14px; color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
+#stage { position: fixed; inset: 0; background: #000; }
+#back { position: fixed; z-index: 50; top: calc(10px + env(safe-area-inset-top, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); font: 600 14px var(--body); color: var(--fg); background: rgba(18, 15, 38, .85); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--muted); font-family: var(--display); }
+@media (prefers-reduced-motion: reduce) { .game { transition: none; } }
+</style>
+<main id="picker">
+  <header>
+    <h1>NEXPLAY <b>Arcade</b></h1>
+    <p>O motor de jogo do NEXPLAY STUDIO rodando direto no seu aparelho. Cada jogo abaixo é um modelo de projeto do Studio, gerado na hora: terreno, vegetação, personagens animados, clima e missões.</p>
+  </header>
+  <div class="controls">
+    <label for="quality">Gráficos</label>
+    <select id="quality"><option value="low">Baixa (celular)</option><option value="medium">Média</option><option value="high">Alta</option><option value="ultra">Ultra</option></select>
+    <span>Comece pela Plataforma 2D se o aparelho for simples.</span>
+  </div>
+  <section id="games" aria-label="Jogos"></section>
+  <div class="how">
+    <span><b>Celular:</b> joystick à esquerda, botões PULO e AÇÃO à direita.</span>
+    <span><b>Computador:</b> WASD ou setas para mover, Shift corre, Espaço pula, F ou clique para ação, E conversa, Esc pausa.</span>
+    <span>Contas, catálogo, FORGE e IA precisam do servidor da NEXPLAY; aqui roda só o motor dos jogos.</span>
+  </div>
+</main>
+<div id="stage" hidden></div>
+<button id="back" hidden>← Jogos</button>

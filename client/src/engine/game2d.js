@@ -19,6 +19,14 @@ export class Game2D {
     this.images = new Map();
   }
 
+  /** Zoom de jogo: em telas altas (celular em pé) a fase preenche a altura disponível. */
+  zoom() {
+    if (this.mode !== 'play') return 1;
+    const H = this.canvas.height / devicePixelRatio;
+    const levelH = (this.rows?.length || 22) * this.tile + 40;
+    return Math.min(3, Math.max(1, H / levelH));
+  }
+
   get map() { return this.doc.entities.find((e) => e.type === 'tilemap'); }
   get tile() { return this.map?.props.tileSize || 32; }
 
@@ -139,11 +147,14 @@ export class Game2D {
     if (p.y > this.rows.length * this.tile + 200) { this.hurt(true); }
     this.hud.setHud({ score: this.score, health: (p.hp / (p.e.components?.health?.max || 3)) * 100 });
     // Câmera
-    const W = this.canvas.width / devicePixelRatio; const H = this.canvas.height / devicePixelRatio;
+    const z = this.zoom();
+    const W = this.canvas.width / devicePixelRatio / z; const H = this.canvas.height / devicePixelRatio / z;
     this.cam.x += (p.x - W / 2 - this.cam.x) * Math.min(1, dt * 6);
     this.cam.y += (p.y - H * 0.55 - this.cam.y) * Math.min(1, dt * 6);
     this.cam.x = Math.max(0, Math.min(this.cam.x, (this.rows[0]?.length || 0) * this.tile - W));
-    this.cam.y = Math.max(-200, Math.min(this.cam.y, this.rows.length * this.tile - H));
+    // Em telas de toque, reserva espaço embaixo para o joystick e os botões não cobrirem o chão.
+    const touchPad = matchMedia('(pointer: coarse)').matches ? 170 / z : 0;
+    this.cam.y = Math.max(-200 - touchPad, Math.min(this.cam.y, this.rows.length * this.tile - H + touchPad));
     for (const pt of this.particles) { pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.vy += 900 * dt; pt.life -= dt; }
     this.particles = this.particles.filter((pt) => pt.life > 0);
   }
@@ -172,7 +183,7 @@ export class Game2D {
   burst(x, y, color) { for (let i = 0; i < 14; i++) this.particles.push({ x, y, vx: (Math.random() - 0.5) * 300, vy: -Math.random() * 400, life: 0.6, color }); }
 
   draw() {
-    const ctx = this.ctx; const dpr = devicePixelRatio;
+    const ctx = this.ctx; const z = this.zoom(); const dpr = devicePixelRatio * z;
     const W = this.canvas.width / dpr; const H = this.canvas.height / dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const bg = this.doc.settings.world2d?.background || ['#1e1b4b', '#0e7490'];
