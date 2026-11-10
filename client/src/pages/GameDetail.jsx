@@ -55,7 +55,7 @@ export default function GameDetail() {
 
   return (
     <Loader state={state}>
-      {({ game, media: gallery, versions, updates, access, viewer, followers, achievements }) => {
+      {({ game, media: gallery, versions, updates, access, viewer, followers, achievements, creatorInfo, playersTotal }) => {
         const mobile = isMobileDevice();
         const incompatible = (mobile && game.platforms === 'pc') || (!mobile && game.platforms === 'mobile');
         const toggle = async (list, on) => { await (on ? api.del(`/users/me/${list}/${game.id}`) : api.post(`/users/me/${list}/${game.id}`)); state.reload(); };
@@ -115,6 +115,9 @@ export default function GameDetail() {
                 <div className="row">
                   {game.acceptsDonations && <button className="btn sm" onClick={() => setDonate(true)}><Icon name="heart" /> Apoiar o criador</button>}
                   {access.isManager && <Link className="btn sm" to={`/criador/jogos/${game.id}`}><Icon name="settings" /> Gerenciar</Link>}
+                  {access.isManager && game.studioProjectId && <Link className="btn sm" to={`/studio/${game.studioProjectId}`}><Icon name="cube" /> Atualizar no Studio</Link>}
+                  {access.isManager && game.status === 'published' && <ActionButton className="btn sm danger" onClick={async () => { if (!confirm('Retirar o jogo do Arcade? Dados, avaliações e versões são mantidos.')) return; await api.post(`/games/${game.id}/unpublish`); state.reload(); }}>Retirar do Arcade</ActionButton>}
+                  {access.isManager && game.status === 'draft' && game.currentVersionId && <ActionButton className="btn sm" onClick={async () => { await api.post(`/games/${game.id}/republish`); state.reload(); }}>Publicar de novo</ActionButton>}
                   {user && <ReportButton type="game" id={game.id} />}
                 </div>
               </div>
@@ -125,6 +128,15 @@ export default function GameDetail() {
               <div className="grid cols-2">
                 <div className="card"><h3>Descrição</h3><p style={{ whiteSpace: 'pre-wrap' }}>{game.description || 'Sem descrição.'}</p>{game.expectedRelease && <p className="muted">Previsão de lançamento: {game.expectedRelease}</p>}</div>
                 <div className="stack">
+                  {creatorInfo && (
+                    <div className="card">
+                      <h3>Criador</h3>
+                      <Link to={`/u/${creatorInfo.username}`} className="row"><Avatar user={creatorInfo} size={44} /><span><b>{creatorInfo.displayName}</b><br /><span className="tiny muted">@{creatorInfo.username}</span></span></Link>
+                      {creatorInfo.bio && <p className="small" style={{ whiteSpace: 'pre-wrap' }}>{creatorInfo.bio}</p>}
+                      <div className="tiny muted mt">{creatorInfo.gamesPublished} {creatorInfo.gamesPublished === 1 ? 'jogo publicado' : 'jogos publicados'} · {creatorInfo.followers} seguidores · na NEXPLAY desde {new Date(creatorInfo.joinedAt).toLocaleDateString('pt-BR')}</div>
+                      <div className="tiny muted">{playersTotal} {playersTotal === 1 ? 'pessoa jogou' : 'pessoas jogaram'} este jogo</div>
+                    </div>
+                  )}
                   <div className="card"><h3>Controles</h3><p style={{ whiteSpace: 'pre-wrap' }} className="small">{game.controls || 'Não informado.'}</p></div>
                   {achievements.length > 0 && <div className="card"><h3>Conquistas do jogo</h3>{achievements.map((a) => <div key={a.code} className="small"><b>{a.name}</b> <span className="muted">— {a.description}</span></div>)}</div>}
                 </div>

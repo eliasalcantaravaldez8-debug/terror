@@ -2,8 +2,9 @@
 
 Plataforma de jogos, comunidade gamer e criação de jogos com IA.
 
+- **NEXPLAY Arcade**: só jogos criados e publicados pela comunidade no Studio (nada pré-instalado), com abas Jogos do mês, Jogos da semana, Em alta, Novidades e Pesquisa calculadas com sessões de jogo reais.
 - **Jogar**: catálogo com filtros (dispositivo, gênero, preço, modo), páginas de jogo com mídia, avaliações, comentários, versões e devlogs. Os jogos rodam no navegador, em uma **origem isolada** (sandbox), sem acesso à conta do jogador.
-- **Publicar**: qualquer criador envia builds HTML5/WebGL (.zip) ou publica direto do NEXPLAY STUDIO. Todo envio passa por **verificação automática** e **moderação humana**.
+- **Publicar**: no NEXPLAY STUDIO, o botão **Publicar jogo** salva, testa o jogo automaticamente no motor isolado e, se passar, publica no Arcade (atualizar e retirar também pelo Studio). Builds HTML5/WebGL (.zip) enviados continuam passando por **verificação automática** e **moderação humana**.
 - **Comunidade**: perfis personalizáveis, amigos, seguidores, mensagens privadas (com privacidade, bloqueio e denúncia), feed, rankings, votações, sugestões, eventos, Game Jams, competições, **NEXPLAY FESTIVAL** e **NEXPLAY AWARDS**.
 - **MULTIPLAYER**: aba que mostra apenas jogos com multiplayer declarado; salas públicas, privadas com código, convites e relay em tempo real pelo **NEXPLAY SDK**.
 - **LANÇAMENTOS**: projetos em desenvolvimento, previsões, devlogs, acesso antecipado e beta (aberto ou fechado).
@@ -56,7 +57,7 @@ npm test
 # com Blender real (opcional): FORGE_TEST_BPY=/caminho/para/python-com-bpy npm test
 ```
 
-Testes de integração da API (banco em memória, IA simulada apenas nos testes): autenticação, CSRF, permissões administrativas, regra PRO = 4× FREE, publicação com verificação e sandbox com token, bloqueio de builds maliciosos (executáveis, mineradores, zip-slip), filtro do MULTIPLAYER, REWARDS (antifraude, loja, conversão, compra com créditos), concessão/revogação de planos, mensagens com amizade/bloqueio, modelos do Studio, NEXPLAY CLOUD (versões, conflito, restauração, colaboradores, backup), comandos de IA e cotas, publicação a partir do Studio e curadoria.
+Testes de integração da API (banco em memória, IA simulada apenas nos testes): autenticação, CSRF, permissões administrativas, regra PRO = 4× FREE, publicação com verificação e sandbox com token, bloqueio de builds maliciosos (executáveis, mineradores, zip-slip), filtro do MULTIPLAYER, REWARDS (antifraude, loja, conversão, compra com créditos), concessão/revogação de planos, mensagens com amizade/bloqueio, modelos do Studio, NEXPLAY CLOUD (versões, conflito, restauração, colaboradores, backup), comandos de IA e cotas, publicação a partir do Studio e curadoria. `tests/arcade.test.js`: Arcade vazio, modelos nunca publicados, publicação com teste obrigatório, atualização, retirada, rankings com jogadores reais e moderação quando a publicação automática está desligada.
 
 ## Documentação
 

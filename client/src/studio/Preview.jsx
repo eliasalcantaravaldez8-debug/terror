@@ -10,7 +10,7 @@ export async function sandboxInfo() {
   return sandboxCache;
 }
 
-export default function Preview({ doc, projectId, onLog, onEvent }) {
+export default function Preview({ doc, projectId, onLog, onEvent, test = null, onTestResult }) {
   const frame = useRef(null);
   const [sb, setSb] = useState(null);
   const origin = sb?.origin;
@@ -29,10 +29,11 @@ export default function Preview({ doc, projectId, onLog, onEvent }) {
           const r = await fetch(`/api/projects/${projectId}/assets/${a.assetId}/file`, { credentials: 'same-origin' });
           if (r.ok) assets[a.id] = await r.arrayBuffer();
         }));
-        frame.current.contentWindow.postMessage({ type: 'nexplay:load', doc: docRef.current, assets }, postTarget(origin), Object.values(assets));
+        frame.current.contentWindow.postMessage({ type: 'nexplay:load', doc: docRef.current, assets, ...(test ? { test } : {}) }, postTarget(origin), Object.values(assets));
       } else if (m.type === 'nexplay:log') onLog?.(m.kind, m.message);
       else if (m.type === 'nexplay:event') onEvent?.(m.name, m.data);
       else if (m.type === 'nexplay:ready') onLog?.('info', 'Pré-visualização iniciada.');
+      else if (m.type === 'nexplay:game_test_result') onTestResult?.(m.result || { ok: false, frames: 0, errors: ['Resultado vazio.'] });
     };
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);

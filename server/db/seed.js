@@ -104,6 +104,9 @@ export function seed({ one, run, tx }) {
       },
       // Gerações em provedores externos pagos (Tripo/Meshy) por dia. Operações locais não entram aqui.
       pipeline_limits: { free: 3, pro: 12, deluxe: 60 },
+      // Jogos feitos no NEXPLAY STUDIO rodam no motor isolado da plataforma: quando passam na validação e no
+      // teste de execução, entram no Arcade na hora. Builds HTML5 enviados (.zip) continuam indo à moderação.
+      publishing: { auto_publish_studio: true, require_runtime_test: true },
       conversion_tiers: [
         { nc: 3000, credit_cents: 300 },
         { nc: 5000, credit_cents: 500 },

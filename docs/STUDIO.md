@@ -65,3 +65,12 @@ Especialidades (`server/ai/specialists.js`): Programadora, 3D, Texturas, Animaç
 | FREE | N (padrão 25) | medium | 12 | — | — |
 | PRO | 4 × N | high | 24 | sim | — |
 | DELUXE | sem limite (proteção por minuto) | xhigh | 40 | sim | sim |
+
+## Publicar no NEXPLAY Arcade
+
+1. No editor, clique em **Publicar jogo** e preencha nome, descrição, capa/imagens, gênero, PC/celular, solo/multiplayer, controles e versão.
+2. Ao clicar em **Testar e publicar**, o projeto é salvo na NEXPLAY CLOUD e executado no player isolado (`/runtime/player.html`) com `test: { full: true }`. O motor chama `runGameTest()` (3D: `Game`, 2D: `Game2D`): fecha o menu, inicia como jogador, simula movimento/pulo por alguns segundos (até 60 quadros, no máximo 15 s), coleta erros de scripts e do motor, confere o personagem e devolve `{ ok, frames, fps, errors, durationMs, screenshot }`.
+3. O app envia `POST /api/games/publish-studio`. O servidor valida o projeto (`validateProject`), exige `testReport.ok` (configuração `publishing.require_runtime_test`), gera a versão a partir do projeto e, com `publishing.auto_publish_studio` ligado, publica imediatamente.
+4. Para atualizar, publique de novo com outro número de versão. **Retirar do Arcade** (`POST /api/games/:id/unpublish`) e **Publicar de novo** (`POST /api/games/:id/republish`) não apagam nada.
+
+Os modelos (futebol, terror, corrida, aventura…) são só pontos de partida: criar um projeto a partir deles nunca cria um jogo no Arcade.

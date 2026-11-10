@@ -10,6 +10,7 @@ import GameDetail from './pages/GameDetail.jsx';
 import { Login, Register, Forgot, Reset, VerifyEmail } from './pages/Auth.jsx';
 
 const Play = lazy(() => import('./pages/Play.jsx'));
+const Arcade = lazy(() => import('./pages/Arcade.jsx'));
 const Multiplayer = lazy(() => import('./pages/Multiplayer.jsx'));
 const Launches = lazy(() => import('./pages/Launches.jsx'));
 const Picks = lazy(() => import('./pages/Picks.jsx'));
@@ -35,7 +36,7 @@ const Admin = lazy(() => import('./pages/admin/Admin.jsx'));
 const Terms = lazy(() => import('./pages/Terms.jsx'));
 
 const NAV = [
-  ['Descobrir', [['/', 'home', 'Início'], ['/explorar', 'compass', 'Explorar'], ['/multiplayer', 'users', 'MULTIPLAYER'], ['/lancamentos', 'rocket', 'LANÇAMENTOS'], ['/picks', 'star', 'NEXPLAY PICKS']]],
+  ['Descobrir', [['/', 'home', 'Início'], ['/arcade', 'gamepad', 'NEXPLAY Arcade'], ['/explorar', 'compass', 'Explorar'], ['/multiplayer', 'users', 'MULTIPLAYER'], ['/lancamentos', 'rocket', 'LANÇAMENTOS'], ['/picks', 'star', 'NEXPLAY PICKS']]],
   ['Comunidade', [['/comunidade', 'globe', 'Comunidade'], ['/eventos', 'trophy', 'Eventos e Awards'], ['/estudios', 'building', 'Estúdios']]],
   ['Criar', [['/studio', 'cube', 'NEXPLAY STUDIO'], ['/criador', 'chart', 'Painel do criador'], ['/deluxe-lab', 'sparkles', 'DELUXE LAB']]],
   ['Conta', [['/rewards', 'gift', 'NEXPLAY REWARDS'], ['/planos', 'crown', 'Planos'], ['/biblioteca', 'bookmark', 'Biblioteca']]],
@@ -121,7 +122,7 @@ function Topbar({ onMenu }) {
 }
 
 function MobileNav() {
-  const items = [['/', 'home', 'Início'], ['/explorar', 'compass', 'Explorar'], ['/studio', 'cube', 'Studio'], ['/comunidade', 'globe', 'Social'], ['/rewards', 'gift', 'Rewards']];
+  const items = [['/', 'home', 'Início'], ['/arcade', 'gamepad', 'Arcade'], ['/studio', 'cube', 'Studio'], ['/comunidade', 'globe', 'Social'], ['/rewards', 'gift', 'Rewards']];
   return <nav className="mobile-nav">{items.map(([to, icon, label]) => <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}><Icon name={icon} />{label}</NavLink>)}</nav>;
 }
 
@@ -147,6 +148,7 @@ export default function App() {
           <Suspense fallback={<div className="spinner" />}>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/arcade" element={<Arcade />} />
               <Route path="/explorar" element={<Explore />} />
               <Route path="/jogo/:slug" element={<GameDetail />} />
               <Route path="/jogo/:slug/jogar" element={<RequireAuth><Play /></RequireAuth>} />

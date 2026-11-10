@@ -12,6 +12,7 @@ import Preview from './Preview.jsx';
 import Editor2D from './Editor2D.jsx';
 import CodeEditor from './CodeEditor.jsx';
 import ForgePanel, { ForgeTester } from './ForgePanel.jsx';
+import PublishModal from './PublishModal.jsx';
 
 export default function StudioEditor() {
   const { id } = useParams();
@@ -200,6 +201,7 @@ function Editor({ initial, reload }) {
     setDoc(d.doc); setRevision(d.project.revision); revRef.current = d.project.revision; setAssets(d.assets);
     setValidation(validateProject(d.doc)); setSaveState('salvo');
   };
+  useEffect(() => { if (vp.current) vp.current.paused = modal === 'publish'; }, [modal]);
   const selected = doc.entities.find((e) => e.id === selectedId) || null;
   const log = (kind, message) => setLogs((l) => [...l.slice(-199), { kind, message, at: new Date() }]);
 
@@ -221,7 +223,7 @@ function Editor({ initial, reload }) {
         {project.role === 'owner' && <button className="btn sm" onClick={() => setModal('share')}><Icon name="users" /> Compartilhar</button>}
         <a className="btn sm" href={`/api/projects/${project.id}/export`}><Icon name="download" /> Backup</a>
         <ActionButton className="btn sm primary" ok="Versão salva" onClick={async () => { await save('manual', `Salvo em ${new Date().toLocaleString('pt-BR')}`); if (vp.current) await api.patch(`/projects/${project.id}`, { thumbnail: vp.current.snapshot() }); }}><Icon name="save" /> Salvar versão</ActionButton>
-        <Link className="btn sm" to="/criador/jogos/novo" title="Crie o jogo e gere o build a partir deste projeto na aba Builds"><Icon name="upload" /> Publicar</Link>
+        {!readOnly && <button className="btn sm primary" onClick={() => setModal('publish')} title="Publicar no NEXPLAY Arcade (com teste automático)"><Icon name="upload" /> Publicar jogo</button>}
       </div>
 
       <div className="studio-panel">
@@ -256,6 +258,7 @@ function Editor({ initial, reload }) {
       </div>
 
       {modal === 'versions' && <VersionsModal projectId={project.id} onClose={() => setModal(null)} onRestored={async () => { await reloadFromServer(); setModal(null); }} />}
+      {modal === 'publish' && <PublishModal project={project} doc={doc} save={save} onClose={() => setModal(null)} sceneSnapshot={is3d && vp.current ? () => vp.current.snapshot(1280) : null} />}
       {modal === 'share' && <ShareModal projectId={project.id} onClose={() => setModal(null)} />}
       {modal === 'validation' && (
         <Modal title="IA Testadora — verificações automáticas" onClose={() => setModal(null)}>

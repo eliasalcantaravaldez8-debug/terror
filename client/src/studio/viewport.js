@@ -143,6 +143,7 @@ export class EditorViewport {
     if (this.disposed) return;
     this.raf = requestAnimationFrame(() => this.loop());
     const dt = Math.min(this.clock.getDelta(), 0.05);
+    if (this.paused) return; // ex.: durante o teste de publicação, para não disputar a GPU com o jogo
     this.orbit.update();
     for (const rec of this.world.entities.values()) rec.animator?.update(dt, rec.object);
     this.world.update(dt, this.camera);

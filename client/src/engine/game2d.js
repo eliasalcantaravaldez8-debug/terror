@@ -63,6 +63,50 @@ export class Game2D {
     return true;
   }
 
+  /** Captura do jogo em execução (usada como sugestão de capa ao publicar). */
+  captureFrame(width = 960) {
+    try {
+      const src = this.canvas;
+      if (!src.width || !src.height) return null;
+      const c = document.createElement('canvas');
+      c.width = Math.min(width, src.width); c.height = Math.round((src.height / src.width) * c.width);
+      c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+      return c.toDataURL('image/jpeg', 0.82);
+    } catch { return null; }
+  }
+
+  /** Teste de execução do jogo inteiro (exigido antes de publicar no Arcade). */
+  async runGameTest(seconds = 3) {
+    const errors = [];
+    const origLog = this.onLog;
+    this.onLog = (kind, msg) => { if (kind === 'error') errors.push(String(msg).slice(0, 300)); origLog?.(kind, msg); };
+    const onErr = (ev) => errors.push(String(ev.message || ev.reason?.message || ev.reason || 'Erro').slice(0, 300));
+    window.addEventListener('error', onErr); window.addEventListener('unhandledrejection', onErr);
+    const t0 = performance.now(); let frames = 0;
+    try {
+      if (this.mode !== 'play') errors.push('O jogo não abriu em modo de jogo.');
+      this.hud?.menu({}); this.paused = false;
+      const t = this.input?.touch;
+      await new Promise((resolve) => {
+        const tick = () => {
+          frames++;
+          const el = performance.now() - t0;
+          if (t) { t.active = true; t.x = 1; t.y = 0; t.jump = frames % 50 === 0; }
+          // Roda pelo menos `seconds` e até 60 quadros (aparelhos lentos), com limite de 15 s.
+          if ((el < seconds * 1000 || frames < 60) && el < 15000) requestAnimationFrame(tick); else resolve();
+        };
+        requestAnimationFrame(tick);
+      });
+      if (t) { t.active = false; t.x = t.y = 0; t.jump = false; }
+      if (this.doc.player.entityId && !this.player) errors.push('Personagem do jogador não foi criado.');
+      if (this.player && ![this.player.x, this.player.y].every(Number.isFinite)) errors.push('Posição do jogador ficou inválida (NaN).');
+    } catch (e) { errors.push(e.message); }
+    finally { window.removeEventListener('error', onErr); window.removeEventListener('unhandledrejection', onErr); this.onLog = origLog; }
+    const durationMs = Math.round(performance.now() - t0);
+    const screenshot = this.captureFrame();
+    return { ok: errors.length === 0 && frames >= 10, frames, fps: Math.round(((frames * 1000) / durationMs) * 10) / 10, errors: [...new Set(errors)].slice(0, 20), durationMs, screenshot, dimension: '2d' };
+  }
+
   async runTest(entityId) {
     this.hud?.menu({});
     const e = this.doc.entities.find((x) => x.id === entityId);

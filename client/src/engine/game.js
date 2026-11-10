@@ -225,6 +225,56 @@ export class Game {
     this.input.endFrame();
   }
 
+  /** Captura do jogo em execução (usada como sugestão de capa ao publicar). */
+  captureFrame(width = 960) {
+    try {
+      const src = this.renderer.domElement;
+      if (!src.width || !src.height) return null;
+      const c = document.createElement('canvas');
+      c.width = Math.min(width, src.width); c.height = Math.round((src.height / src.width) * c.width);
+      c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+      return c.toDataURL('image/jpeg', 0.82);
+    } catch { return null; }
+  }
+
+  /**
+   * Teste de execução do jogo inteiro (exigido antes de publicar no Arcade):
+   * inicia como um jogador, roda alguns segundos com movimento simulado e coleta erros de scripts/motor.
+   */
+  async runGameTest(seconds = 4) {
+    const errors = [];
+    const origLog = this.onLog;
+    this.onLog = (kind, msg) => { if (kind === 'error') errors.push(String(msg).slice(0, 300)); origLog?.(kind, msg); };
+    const onErr = (ev) => errors.push(String(ev.message || ev.reason?.message || ev.reason || 'Erro').slice(0, 300));
+    window.addEventListener('error', onErr); window.addEventListener('unhandledrejection', onErr);
+    const t0 = performance.now(); let frames = 0;
+    try {
+      this.hud.menu({}); this.paused = false;
+      if (!this.started) { this.started = true; this.scripts.call('start'); this.emit('start', {}); }
+      const t = this.input.touch;
+      await new Promise((resolve) => {
+        const tick = () => {
+          frames++;
+          const el = performance.now() - t0;
+          t.active = true; t.y = el < seconds * 500 ? 1 : 0.4; t.x = Math.sin(el / 600) * 0.6; t.jump = frames % 90 === 0;
+          // Roda pelo menos `seconds` e até 60 quadros (aparelhos lentos), com limite de 15 s.
+          if ((el < seconds * 1000 || frames < 60) && el < 15000) requestAnimationFrame(tick); else resolve();
+        };
+        requestAnimationFrame(tick);
+      });
+      t.active = false; t.x = t.y = 0;
+      const p = this.player?.object?.position;
+      if (this.doc.player.entityId && !p) errors.push('Personagem do jogador não foi criado.');
+      if (p && ![p.x, p.y, p.z].every(Number.isFinite)) errors.push('Posição do jogador ficou inválida (NaN).');
+      if (p && p.y < -200) errors.push('O jogador caiu para fora do mapa logo no início.');
+    } catch (e) { errors.push(e.message); }
+    finally { window.removeEventListener('error', onErr); window.removeEventListener('unhandledrejection', onErr); this.onLog = origLog; }
+    const durationMs = Math.round(performance.now() - t0);
+    const screenshot = this.captureFrame();
+    const fps = Math.round(((frames * 1000) / durationMs) * 10) / 10;
+    return { ok: errors.length === 0 && frames >= 10, frames, fps, errors: [...new Set(errors)].slice(0, 20), durationMs, screenshot, dimension: '3d' };
+  }
+
   /** Teste automático de um asset dentro do motor real (usado pela NEXPLAY FORGE). */
   async runTest(entityId) {
     this.hud.menu({});

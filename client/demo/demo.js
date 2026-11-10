@@ -1,10 +1,11 @@
-// NEXPLAY — demonstração jogável do motor (página única, sem servidor).
-// Usa o mesmo motor e os mesmos modelos de projeto do NEXPLAY STUDIO.
+// NEXPLAY — prévia sem servidor (página única).
+// Arcade: sem banco de dados aqui, então mostra o estado vazio real (nenhum jogo é inventado).
+// Studio: os MODELOS de projeto podem ser testados no motor — eles não são jogos publicados.
 import { Game } from '../src/engine/game.js';
 import { Game2D } from '../src/engine/game2d.js';
 import { createProject, validateProject } from '../../shared/project.js';
 
-const GAMES = [
+const TEMPLATES = [
   { id: 'plataforma', dim: '2d', name: 'Plataforma 2D', tag: 'Leve · bom para celular', desc: 'Pule entre blocos, pegue moedas, desvie dos espinhos e alcance a bandeira.' },
   { id: 'futebol', dim: '3d', name: 'Futebol 3D', tag: 'Pesado', desc: 'Estádio com torcida, refletores, placar, cronômetro e IA dos dois times.' },
   { id: 'terror', dim: '3d', name: 'Terror', tag: 'Médio', desc: 'Floresta à noite, chuva, raios e lanterna. Ache 3 páginas e chegue à cabana.' },
@@ -16,23 +17,40 @@ const GAMES = [
 ];
 
 const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && innerWidth < 1024);
-const list = document.getElementById('games');
-const picker = document.getElementById('picker');
+const list = document.getElementById('templates');
+const picker = document.getElementById('app');
 const stage = document.getElementById('stage');
 const back = document.getElementById('back');
 const qualitySel = document.getElementById('quality');
 qualitySel.value = mobile ? 'low' : 'medium';
 let game = null;
 
-for (const g of GAMES) {
+for (const g of TEMPLATES) {
   const b = document.createElement('button');
-  b.className = 'game';
-  b.innerHTML = `<span class="dim">${g.dim.toUpperCase()}</span><strong></strong><span class="desc"></span><span class="tag"></span>`;
+  b.className = 'tpl';
+  b.innerHTML = `<span class="kind">MODELO ${g.dim.toUpperCase()}</span><strong></strong><span class="desc"></span><span class="tag"></span>`;
   b.querySelector('strong').textContent = g.name;
   b.querySelector('.desc').textContent = g.desc;
-  b.querySelector('.tag').textContent = g.tag;
+  b.querySelector('.tag').textContent = `Testar modelo · ${g.tag}`;
   b.addEventListener('click', () => start(g));
   list.appendChild(b);
+}
+
+// Navegação Arcade ↔ Studio e abas do Arcade (todas vazias: não há jogos publicados nesta prévia).
+const showView = (v) => {
+  document.getElementById('view-arcade').hidden = v !== 'arcade';
+  document.getElementById('view-studio').hidden = v !== 'studio';
+  for (const b of document.querySelectorAll('.top-nav button')) { if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); }
+  window.scrollTo(0, 0);
+};
+for (const b of document.querySelectorAll('[data-view]')) b.addEventListener('click', () => showView(b.dataset.view));
+const TAB_TITLE = { month: 'Jogos do mês', week: 'Jogos da semana', trending: 'Em alta', new: 'Novidades', search: 'Pesquisa' };
+for (const b of document.querySelectorAll('[data-tab]')) {
+  b.addEventListener('click', () => {
+    for (const x of document.querySelectorAll('[data-tab]')) x.setAttribute('aria-selected', String(x === b));
+    document.getElementById('tab-title').textContent = TAB_TITLE[b.dataset.tab];
+    document.getElementById('search').hidden = b.dataset.tab !== 'search';
+  });
 }
 
 async function start(g) {
@@ -55,7 +73,7 @@ async function start(g) {
   } catch (e) {
     stage.innerHTML = '';
     const p = document.createElement('div'); p.className = 'loading';
-    p.textContent = `Este aparelho não conseguiu iniciar o 3D (${e.message}). Tente a Plataforma 2D ou a qualidade Baixa.`;
+    p.textContent = `Este aparelho não conseguiu iniciar o 3D (${e.message}). Tente o modelo Plataforma 2D ou a qualidade Baixa.`;
     stage.appendChild(p);
   }
 }

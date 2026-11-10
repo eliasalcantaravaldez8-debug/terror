@@ -25,7 +25,7 @@ function Hero({ data, user }) {
       <p className="muted" style={{ maxWidth: 620 }}>Publique seus jogos, construa mundos 2D e 3D no NEXPLAY STUDIO e use especialistas de IA para programar, montar cenários, texturas, animações e testes.</p>
       <div className="row mt">
         <Link className="btn primary lg" to={user ? '/studio' : '/cadastro'}><Icon name="cube" /> {user ? 'Abrir o Studio' : 'Criar conta grátis'}</Link>
-        <Link className="btn lg" to="/criador/jogos/novo"><Icon name="upload" /> Publicar um jogo</Link>
+        <Link className="btn lg" to="/arcade"><Icon name="gamepad" /> NEXPLAY Arcade</Link>
       </div>
     </section>
   );
@@ -41,11 +41,11 @@ export default function Home() {
           <Hero data={data} user={user} />
           {data.totalPublished === 0 ? (
             <div className="mt">
-              <Empty icon="rocket" title="O catálogo da NEXPLAY está esperando os primeiros jogos">
-                <p>Ainda não há jogos publicados. Se você é desenvolvedor, publique seu jogo (HTML5/WebGL) ou crie um no NEXPLAY STUDIO — todos os envios passam por verificação de segurança e moderação antes de aparecer aqui.</p>
+              <Empty icon="gamepad" title="Ainda não temos jogos publicados.">
+                <p>Seja um dos primeiros criadores da NEXPLAY!</p>
                 <div className="row" style={{ justifyContent: 'center', marginTop: 14 }}>
-                  <Link className="btn primary" to="/criador/jogos/novo"><Icon name="upload" /> Publicar meu jogo</Link>
-                  <Link className="btn" to="/studio"><Icon name="cube" /> Criar no Studio</Link>
+                  <Link className="btn primary" to={user ? '/studio' : '/cadastro'}><Icon name="plus" /> Criar meu jogo</Link>
+                  <Link className="btn" to="/studio"><Icon name="cube" /> Explorar o NEXPLAY Studio</Link>
                 </div>
               </Empty>
             </div>

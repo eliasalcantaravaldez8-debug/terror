@@ -26,12 +26,16 @@ async function run(doc, assetUrl, test) {
     await game.init();
     document.getElementById('status')?.remove();
     post({ type: 'nexplay:ready' });
-    if (test) {
+    if (test?.full) {
+      const result = await game.runGameTest().catch((e) => ({ ok: false, frames: 0, errors: [e.message] }));
+      post({ type: 'nexplay:game_test_result', result });
+    } else if (test) {
       const result = await game.runTest(test.entityId).catch((e) => ({ loaded: false, error: e.message }));
       post({ type: 'nexplay:test_result', jobId: test.jobId, result });
     }
   } catch (e) {
     status.textContent = `Não foi possível iniciar o jogo: ${e.message}`;
+    if (test?.full) post({ type: 'nexplay:game_test_result', result: { ok: false, frames: 0, errors: [`Falha ao iniciar: ${e.message}`] } });
     post({ type: 'nexplay:log', kind: 'error', message: e.stack || e.message });
   }
 }

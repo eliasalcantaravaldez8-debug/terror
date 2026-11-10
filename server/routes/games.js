@@ -9,6 +9,7 @@ import { HttpError, rateLimiter, slugify, randomToken } from '../lib/security.js
 import { requireAuth, publicUser } from '../lib/auth.js';
 import { parse, z, text, id, httpUrl } from '../lib/validate.js';
 import { saveImage, extractGameZip } from '../lib/uploads.js';
+import { getSetting } from '../db/index.js';
 import { notify, logActivity, audit, entitlements, activePlanCode } from '../lib/services.js';
 import { checkPlatformAchievements, unlockAchievement } from '../lib/rewards.js';
 import { signPlayToken, sandboxBase } from '../lib/playtoken.js';
@@ -121,6 +122,164 @@ r.get('/', (req, res) => {
 
 r.get('/meta', (_req, res) => res.json({ genres: GENRES, modes: MODES }));
 
+/**
+ * NEXPLAY Arcade: jogos publicados pelos usuários. Rankings calculados só com dados reais
+ * (jogadores distintos com tempo de jogo registrado). Nunca inclui modelos do Studio nem jogos não publicados.
+ */
+r.get('/arcade', (req, res) => {
+  const q = parse(z.object({
+    tab: z.enum(['month', 'week', 'trending', 'new', 'search']).default('new'),
+    q: z.string().max(80).optional(), genre: z.enum(GENRES).optional(), device: z.enum(['pc', 'mobile']).optional(),
+    dimension: z.enum(['2d', '3d']).optional(), multiplayer: z.enum(['1']).optional(), price: z.enum(['free', 'paid']).optional(),
+  }), req.query);
+  const totalPublished = Number(one(`SELECT COUNT(*) AS c FROM games WHERE status='published'`).c);
+  const where = [`g.status = 'published'`]; const params = [];
+  if (q.q) { where.push('(g.title LIKE ? OR g.short_description LIKE ? OR g.tags LIKE ?)'); params.push(`%${q.q}%`, `%${q.q}%`, `%${q.q}%`); }
+  if (q.genre) { where.push('g.genre = ?'); params.push(q.genre); }
+  if (q.device) { where.push(`(g.platforms = ? OR g.platforms = 'both')`); params.push(q.device); }
+  if (q.price === 'free') where.push('g.price_cents = 0');
+  if (q.price === 'paid') where.push('g.price_cents > 0');
+  if (q.multiplayer) where.push(`g.max_players > 1 AND EXISTS (SELECT 1 FROM json_each(g.modes) WHERE value IN ('public_mp','private_rooms','coop','competitive','local'))`);
+  if (q.dimension) { where.push(`EXISTS (SELECT 1 FROM projects pr WHERE pr.id = g.studio_project_id AND pr.dimension = ?)`); params.push(q.dimension); }
+  const ago = (days) => new Date(Date.now() - days * 864e5).toISOString();
+  const players = (since) => `(SELECT COUNT(DISTINCT ps.user_id) FROM play_sessions ps WHERE ps.game_id = g.id AND ps.user_id <> g.creator_id AND ps.started_at >= '${since}' AND ps.active_seconds > 0)`;
+  let sql; let note = null;
+  const w = where.join(' AND ');
+  if (q.tab === 'month' || q.tab === 'week') {
+    const since = ago(q.tab === 'month' ? 30 : 7);
+    sql = `SELECT g.*, ${players(since)} AS period_players FROM games g WHERE ${w} AND ${players(since)} > 0 ORDER BY period_players DESC, g.published_at DESC LIMIT 30`;
+    note = q.tab === 'month' ? 'Mais jogados nos últimos 30 dias (jogadores diferentes com tempo de jogo real).' : 'Mais jogados nos últimos 7 dias (jogadores diferentes com tempo de jogo real).';
+  } else if (q.tab === 'trending') {
+    // Em alta: jogadores nas últimas 72 h, com peso maior para as últimas 24 h.
+    sql = `SELECT g.*, (${players(ago(1))} * 2 + ${players(ago(3))}) AS heat FROM games g WHERE ${w} AND ${players(ago(3))} > 0 ORDER BY heat DESC, g.published_at DESC LIMIT 30`;
+    note = 'Jogos com mais jogadores nas últimas 72 horas (as últimas 24 h valem o dobro).';
+  } else if (q.tab === 'new') {
+    sql = `SELECT g.* FROM games g WHERE ${w} ORDER BY g.published_at DESC LIMIT 60`;
+  } else {
+    sql = `SELECT g.* FROM games g WHERE ${w} ORDER BY g.published_at DESC LIMIT 60`;
+  }
+  const rows = all(sql, ...params);
+  res.json({
+    totalPublished, tab: q.tab, note,
+    games: rows.map((g) => ({ ...gameCard(g), stats: {
+      players30d: Number(one(`SELECT COUNT(DISTINCT user_id) AS c FROM play_sessions WHERE game_id=? AND started_at >= ? AND active_seconds > 0`, g.id, ago(30)).c),
+      playersTotal: Number(one(`SELECT COUNT(DISTINCT user_id) AS c FROM play_sessions WHERE game_id=? AND active_seconds > 0`, g.id).c),
+    } })),
+  });
+});
+
+/** Jogo ligado a um projeto do Studio (para o botão "Publicar jogo" saber se é publicação nova ou atualização). */
+r.get('/by-project/:projectId', requireAuth, (req, res) => {
+  const pid = parse(id, req.params.projectId);
+  const g = one('SELECT * FROM games WHERE studio_project_id=? ORDER BY id DESC LIMIT 1', pid);
+  if (!g || !canManage(req.user, g)) return res.json({ game: null });
+  const v = g.current_version_id && one('SELECT version FROM game_versions WHERE id=?', g.current_version_id);
+  res.json({ game: { ...gameCard(g), description: g.description, controls: g.controls, currentVersion: v?.version || null,
+    lastVersion: one('SELECT version FROM game_versions WHERE game_id=? ORDER BY id DESC LIMIT 1', g.id)?.version || null, moderationNotes: g.moderation_notes } });
+});
+
+const dataImage = z.string().max(11_000_000).regex(/^data:image\/(png|jpeg|webp);base64,/, 'Imagem inválida.');
+const imageFromDataUrl = (d) => saveImage(Buffer.from(d.slice(d.indexOf(',') + 1), 'base64'));
+
+/**
+ * Publicar jogo a partir do NEXPLAY STUDIO (nova publicação ou atualização).
+ * Exige: projeto sem erros de validação + teste de execução aprovado no motor real.
+ * Se a configuração auto_publish_studio estiver ativa, o jogo entra no Arcade imediatamente.
+ */
+r.post('/publish-studio', requireAuth, writeLimiter, (req, res) => {
+  const b = parse(z.object({
+    projectId: id,
+    title: text(80).pipe(z.string().min(2, 'Nome muito curto.')),
+    shortDescription: text(200).default(''),
+    description: text(20000).pipe(z.string().min(20, 'Escreva uma descrição com pelo menos 20 caracteres.')),
+    genre: z.enum(GENRES), tags: z.array(text(24)).max(10).default([]),
+    ageRating: z.enum(['L', '10', '12', '14', '16', '18']).default('L'),
+    platforms: z.enum(['pc', 'mobile', 'both']),
+    modes: z.array(z.enum(MODES)).min(1).max(6), maxPlayers: z.coerce.number().int().min(1).max(256).default(1),
+    controls: text(2000).pipe(z.string().min(3, 'Descreva os controles.')),
+    version: z.string().trim().regex(/^[0-9A-Za-z.\-+]{1,20}$/, 'Versão inválida (ex.: 1.0.0).'),
+    changelog: text(5000).default(''),
+    priceCents: z.coerce.number().int().min(0).max(100000).default(0),
+    rightsConfirmed: z.literal(true, { message: 'Confirme que o jogo é seu e segue as regras.' }),
+    coverDataUrl: dataImage.optional(),
+    images: z.array(dataImage).max(6).default([]),
+    testReport: z.object({ ok: z.boolean(), frames: z.number().int().nonnegative(), fps: z.number().nonnegative().max(1000).optional(),
+      errors: z.array(z.string().max(500)).max(50).default([]), durationMs: z.number().nonnegative().optional(), dimension: z.enum(['2d', '3d']).optional() }),
+  }), req.body);
+  const p = one('SELECT * FROM projects WHERE id=?', b.projectId);
+  if (!p) throw new HttpError(404, 'Projeto não encontrado.');
+  const member = one(`SELECT role FROM project_members WHERE project_id=? AND user_id=?`, p.id, req.user.id);
+  if (p.owner_id !== req.user.id && member?.role !== 'editor' && req.user.role !== 'admin') throw new HttpError(403, 'Você não pode publicar este projeto.');
+  checkModes(b);
+  if (b.priceCents > 0 && config.payments.provider !== 'stripe') throw new HttpError(400, 'Jogos pagos ficam disponíveis quando o sistema de pagamentos estiver configurado. Publique como gratuito por enquanto.', 'payments_not_configured');
+  const rules = getSetting('publishing', { auto_publish_studio: true, require_runtime_test: true });
+  if (rules.require_runtime_test && (!b.testReport.ok || b.testReport.frames < 10)) {
+    throw new HttpError(422, `O jogo não passou no teste de execução: ${b.testReport.errors.slice(0, 3).join('; ') || 'poucos quadros executados'}. Corrija e teste de novo.`, 'runtime_test_failed');
+  }
+  const now = new Date().toISOString();
+  let g = one('SELECT * FROM games WHERE studio_project_id=? ORDER BY id DESC LIMIT 1', p.id);
+  if (g && !canManage(req.user, g)) g = null;
+  const isNew = !g;
+  if (isNew) {
+    const plan = entitlements(p.owner_id);
+    const live = Number(one(`SELECT COUNT(*) AS c FROM games WHERE creator_id=? AND status IN ('published','pending_review','in_development')`, p.owner_id).c);
+    if (live >= plan.max_published_games) throw new HttpError(402, `Seu plano ${plan.name} permite ${plan.max_published_games} jogos publicados.`, 'publish_limit');
+    let slug = slugify(b.title);
+    if (one('SELECT 1 FROM games WHERE slug=?', slug)) slug = `${slug}-${randomToken(3).toLowerCase().replace(/[^a-z0-9]/g, 'x')}`;
+    const gid = run(`INSERT INTO games(slug,title,short_description,description,creator_id,genre,tags,age_rating,platforms,controls,modes,max_players,price_cents,rights_confirmed,release_stage,status)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,'released','draft')`, slug, b.title, b.shortDescription, b.description, p.owner_id, b.genre, JSON.stringify(b.tags), b.ageRating,
+    b.platforms, b.controls, JSON.stringify(b.modes), b.maxPlayers, b.priceCents).lastInsertRowid;
+    g = one('SELECT * FROM games WHERE id=?', gid);
+  } else {
+    run(`UPDATE games SET title=?, short_description=?, description=?, genre=?, tags=?, age_rating=?, platforms=?, controls=?, modes=?, max_players=?, price_cents=?, updated_at=? WHERE id=?`,
+      b.title, b.shortDescription, b.description, b.genre, JSON.stringify(b.tags), b.ageRating, b.platforms, b.controls, JSON.stringify(b.modes), b.maxPlayers, b.priceCents, now, g.id);
+  }
+  if (b.coverDataUrl) run('UPDATE games SET cover_url=? WHERE id=?', imageFromDataUrl(b.coverDataUrl), g.id);
+  if (b.images.length) {
+    run(`DELETE FROM game_media WHERE game_id=? AND kind='image'`, g.id);
+    b.images.forEach((d, i) => run(`INSERT INTO game_media(game_id, kind, url, position) VALUES (?,?,?,?)`, g.id, 'image', imageFromDataUrl(d), i));
+  }
+  g = one('SELECT * FROM games WHERE id=?', g.id);
+  if (!g.cover_url) throw new HttpError(400, 'Adicione uma capa (envie uma imagem ou use a imagem da cena).', 'cover_required');
+  const auto = !!rules.auto_publish_studio;
+  const { versionId, report } = buildStudioVersion(g, p, { version: b.version, changelog: b.changelog, testReport: b.testReport, approved: auto });
+  let status;
+  if (auto) {
+    run(`UPDATE games SET status='published', current_version_id=?, published_at=COALESCE(published_at, ?), moderation_notes=NULL, updated_at=? WHERE id=?`, versionId, now, now, g.id);
+    status = 'published';
+    if (isNew || !g.published_at) { logActivity(req.user.id, 'published', g.id); unlockAchievement(g.creator_id, 'creator_debut'); }
+    else for (const f of all('SELECT user_id FROM game_follows WHERE game_id=? UNION SELECT user_id FROM wishlist WHERE game_id=?', g.id, g.id)) notify(f.user_id, 'game_update', `${g.title} atualizado para ${b.version}`, b.changelog.slice(0, 140), `/jogo/${g.slug}`);
+  } else {
+    if (g.status === 'published') queueReviewIfLive(g, versionId);
+    else run(`UPDATE games SET status='pending_review', updated_at=? WHERE id=?`, now, g.id);
+    status = g.status === 'published' ? 'published_update_pending' : 'pending_review';
+    for (const mod of all(`SELECT id FROM users WHERE role IN ('admin','moderator')`)) notify(mod.id, 'moderation', `Jogo do Studio aguardando revisão: ${g.title}`, '', '/admin/moderacao');
+  }
+  audit(req, isNew ? 'game.publish_studio' : 'game.update_studio', 'game', g.id, { version: b.version, auto, test: { ok: b.testReport.ok, fps: b.testReport.fps } });
+  res.status(isNew ? 201 : 200).json({ game: gameCard(one('SELECT * FROM games WHERE id=?', g.id)), versionId, status, warnings: report.warnings });
+});
+
+/** O criador retira o jogo do Arcade (sem apagar dados, versões, avaliações ou estatísticas). */
+r.post('/:id/unpublish', requireAuth, (req, res) => {
+  const g = loadManaged(req);
+  if (g.status !== 'published') throw new HttpError(400, 'Este jogo não está publicado.');
+  run(`UPDATE games SET status='draft', moderation_notes=?, updated_at=? WHERE id=?`, 'Retirado do Arcade pelo criador.', new Date().toISOString(), g.id);
+  run('UPDATE picks SET active=0 WHERE game_id=?', g.id);
+  audit(req, 'game.unpublish', 'game', g.id);
+  res.json({ ok: true, status: 'draft' });
+});
+
+/** Volta a publicar um jogo retirado (a versão aprovada continua a mesma). */
+r.post('/:id/republish', requireAuth, (req, res) => {
+  const g = loadManaged(req);
+  if (g.status !== 'draft' || !g.current_version_id) throw new HttpError(400, 'Só jogos retirados que já tinham uma versão aprovada podem voltar direto. Para os demais, use "Enviar para revisão".');
+  const v = one('SELECT review_status FROM game_versions WHERE id=?', g.current_version_id);
+  if (v?.review_status !== 'approved') throw new HttpError(400, 'A versão atual não está aprovada.');
+  run(`UPDATE games SET status='published', moderation_notes=NULL, updated_at=? WHERE id=?`, new Date().toISOString(), g.id);
+  audit(req, 'game.republish', 'game', g.id);
+  res.json({ ok: true, status: 'published' });
+});
+
 /** Seções da página inicial (todas derivadas de dados reais; vazias se não houver jogos). */
 r.get('/home', (req, res) => {
   const pub = `status = 'published'`;
@@ -213,6 +372,13 @@ r.get('/:id', (req, res) => {
       review: one('SELECT rating, body FROM reviews WHERE user_id=? AND game_id=?', req.user.id, g.id) || null,
     } : null,
     followers: Number(one('SELECT COUNT(*) AS c FROM game_follows WHERE game_id=?', g.id).c),
+    creatorInfo: (() => {
+      const u = one('SELECT id, username, display_name, avatar_url, bio, created_at FROM users WHERE id=?', g.creator_id);
+      return u && { username: u.username, displayName: u.display_name, avatarUrl: u.avatar_url, bio: u.bio, joinedAt: u.created_at,
+        gamesPublished: Number(one(`SELECT COUNT(*) AS c FROM games WHERE creator_id=? AND status='published'`, u.id).c),
+        followers: Number(one('SELECT COUNT(*) AS c FROM follows WHERE followed_id=?', u.id).c) };
+    })(),
+    playersTotal: Number(one('SELECT COUNT(DISTINCT user_id) AS c FROM play_sessions WHERE game_id=? AND active_seconds > 0', g.id).c),
   });
 });
 
@@ -383,31 +549,40 @@ r.post('/:id/versions', requireAuth, zipUpload.single('file'), (req, res) => {
   }
 });
 
-/** Publica um projeto do NEXPLAY STUDIO como build do jogo. */
-r.post('/:id/versions/from-project', requireAuth, (req, res) => {
-  const g = loadManaged(req);
-  const b = parse(versionFields.extend({ projectId: id }), req.body);
-  const p = one('SELECT * FROM projects WHERE id=?', b.projectId);
-  if (!p || (p.owner_id !== req.user.id && req.user.role !== 'admin')) throw new HttpError(403, 'Projeto não encontrado ou sem permissão.');
-  if (one('SELECT 1 FROM game_versions WHERE game_id=? AND version=?', g.id, b.version)) throw new HttpError(409, 'Esta versão já existe.');
+/**
+ * Cria uma versão (build imutável) a partir de um projeto do NEXPLAY STUDIO: valida o projeto, copia o
+ * documento e os assets para a pasta do build. Retorna { versionId, report }.
+ */
+function buildStudioVersion(g, p, { version, changelog, testReport, approved = false }) {
+  if (one('SELECT 1 FROM game_versions WHERE game_id=? AND version=?', g.id, version)) throw new HttpError(409, `A versão ${version} já existe. Use um número novo (ex.: 1.0.1).`, 'version_exists');
   const doc = JSON.parse(p.data);
   const report = validateProject(doc);
   if (report.errors.length) throw new HttpError(422, `O projeto tem erros que impedem a publicação: ${report.errors.slice(0, 3).join('; ')}`, 'project_invalid');
   const key = nextVersionDir(g.id);
   const dir = path.join(config.dataDir, 'games', key);
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(path.join(dir, 'assets'), { recursive: true });
   // Copia os assets referenciados pelo projeto para dentro do build (o build é imutável).
   const assets = all('SELECT * FROM project_assets WHERE project_id=?', p.id);
-  fs.mkdirSync(path.join(dir, 'assets'), { recursive: true });
   for (const a of assets) fs.copyFileSync(path.join(config.dataDir, 'assets', a.storage_key), path.join(dir, 'assets', a.storage_key));
   fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(doc));
-  const size = Buffer.byteLength(p.data) + assets.reduce((s, a) => s + a.size_bytes, 0);
-  const v = run(`INSERT INTO game_versions(game_id, version, changelog, build_kind, storage_key, entry_file, size_bytes, file_count, scan_status, scan_report)
-    VALUES (?,?,?,?,?,?,?,?,?,?)`, g.id, b.version, b.changelog, 'studio', key, 'project.json', size, assets.length + 1,
-  report.warnings.length ? 'flagged' : 'passed', JSON.stringify({ findings: report.warnings.map((w) => ({ rule: 'project_warning', severity: 'low', file: w })) }));
+  const size = Buffer.byteLength(p.data) + assets.reduce((s2, a) => s2 + a.size_bytes, 0);
+  const findings = report.warnings.map((w) => ({ rule: 'project_warning', severity: 'low', file: w }));
+  const v = run(`INSERT INTO game_versions(game_id, version, changelog, build_kind, storage_key, entry_file, size_bytes, file_count, scan_status, scan_report, review_status)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)`, g.id, version, changelog || '', 'studio', key, 'project.json', size, assets.length + 1,
+  report.warnings.length ? 'flagged' : 'passed', JSON.stringify({ findings, runtimeTest: testReport || null }), approved ? 'approved' : 'pending');
   run(`UPDATE games SET build_kind='studio', studio_project_id=?, updated_at=? WHERE id=?`, p.id, new Date().toISOString(), g.id);
-  queueReviewIfLive(g, v.lastInsertRowid);
-  res.status(201).json({ versionId: v.lastInsertRowid, validation: report });
+  return { versionId: v.lastInsertRowid, report };
+}
+
+/** Publica um projeto do NEXPLAY STUDIO como build do jogo (fluxo do painel do criador; passa pela moderação). */
+r.post('/:id/versions/from-project', requireAuth, (req, res) => {
+  const g = loadManaged(req);
+  const b = parse(versionFields.extend({ projectId: id }), req.body);
+  const p = one('SELECT * FROM projects WHERE id=?', b.projectId);
+  if (!p || (p.owner_id !== req.user.id && req.user.role !== 'admin')) throw new HttpError(403, 'Projeto não encontrado ou sem permissão.');
+  const { versionId, report } = buildStudioVersion(g, p, { version: b.version, changelog: b.changelog });
+  queueReviewIfLive(g, versionId);
+  res.status(201).json({ versionId, validation: report });
 });
 
 function queueReviewIfLive(g, versionId) {
