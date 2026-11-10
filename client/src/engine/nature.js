@@ -49,7 +49,7 @@ export function buildTerrain(e, materials, quality) {
   const rep = (matDef.textureScale || 40) * (size / 400);
   const mk = (t) => { const c = t.clone(); c.repeat.set(rep, rep); c.needsUpdate = true; return c; };
   const mat = new THREE.MeshStandardMaterial({
-    map: mk(tex.map), normalMap: mk(tex.normalMap), roughnessMap: mk(tex.ormMap), aoMap: mk(tex.ormMap), aoMapIntensity: 0.5,
+    map: mk(tex.map), normalMap: mk(tex.normalMap), roughnessMap: mk(tex.ormMap), aoMap: mk(tex.ormMap), aoMapIntensity: 0.3,
     vertexColors: true, roughness: 1, metalness: 0, color: matDef.color ? new THREE.Color(matDef.color) : 0xffffff,
   });
   // Macro-variação para quebrar a repetição da textura em grandes distâncias.
@@ -124,7 +124,7 @@ function grassGeometry() {
   const blades = [];
   for (let i = 0; i < 3; i++) {
     const g = new THREE.BufferGeometry();
-    const h = 0.45 + i * 0.12; const w = 0.06;
+    const h = 0.32 + i * 0.09; const w = 0.035;
     g.setAttribute('position', new THREE.Float32BufferAttribute([-w, 0, 0, w, 0, 0, -w * 0.6, h * 0.55, 0.02, w * 0.6, h * 0.55, 0.02, 0, h, 0.06], 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0.6, 0.8, 0, 0.6, 0.8, 0, 0.7, 0.7, 0, 0.7, 0.7, 0, 0.9, 0.4], 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute([0.35, 0.45, 0.2, 0.35, 0.45, 0.2, 0.75, 0.85, 0.45, 0.75, 0.85, 0.45, 1, 1, 0.7], 3));
@@ -214,7 +214,7 @@ export function buildVegetation(e, ctx) {
   if (p.kind === 'grass') {
     const mat = windify(new THREE.MeshStandardMaterial({ vertexColors: true, color: p.color || '#5f8a3a', roughness: 0.95, side: THREE.DoubleSide }), 0.6);
     const mesh = new THREE.InstancedMesh(grassGeometry(), mat, placements.length);
-    fill(mesh, () => 0.7 + r() * 0.9);
+    fill(mesh, () => 0.5 + r() * 0.6);
     mesh.receiveShadow = true;
     group.add(mesh);
   } else if (p.kind === 'flowers') {

@@ -124,16 +124,17 @@ export class World {
     const day = THREE.MathUtils.clamp(this.sunDir.y * 4 + 0.15, 0, 1);
     const golden = THREE.MathUtils.clamp(1 - Math.abs(this.sunDir.y) * 5, 0, 1);
     this.sun.position.copy(this.sunDir).multiplyScalar(150);
-    this.sun.intensity = day * 2.6 * (1 - storm * 0.6);
+    this.sun.intensity = day * 4.2 * (1 - storm * 0.6);
     this.sun.color.setHSL(0.1 - golden * 0.05, 0.6 + golden * 0.3, 0.9 - golden * 0.25);
     this.moon.intensity = (1 - day) * 0.35;
     this.moon.position.set(-this.sunDir.x * 100, Math.abs(this.sunDir.y) * 100 + 30, -this.sunDir.z * 100);
     const amb = env.ambientIntensity ?? 0.35;
-    this.hemi.intensity = amb * (0.25 + day * 1.4) + this.lightning * 3;
+    this.hemi.intensity = amb * (0.4 + day * 2.4) + this.lightning * 3;
     this.hemi.color.setHSL(0.6, 0.5, 0.45 + day * 0.35);
     this.stars.material.opacity = (1 - day) * (1 - storm);
     const artificial = this.nightLights.some((l) => l.isDirectionalLight) && day < 0.6;
-    this.renderer.toneMappingExposure = (env.exposure ?? 0.9) * (artificial ? 1.05 : 0.55 + day * 0.45);
+    // O céu físico é muito luminoso: a exposição base é reduzida e o sol/ambiente compensam.
+    this.renderer.toneMappingExposure = (env.exposure ?? 0.9) * (artificial ? 1.05 : 0.6 + day * 0.15);
     if (this.scene.fog) {
       const base = new THREE.Color(env.fog.color);
       const night = new THREE.Color('#05070d');

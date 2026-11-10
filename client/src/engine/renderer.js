@@ -38,7 +38,7 @@ export function createComposer(renderer, scene, camera, settings = {}) {
     composer.addPass(gtao);
   }
   if (r.bloom?.enabled !== false) {
-    const bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), r.bloom?.strength ?? 0.35, r.bloom?.radius ?? 0.5, r.bloom?.threshold ?? 0.85);
+    const bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), r.bloom?.strength ?? 0.35, r.bloom?.radius ?? 0.5, Math.max(r.bloom?.threshold ?? 1.6, 1.2));
     composer.addPass(bloom);
   }
   composer.addPass(new OutputPass());

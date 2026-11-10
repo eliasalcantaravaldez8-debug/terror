@@ -38,10 +38,10 @@ export function entity(type, name, props = {}, transform = T(), components = {})
 export function defaultSettings(dimension) {
   return {
     environment: {
-      sky: { type: 'procedural', turbidity: 6, rayleigh: 1.6, mieCoefficient: 0.005, mieDirectionalG: 0.8 },
+      sky: { type: 'procedural', turbidity: 2.5, rayleigh: 1.1, mieCoefficient: 0.004, mieDirectionalG: 0.8 },
       timeOfDay: 14,
       dayNightCycle: { enabled: false, minutesPerDay: 20 },
-      fog: { enabled: true, color: '#a9c4dc', density: 0.0035 },
+      fog: { enabled: true, color: '#b7cde0', density: 0.0022 },
       weather: { rain: { enabled: false, intensity: 0.6 }, snow: { enabled: false, intensity: 0.5 }, wind: 0.3, lightning: false },
       ambientIntensity: 0.35,
       exposure: 0.9,
@@ -49,7 +49,7 @@ export function defaultSettings(dimension) {
     rendering: {
       quality: 'high',
       shadows: { enabled: true, mapSize: 2048, softness: 2 },
-      bloom: { enabled: true, strength: 0.35, threshold: 0.85, radius: 0.5 },
+      bloom: { enabled: true, strength: 0.3, threshold: 1.6, radius: 0.45 },
       ssao: { enabled: false },
       antialias: true,
       toneMapping: 'aces',
@@ -123,7 +123,7 @@ export function createProject({ name, dimension = '3d', template = 'vazio' }) {
       add(entity('structure', 'Gol Norte', { kind: 'goal', width: 7.32, height: 2.44 }, T([0, 0, -52.5])));
       add(entity('structure', 'Gol Sul', { kind: 'goal', width: 7.32, height: 2.44 }, T([0, 0, 52.5], [0, 180, 0])));
       add(entity('ball', 'Bola', { radius: 0.11, preset: 'classic' }, T([0, 0.5, 0]), { physics: { body: 'dynamic', mass: 0.43, restitution: 0.6, friction: 0.4 } }));
-      hero([0, 0, 8], { shirtColor: '#7c3aed', pantsColor: '#ffffff' });
+      hero([0, 0, 8], { shirtColor: '#7c3aed', pantsColor: '#ffffff' }).transform.rotation = [0, 180, 0];
       doc.systems.match = { durationMinutes: 6, teams: [{ name: 'NEXPLAY FC', color: '#7c3aed' }, { name: 'Ciano United', color: '#06b6d4' }], playersPerTeam: 5, rules: { offside: false, fouls: true } };
       for (let i = 0; i < 4; i++) add(entity('npc', `Companheiro ${i + 1}`, { height: 1.8, shirtColor: '#7c3aed', pantsColor: '#ffffff', skinColor: ['#8d5524', '#e0ac69', '#c68642', '#f1c27d'][i] }, T([(i - 1.5) * 10, 0, 18]), { ai: { behavior: 'soccer_player', team: 0, role: ['defender', 'defender', 'midfielder', 'forward'][i], speed: 6 }, animation: { clip: 'idle', loop: true, speed: 1 } }));
       for (let i = 0; i < 5; i++) add(entity('npc', `Rival ${i + 1}`, { height: 1.8, shirtColor: '#06b6d4', pantsColor: '#0f172a', skinColor: ['#e0ac69', '#8d5524', '#f1c27d', '#c68642', '#ffdbac'][i] }, T([(i - 2) * 10, 0, -18]), { ai: { behavior: i === 0 ? 'goalkeeper' : 'soccer_player', team: 1, role: i === 0 ? 'goalkeeper' : ['defender', 'defender', 'midfielder', 'forward'][i - 1], speed: 6 }, animation: { clip: 'idle', loop: true, speed: 1 } }));
