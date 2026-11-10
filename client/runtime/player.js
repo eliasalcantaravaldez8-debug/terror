@@ -10,8 +10,10 @@ const parentOrigin = (() => { try { return document.referrer ? new URL(document.
 const post = (msg) => window.parent !== window && window.parent.postMessage(msg, parentOrigin);
 let game = null;
 
-async function run(doc, assetUrl) {
+async function run(doc, assetUrl, test) {
   game?.dispose();
+  // Preferência de qualidade gráfica escolhida pelo jogador (menu Gráficos).
+  try { const q = localStorage.getItem('nx_quality'); if (q && doc.settings?.rendering && !test) doc.settings.rendering.quality = q; } catch { /* sem armazenamento */ }
   stage.innerHTML = '';
   const opts = {
     assetUrl,
@@ -20,9 +22,14 @@ async function run(doc, assetUrl) {
   };
   try {
     game = doc.meta.dimension === '2d' ? new Game2D(stage, doc, opts) : new Game(stage, doc, opts);
+    if (test) game.testMode = true;
     await game.init();
-    document.getElementById('status').remove();
+    document.getElementById('status')?.remove();
     post({ type: 'nexplay:ready' });
+    if (test) {
+      const result = await game.runTest(test.entityId).catch((e) => ({ loaded: false, error: e.message }));
+      post({ type: 'nexplay:test_result', jobId: test.jobId, result });
+    }
   } catch (e) {
     status.textContent = `Não foi possível iniciar o jogo: ${e.message}`;
     post({ type: 'nexplay:log', kind: 'error', message: e.stack || e.message });
@@ -46,7 +53,7 @@ if (token) {
     if (msg?.type === 'nexplay:load') {
       const urls = new Map();
       for (const [id, buf] of Object.entries(msg.assets || {})) urls.set(id, URL.createObjectURL(new Blob([buf])));
-      run(msg.doc, (asset) => urls.get(asset.id) || null);
+      run(msg.doc, (asset) => urls.get(asset.id) || null, msg.test || null);
     }
   });
   post({ type: 'nexplay:waiting' });

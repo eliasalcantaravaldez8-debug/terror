@@ -7,6 +7,14 @@ import { Hud } from './hud.js';
 import { AudioSystem } from './audio.js';
 import { ScriptHost } from './scripting.js';
 
+const QUALITY_LABEL = { low: 'Baixa', medium: 'Média', high: 'Alta', ultra: 'Ultra' };
+function cycleQuality(cur) {
+  const order = ['low', 'medium', 'high', 'ultra'];
+  const next = order[(order.indexOf(cur) + 1) % order.length];
+  try { localStorage.setItem('nx_quality', next); } catch { /* armazenamento indisponível */ }
+  location.reload();
+}
+
 export class Game {
   constructor(container, doc, { assetUrl, onEvent, onLog } = {}) {
     this.container = container;
@@ -28,7 +36,8 @@ export class Game {
     this.renderer = createRenderer(this.container, doc.settings);
     this.camera = new THREE.PerspectiveCamera(doc.player.controller === 'first_person' ? 75 : 60, this.container.clientWidth / this.container.clientHeight, 0.1, 6000);
     this.camera.position.set(0, 6, -12);
-    this.world = new World(this.renderer, doc, { assetUrl: this.assetUrl });
+    const start = doc.entities.find((x) => x.id === doc.player.entityId)?.transform.position || [0, 0, 0];
+    this.world = new World(this.renderer, doc, { assetUrl: this.assetUrl, stream: !this.testMode, streamCenter: new THREE.Vector3(...start) });
     await this.world.build();
     this.world.onThunder = () => setTimeout(() => this.audio.play('thunder'), 300 + Math.random() * 1200);
     this.composer = createComposer(this.renderer, this.world.scene, this.camera, doc.settings);
@@ -67,11 +76,12 @@ export class Game {
 
   titleMenu() {
     const main = (this.doc.ui.menus || []).find((m) => m.id === 'main');
+    const graphics = { label: `Gráficos: ${QUALITY_LABEL[this.doc.settings.rendering.quality] || 'Alta'}`, onClick: () => cycleQuality(this.doc.settings.rendering.quality) };
     const start = () => { this.hud.menu({}); this.paused = false; this.audio.unlock(); if (!this.started) { this.started = true; this.scripts.call('start'); this.emit('start', {}); } };
     this.hud.menu({
       title: this.doc.ui.title || this.doc.meta.name,
       text: this.doc.meta.description || 'WASD para mover · Shift para correr · Espaço para pular · F/clique para ação · E para interagir · Esc para pausar',
-      items: main ? main.items.map((it) => ({ label: it.label, onClick: () => this.menuAction(it.action, start) })) : [{ label: 'Jogar', onClick: start }],
+      items: [...(main ? main.items.map((it) => ({ label: it.label, onClick: () => this.menuAction(it.action, start) })) : [{ label: 'Jogar', onClick: start }]), graphics],
     });
   }
 
@@ -91,7 +101,7 @@ export class Game {
 
   pauseMenu() {
     this.paused = true;
-    this.hud.menu({ title: 'Pausado', items: [{ label: 'Continuar', onClick: () => this.resume() }, { label: 'Reiniciar', onClick: () => location.reload() }] });
+    this.hud.menu({ title: 'Pausado', items: [{ label: 'Continuar', onClick: () => this.resume() }, { label: `Gráficos: ${QUALITY_LABEL[this.doc.settings.rendering.quality] || 'Alta'}`, onClick: () => cycleQuality(this.doc.settings.rendering.quality) }, { label: 'Reiniciar', onClick: () => location.reload() }] });
   }
 
   resume() { this.hud.menu({}); this.paused = false; }
@@ -185,7 +195,15 @@ export class Game {
   }
 
   frame() {
-    const dt = Math.min(this.clock.getDelta(), 1 / 20);
+    const raw = this.clock.getDelta();
+    const dt = Math.min(raw, 1 / 20);
+    this.fpsSamples = (this.fpsSamples || []);
+    this.fpsSamples.push(raw);
+    if (this.fpsSamples.length > 120) this.fpsSamples.shift();
+    if (this.started && !this.perfWarned && this.fpsSamples.length >= 120) {
+      const fps = 120 / this.fpsSamples.reduce((a, b) => a + b, 0);
+      if (fps < 28 && this.doc.settings.rendering.quality !== 'low') { this.perfWarned = true; this.hud.toast('Desempenho baixo: reduza a qualidade em Gráficos (Esc).', 5000); }
+    }
     if (!this.paused) {
       this.player.update(dt);
       for (const rec of this.world.entities.values()) rec.npcBrain?.update(dt);
@@ -196,7 +214,7 @@ export class Game {
       this.scripts.call('update', dt);
       this.hud.setHud({ health: this.player.health, ...(this.match ? {} : { score: this.score }) });
       this.hud.minimap(this.world, this.player.object, [...this.world.entities.values()].filter((r) => r.npcBrain && !r.npcBrain.dead).map((r) => ({ x: r.object.position.x, z: r.object.position.z, color: r.e.components?.ai?.team === 0 ? '#a78bfa' : '#f87171' })).concat(this.ball ? [{ x: this.ball.rec.object.position.x, z: this.ball.rec.object.position.z, color: '#fff', r: 2 }] : []));
-    } else if (!this.started) {
+    } else if (!this.started && !this.testCamera) {
       // Câmera orbitando a cena na tela de título.
       const t = this.world.time * 0.05; const c = this.player.object?.position || new THREE.Vector3();
       this.camera.position.set(c.x + Math.sin(t) * 22, c.y + 9, c.z + Math.cos(t) * 22); this.camera.lookAt(c.x, c.y + 1, c.z);
@@ -205,6 +223,36 @@ export class Game {
     this.world.update(this.paused && this.started ? 0 : dt, this.camera);
     if (this.composer) this.composer.render(); else this.renderer.render(this.world.scene, this.camera);
     this.input.endFrame();
+  }
+
+  /** Teste automático de um asset dentro do motor real (usado pela NEXPLAY FORGE). */
+  async runTest(entityId) {
+    this.hud.menu({});
+    this.started = true; this.paused = true;
+    const rec = this.world.entities.get(entityId);
+    if (!rec) return { loaded: false, error: 'Entidade não encontrada no projeto.' };
+    if (rec.deferred) { const d = rec.deferred; rec.deferred = null; await d.load(); }
+    const real = () => { let ok = false; rec.object.traverse((o) => { if (o.isMesh && !o.userData.placeholder) ok = true; }); return ok; };
+    for (let i = 0; i < 100 && !real() && !rec.loadError; i++) await new Promise((r) => setTimeout(r, 200));
+    if (!real()) return { loaded: false, error: rec.loadError || 'Modelo não carregou.' };
+    const box = new THREE.Box3();
+    rec.object.traverse((o) => { if (o.isMesh && !o.userData.placeholder) box.expandByObject(o); });
+    const c = box.getCenter(new THREE.Vector3()); const size = box.getSize(new THREE.Vector3());
+    const ground = this.world.groundAt(c.x, c.z, box.min.y + 0.5);
+    const dist = Math.max(size.length() * 1.6, 3);
+    this.camera.position.set(c.x + dist * 0.7, c.y + dist * 0.45, c.z + dist * 0.7);
+    this.camera.lookAt(c);
+    this.testCamera = true;
+    const t0 = performance.now(); let frames = 0;
+    await new Promise((resolve) => { const tick = () => { frames++; if (performance.now() - t0 < 2500) requestAnimationFrame(tick); else resolve(); }; requestAnimationFrame(tick); });
+    const fps = (frames * 1000) / (performance.now() - t0);
+    // Mede a cena em uma renderização direta (o pós-processamento distorceria a contagem).
+    this.renderer.info.autoReset = false;
+    this.renderer.info.reset();
+    this.renderer.render(this.world.scene, this.camera);
+    const info = { ...this.renderer.info.render };
+    this.renderer.info.autoReset = true;
+    return { loaded: true, triangles: info.triangles, drawCalls: info.calls, fps: Math.round(fps * 10) / 10, groundOffset: Math.round((box.min.y - ground) * 1000) / 1000, size: [size.x, size.y, size.z].map((v) => Math.round(v * 100) / 100) };
   }
 
   checkPickupsAndTriggers() {

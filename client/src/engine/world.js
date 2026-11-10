@@ -4,14 +4,17 @@ import * as THREE from 'three';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { buildTerrain, buildWater, buildVegetation, buildParticles, buildPrecipitation, shared } from './nature.js';
-import { buildCharacter } from './character.js';
+import { buildCharacter, MixerAnimator } from './character.js';
 import { buildStadium, buildGoal, buildCabin, buildHouse, buildRoad, buildMisc, buildVehicle, buildBall, buildPrimitive } from './structures.js';
 import { buildMaterial } from './textures.js';
 
 const DEG = Math.PI / 180;
 
 export class World {
-  constructor(renderer, doc, { assetUrl } = {}) {
+  constructor(renderer, doc, { assetUrl, stream = false, streamCenter = null } = {}) {
+    this.stream = stream;
+    this.streamCenter = streamCenter;
+    this.streamDistance = doc.settings?.rendering?.streamDistance || 220;
     this.renderer = renderer;
     this.doc = doc;
     this.assetUrl = assetUrl || (() => null);
@@ -61,13 +64,14 @@ export class World {
     const rest = doc.entities.filter((x) => x.type !== 'terrain' && !(x.type === 'structure' && x.props?.kind === 'road'));
     const models = [];
     for (const e of rest) {
-      if (e.type === 'model') models.push(e); else this.addEntity(e);
+      if (e.type === 'model' || ((e.type === 'character' || e.type === 'npc') && e.props?.model)) models.push(e); else this.addEntity(e);
     }
     await Promise.all(models.map((e) => this.addModel(e)));
     // Hierarquia (parent)
     for (const { e, object } of this.entities.values()) {
       if (e.parent && this.entities.has(e.parent)) this.entities.get(e.parent).object.add(object);
     }
+    for (const rec of this.entities.values()) if (rec.e.type !== 'model') this.applyStyleTo(rec.object);
     this.applyEnvironment(true);
   }
 
@@ -231,31 +235,113 @@ export class World {
     return rec;
   }
 
+  /**
+   * Modelos GLB (importados ou produzidos pela NEXPLAY FORGE): LODs, colisão, animações e marcador provisório.
+   * Também atende personagens/NPCs com props.model (animações idle/walk/run do arquivo via MixerAnimator).
+   */
   async addModel(e) {
-    const asset = (this.doc.assets || []).find((a) => a.id === e.props?.asset);
-    const url = asset && this.assetUrl(asset);
+    const isChar = e.type === 'character' || e.type === 'npc';
+    const ref = isChar ? e.props?.model : e.props?.asset;
+    const urlOf = (id) => { const a = (this.doc.assets || []).find((x) => x.id === id); return a && this.assetUrl(a); };
+    const url = ref && urlOf(ref);
     const group = new THREE.Group();
-    const rec = { e, object: group };
+    const rec = { e, object: group, height: e.props?.height || 1.8 };
     this.place(group, e);
+    group.userData.entityId = e.id;
     this.scene.add(group);
     this.entities.set(e.id, rec);
-    if (!url) return rec;
+    if (!url) {
+      if (e.props?.pendingJob || ref) group.add(this.placeholder(e));
+      return rec;
+    }
+    if (this.stream && !isChar && this.streamCenter && group.position.distanceTo(this.streamCenter) > this.streamDistance) {
+      rec.deferred = { load: () => this.loadModelInto(rec, url, e, urlOf, isChar) };
+      group.add(this.placeholder(e, true));
+      return rec;
+    }
+    await this.loadModelInto(rec, url, e, urlOf, isChar);
+    return rec;
+  }
+
+  async loadModelInto(rec, url, e, urlOf, isChar) {
+    const group = rec.object;
     try {
-      const gltf = await new GLTFLoader().loadAsync(url);
-      gltf.scene.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } o.userData.entityId = e.id; });
-      group.add(gltf.scene);
+      const loader = new GLTFLoader();
+      const gltf = await loader.loadAsync(url);
+      const prep = (root) => root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (o.material?.vertexColors === false && o.geometry.attributes.color) o.material.vertexColors = true; } o.userData.entityId = e.id; });
+      prep(gltf.scene);
+      group.clear();
+      const lodIds = (!isChar && e.props?.lods) || [];
+      if (lodIds.length) {
+        const lod = new THREE.LOD();
+        const box = new THREE.Box3().setFromObject(gltf.scene);
+        const size = box.getSize(new THREE.Vector3()).length() || 1;
+        const base = Math.max(15, size * 8) * (1 - (e.props.lodBias || 0));
+        lod.addLevel(gltf.scene, 0);
+        const levels = await Promise.all(lodIds.map((id) => urlOf(id)).filter(Boolean).map((u) => loader.loadAsync(u).catch(() => null)));
+        levels.forEach((lv, i) => { if (lv) { prep(lv.scene); lod.addLevel(lv.scene, base * (i === 0 ? 1 : 2.5 * i)); } });
+        group.add(lod);
+        rec.lod = lod;
+      } else group.add(gltf.scene);
       if (gltf.animations.length) {
         rec.mixer = new THREE.AnimationMixer(gltf.scene);
         rec.clips = gltf.animations;
-        const name = e.components?.animation?.clip;
-        const clip = gltf.animations.find((a) => a.name === name) || gltf.animations[0];
-        rec.action = rec.mixer.clipAction(clip).play();
-        this.updaters.push((dt) => rec.mixer.update(dt));
+        if (isChar) rec.animator = new MixerAnimator(rec.mixer, gltf.animations, e.components?.animation?.clip || 'idle');
+        else {
+          const name = e.components?.animation?.clip;
+          const clip = gltf.animations.find((a) => a.name === name) || gltf.animations[0];
+          rec.action = rec.mixer.clipAction(clip).play();
+          const fn = (dt) => rec.mixer.update(dt); fn.__id = e.id; this.updaters.push(fn);
+        }
       }
+      const c = e.props?.collision;
+      if (!isChar && c?.type === 'box' && e.components?.physics?.body === 'static') this.registerColliders(e, [{ min: c.min, max: c.max }], group);
+      if (this.terrain && e.transform.position[1] <= 0.6) group.position.y = this.groundAt(group.position.x, group.position.z) + e.transform.position[1];
+      this.applyStyleTo(group);
     } catch (err) {
       console.error('Falha ao carregar modelo', err);
+      rec.loadError = String(err.message || err);
+      group.add(this.placeholder(e));
     }
-    return rec;
+  }
+
+  /** Marcador provisório (asset em produção na FORGE ou não carregado). */
+  placeholder(e, streaming = false) {
+    const sizes = { character: [0.6, 1.8, 0.4], creature: [0.8, 1.6, 0.8], vehicle: [2, 1.4, 4.4], building: [8, 8, 8], house: [7, 6, 7], tree: [3, 7, 3], item: [0.4, 0.4, 0.4] };
+    const [w, h, d] = sizes[e.props?.category] || (e.type === 'character' || e.type === 'npc' ? sizes.character : [1, 1, 1]);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color: streaming ? '#334155' : '#a78bfa', wireframe: !streaming, transparent: true, opacity: streaming ? 0.15 : 0.6 }));
+    m.position.y = h / 2;
+    m.userData.entityId = e.id;
+    m.userData.placeholder = true;
+    return m;
+  }
+
+  /** Aplica o estilo visual do projeto (identidade consistente). */
+  applyStyleTo(root) {
+    const style = this.doc.artStyle;
+    if (style !== 'lowpoly' && style !== 'voxel') return;
+    root.traverse((o) => {
+      if (!o.isMesh || o.userData.placeholder) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (!m || !('flatShading' in m)) continue;
+        m.flatShading = true;
+        if (style === 'lowpoly') m.normalMap = null;
+        m.needsUpdate = true;
+      }
+    });
+  }
+
+  /** Carregamento inteligente: modelos distantes só carregam quando o jogador se aproxima. */
+  updateStreaming(center) {
+    if (!this.stream) return;
+    for (const rec of this.entities.values()) {
+      if (!rec.deferred || rec.loading) continue;
+      if (rec.object.position.distanceTo(center) < this.streamDistance) {
+        rec.loading = true;
+        const d = rec.deferred; rec.deferred = null;
+        d.load().finally(() => { rec.loading = false; });
+      }
+    }
   }
 
   buildLight(e) {
@@ -333,6 +419,8 @@ export class World {
       this.snow?.update(dt, camera.position, shared.wind.value);
     }
     for (const u of this.updaters) u(dt);
+    this.streamTimer = (this.streamTimer || 0) + dt;
+    if (this.stream && camera && this.streamTimer > 0.5) { this.streamTimer = 0; this.updateStreaming(camera.position); }
   }
 
   dispose() {

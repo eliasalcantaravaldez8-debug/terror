@@ -5,7 +5,8 @@ import { one, run } from '../db/index.js';
 import { HttpError } from '../lib/security.js';
 import { SPECIALISTS, aiTier } from './specialists.js';
 import { createMessage } from './provider.js';
-import { runSpecialist, assertQuota, markRunning } from './agent.js';
+import { runSpecialist, assertQuota, markRunning, startForgeJobs } from './agent.js';
+import { getJob } from '../pipeline/index.js';
 import { summarizeProject, validateProject } from './project.js';
 import { entitlements } from '../lib/services.js';
 
@@ -35,7 +36,7 @@ const PLAN_TOOL = {
 
 const PLANNER_PROMPT = `Você é o planejador do NEXPLAY AI AUTOPILOT. Divida o pedido do usuário em etapas executáveis por especialistas
 (${Object.entries(SPECIALISTS).map(([k, v]) => `${k}: ${v.description}`).join(' | ')}).
-Ordem típica: estrutura/cenário (artist3d) → materiais (texture) → personagens e animação (animation) → mecânicas e sistemas (gameplay/programmer) → menus/UI (programmer) → testes (tester).
+Ordem típica: direção de arte e assets (artdirector: define o estilo e produz modelos 3D/voxel/sprites) → estrutura/cenário (artist3d) → materiais (texture) → personagens e animação (animation) → mecânicas e sistemas (gameplay/programmer) → menus/UI (programmer) → testes (tester).
 Cada etapa deve ser autocontida e concreta (o que criar, onde, com que parâmetros). Preserve o que já existe no projeto.
 Seja honesto em "limitations" sobre o que não é possível (ex.: modelos fotorrealistas específicos sem assets importados, licenças de clubes/jogadores reais).
 Responda chamando a ferramenta submit_plan. Escreva em português do Brasil.`;
@@ -193,6 +194,22 @@ function executeSteps({ user, runId, saveRevision }) {
             }
             throw e;
           }
+        }
+        // Assets encomendados à NEXPLAY FORGE nesta etapa: espera ficarem prontos antes da próxima etapa.
+        const jobIds = result.changes.length ? startForgeJobs(user.id, project.id, result) : [];
+        if (jobIds.length) {
+          log(runId, { kind: 'forge', step: step.index, message: `NEXPLAY FORGE produzindo ${jobIds.length} asset(s)…` });
+          const until = Date.now() + 25 * 60_000;
+          let pending = jobIds;
+          while (pending.length && Date.now() < until && !ac.signal.aborted) {
+            await new Promise((r) => setTimeout(r, 5000));
+            const states = pending.map((jid) => getJob(jid));
+            for (const jb of states.filter((x) => ['done', 'failed', 'canceled'].includes(x.status))) {
+              log(runId, { kind: jb.status === 'done' ? 'forge_done' : 'error', step: step.index, message: jb.status === 'done' ? `Asset pronto e integrado: ${jb.prompt.slice(0, 60)}` : `Asset não produzido (${jb.prompt.slice(0, 40)}): ${jb.error}` });
+            }
+            pending = states.filter((x) => !['done', 'failed', 'canceled'].includes(x.status)).map((x) => x.id);
+          }
+          if (pending.length) log(runId, { kind: 'forge', step: step.index, message: `${pending.length} asset(s) ainda em produção; continuarão em segundo plano.` });
         }
         step.status = 'done';
         setStatus(runId, 'running', { plan });

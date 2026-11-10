@@ -21,6 +21,15 @@ export const ANIMATION_CLIPS = ['idle', 'walk', 'run', 'sprint', 'jump', 'fall',
 export const NPC_BEHAVIORS = ['idle', 'wander', 'patrol', 'follow_player', 'chase_player', 'flee_player', 'guard', 'soccer_player', 'goalkeeper', 'crowd'];
 export const CONTROLLERS = ['third_person', 'first_person', 'vehicle', 'soccer', 'platformer2d', 'topdown2d', 'none'];
 export const OBJECTIVE_TYPES = ['reach', 'collect', 'talk', 'defeat', 'survive', 'score', 'interact', 'custom'];
+export const ART_STYLE_IDS = ['realistic', 'stylized', 'lowpoly', 'voxel', 'pixel', 'illustrated'];
+const STYLE_COMPAT = { stylized: ['lowpoly'], lowpoly: ['stylized', 'voxel'], voxel: ['lowpoly'], pixel: [], illustrated: ['pixel'], realistic: [] };
+/** Conflito de identidade visual entre o estilo do projeto e o de um asset (null = compatível). */
+export function styleConflict(projectStyle, assetStyle) {
+  if (!projectStyle || !assetStyle || projectStyle === assetStyle) return null;
+  if ((STYLE_COMPAT[projectStyle] || []).includes(assetStyle)) return null;
+  return `estilo "${assetStyle}" em projeto "${projectStyle}"`;
+}
+
 export const GENRE_TEMPLATES = ['futebol', 'acao', 'terror', 'sobrevivencia', 'corrida', 'plataforma', 'mundo_aberto', 'aventura', 'vazio'];
 
 let counter = 0;
@@ -367,6 +376,12 @@ export function applyOps(source, ops) {
         changes.push({ type: 'meta', label: 'Informações do projeto' });
         break;
       }
+      case 'set_art_style': {
+        if (!ART_STYLE_IDS.includes(op.style)) throw new Error(`Estilo desconhecido: ${op.style}`);
+        doc.artStyle = op.style;
+        changes.push({ type: 'style', label: `Estilo visual do projeto: ${op.style}` });
+        break;
+      }
       case 'set_audio': {
         deepMerge(doc.audio, op.patch || {});
         changes.push({ type: 'audio', label: 'Áudio' });
@@ -415,11 +430,22 @@ export function validateProject(doc, { checkScript } = {}) {
     if (e.type === 'primitive' && e.props?.shape && !PRIMITIVE_SHAPES.includes(e.props.shape)) errors.push(`Forma inválida em "${e.name}".`);
     if (e.type === 'structure' && e.props?.kind && !STRUCTURE_KINDS.includes(e.props.kind)) warnings.push(`Estrutura desconhecida em "${e.name}": ${e.props.kind} (será desenhada como bloco).`);
     if (e.props?.material && !doc.materials?.[e.props.material]) errors.push(`"${e.name}" usa material inexistente: ${e.props.material}`);
-    if (e.type === 'model' && !(doc.assets || []).some((a) => a.id === e.props?.asset)) errors.push(`Modelo "${e.name}" sem asset .glb válido.`);
+    const hasAsset = (ref) => (doc.assets || []).some((a) => a.id === ref);
+    if (e.type === 'model' && !hasAsset(e.props?.asset)) {
+      if (e.props?.pendingJob) warnings.push(`"${e.name}" aguarda a produção na NEXPLAY FORGE (job ${e.props.pendingJob}).`);
+      else errors.push(`Modelo "${e.name}" sem asset .glb válido.`);
+    }
+    if (['character', 'npc'].includes(e.type) && e.props?.model && !hasAsset(e.props.model)) errors.push(`"${e.name}" usa modelo 3D inexistente.`);
+    for (const l of e.props?.lods || []) if (!hasAsset(l)) errors.push(`"${e.name}" referencia LOD inexistente.`);
+    if (e.type === 'sprite' && e.props?.asset && !hasAsset(e.props.asset)) errors.push(`Sprite "${e.name}" usa imagem inexistente.`);
+    const conflict = styleConflict(doc.artStyle, e.props?.style);
+    if (conflict) warnings.push(`Identidade visual: "${e.name}" tem ${conflict}.`);
     if (e.components?.animation?.clip && !ANIMATION_CLIPS.includes(e.components.animation.clip)) warnings.push(`Animação desconhecida em "${e.name}": ${e.components.animation.clip}`);
     if (e.components?.script && !doc.scripts?.[e.components.script]) errors.push(`"${e.name}" usa script inexistente: ${e.components.script}`);
   }
   for (const e of doc.entities || []) if (e.parent && !ids.has(e.parent)) errors.push(`"${e.name}" tem pai inexistente.`);
+  if (doc.artStyle && !ART_STYLE_IDS.includes(doc.artStyle)) errors.push(`Estilo visual desconhecido: ${doc.artStyle}`);
+  if (doc.artStyle && ['pixel', 'illustrated'].includes(doc.artStyle) && doc.meta?.dimension === '3d') warnings.push('Estilo 2D em projeto 3D: use sprites/planos ou mude o estilo.');
   if (doc.player?.entityId && !ids.has(doc.player.entityId)) errors.push('O jogador aponta para uma entidade inexistente.');
   if (!doc.player?.entityId && doc.player?.controller !== 'none') warnings.push('Nenhuma entidade definida como jogador.');
   if (doc.player?.controller && !CONTROLLERS.includes(doc.player.controller)) errors.push(`Controle de jogador inválido: ${doc.player.controller}`);
@@ -468,6 +494,7 @@ export function summarizeProject(doc, { full = false } = {}) {
   });
   return {
     meta: doc.meta,
+    artStyle: doc.artStyle || null,
     settings: doc.settings,
     player: doc.player,
     entities: ents,

@@ -58,7 +58,7 @@ Bloqueado: rede (`fetch`, `WebSocket`, `XMLHttpRequest`), `eval`/`Function`/`imp
 
 ## NEXPLAY AI
 
-Especialidades (`server/ai/specialists.js`): Programadora, 3D, Texturas, Animação, Gameplay e Testadora. Cada uma tem instruções e um conjunto de ferramentas (`server/ai/tools.js`). Pedidos são executados como ferramentas sobre o projeto — não como texto. Toda execução com mudanças vira uma revisão desfazível no histórico. A IA registra com `report_limitation` o que não conseguiu fazer.
+Especialidades (`server/ai/specialists.js`): Programadora, 3D, Texturas, Animação, Gameplay, **Diretora de Arte** (estilo + NEXPLAY FORGE) e Testadora. Cada uma tem instruções e um conjunto de ferramentas (`server/ai/tools.js`). Pedidos são executados como ferramentas sobre o projeto — não como texto. Toda execução com mudanças vira uma revisão desfazível no histórico. A IA registra com `report_limitation` o que não conseguiu fazer.
 
 | Plano | Comandos/dia | Esforço do modelo | Iterações de ferramentas | Equipe (+Testadora) | Autopilot |
 |---|---|---|---|---|---|

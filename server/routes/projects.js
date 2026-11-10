@@ -196,8 +196,8 @@ r.delete('/:id/members/:username', requireAuth, (req, res) => {
 
 // ───────── Assets ─────────
 function assetsOf(projectId) {
-  return all('SELECT id, name, kind, mime, size_bytes, storage_key, created_at FROM project_assets WHERE project_id=? ORDER BY id DESC', projectId)
-    .map((a) => ({ ...a, url: `/api/projects/${projectId}/assets/${a.id}/file` }));
+  return all('SELECT id, name, kind, mime, size_bytes, storage_key, meta, created_at FROM project_assets WHERE project_id=? ORDER BY id DESC', projectId)
+    .map((a) => ({ ...a, meta: JSON.parse(a.meta || '{}'), url: `/api/projects/${projectId}/assets/${a.id}/file` }));
 }
 
 r.post('/:id/assets', requireAuth, assetUpload.single('file'), (req, res) => {

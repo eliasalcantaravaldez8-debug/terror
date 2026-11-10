@@ -54,6 +54,10 @@ function mockMessage({ messages }) {
         { title: 'Verificar', specialist: 'tester', instructions: 'Valide o projeto.', important: false },
       ] } }] };
     }
+    if (/voxel/i.test(text)) {
+      return { stop_reason: 'tool_use', usage, content: [{ type: 'tool_use', id: 'mock_vox', name: 'create_voxel_model', input: { name: 'Casa voxel', position: [2, 0, 2],
+        spec: { size: [8, 8, 8], palette: { w: '#c8a165', r: '#a33' }, shapes: [{ type: 'box', from: [0, 0, 0], to: [7, 4, 7], color: 'w', hollow: true }, { type: 'pyramid', center: [3.5, 5, 3.5], radius: 4, height: 3, color: 'r' }] } } }] };
+    }
     return { stop_reason: 'tool_use', usage, content: [
       { type: 'text', text: 'Vou adicionar o objeto pedido.' },
       { type: 'tool_use', id: 'mock_1', name: 'add_entities', input: { entities: [{ type: 'primitive', name: 'Bloco IA', position: [0, 1, 0], props: { shape: 'box', size: [1, 1, 1] } }] } },

@@ -2,6 +2,18 @@
 // do modelo de projeto (applyOps), validadas antes de aplicar.
 import { z } from 'zod';
 import { applyOps, summarizeProject, validateProject, checkScriptSyntax, ENTITY_TYPES } from './project.js';
+import { gridFromSpec } from '../pipeline/voxel.js';
+
+/** Validação síncrona da especificação de sprite (mesmas regras do gerador). */
+function validateSpriteSpec(spec) {
+  const w = spec.width; const h = spec.height;
+  if (![w, h].every((n) => Number.isInteger(n) && n >= 4 && n <= 64)) throw new Error('Sprite: width/height entre 4 e 64.');
+  if (!Array.isArray(spec.frames) || !spec.frames.length) throw new Error('Sprite: informe frames.');
+  spec.frames.forEach((f, i) => {
+    if (!Array.isArray(f.rows) || f.rows.length !== h) throw new Error(`Sprite: quadro ${i} precisa de ${h} linhas.`);
+    f.rows.forEach((r, y) => { if ([...r].length !== w) throw new Error(`Sprite: quadro ${i}, linha ${y} tem ${[...r].length} caracteres (esperado ${w}).`); for (const ch of r) if (ch !== '.' && ch !== ' ' && !spec.palette?.[ch]) throw new Error(`Sprite: cor "${ch}" fora da paleta.`); });
+  });
+}
 
 const vec3 = z.array(z.number().finite()).length(3);
 const entityInput = z.object({
@@ -91,6 +103,32 @@ export const TOOL_DEFS = {
   set_ui: {
     description: 'Mescla interface: hud {showHealth, showScore, showTimer, showMinimap, showObjective}, title, menus [{id, title, items:[{label, action:"start"|"resume"|"menu:<id>"|"event:<nome>"}]}].',
     input_schema: { type: 'object', properties: { patch: { type: 'object' } }, required: ['patch'], additionalProperties: false },
+  },
+  get_forge_tools: {
+    description: 'Lista as ferramentas de produção de assets disponíveis neste servidor (Tripo AI, Meshy AI, Blender, voxel, pixel art, Krita), estilos visuais e a cota do usuário. Use antes de gerar assets.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  set_art_style: {
+    description: 'Define o estilo visual único do projeto (identidade consistente): realistic, stylized, lowpoly, voxel, pixel ou illustrated.',
+    input_schema: { type: 'object', properties: { style: { type: 'string', enum: ['realistic', 'stylized', 'lowpoly', 'voxel', 'pixel', 'illustrated'] }, reason: { type: 'string' } }, required: ['style', 'reason'], additionalProperties: false },
+  },
+  generate_3d_model: {
+    description: 'Encomenda um modelo 3D à NEXPLAY FORGE (Tripo AI ou Meshy AI → reparo → Blender → rigging para personagens → LODs → colisão → integração). Coloca um marcador provisório na cena que é substituído automaticamente quando o modelo fica pronto (leva minutos). Escreva o prompt em inglês, descrevendo forma, materiais e o estilo do projeto.',
+    input_schema: { type: 'object', properties: {
+      name: { type: 'string' }, prompt: { type: 'string' },
+      category: { type: 'string', enum: ['character', 'creature', 'animal', 'vehicle', 'building', 'house', 'furniture', 'prop', 'weapon', 'tree', 'plant', 'rock', 'terrain_piece', 'item'] },
+      position: { type: 'array', items: { type: 'number' } }, rotation: { type: 'array', items: { type: 'number' } },
+      entityType: { type: 'string', enum: ['model', 'character', 'npc'] }, targetHeight: { type: 'number' },
+      provider: { type: 'string', enum: ['auto', 'tripo', 'meshy'] }, ai: { type: 'object', description: 'components.ai para NPCs' },
+    }, required: ['name', 'prompt', 'category', 'position'], additionalProperties: false },
+  },
+  create_voxel_model: {
+    description: 'Cria um modelo voxel (estilo MagicaVoxel/Minecraft) a partir de uma especificação e o integra na cena (rápido, sem custo externo). spec = { size:[w,h,d] (≤64 recomendado), palette:{ "a":"#rrggbb" }, shapes:[{type:"box",from:[x,y,z],to:[x,y,z],color:"a"}|{type:"sphere"|"ellipsoid",center,radius|radii,color}|{type:"cylinder"|"cone"|"pyramid",center,radius,height,color}|{type:"line",from,to,color}|{type:"voxel",at,color}, hollow?:true, erase?:true], layers?:[{y, rows:["aa.b"]}] }. Y é para cima.',
+    input_schema: { type: 'object', properties: { name: { type: 'string' }, spec: { type: 'object' }, position: { type: 'array', items: { type: 'number' } }, voxelSize: { type: 'number' }, category: { type: 'string' }, solid: { type: 'boolean' } }, required: ['name', 'spec', 'position'], additionalProperties: false },
+  },
+  create_pixel_sprite: {
+    description: 'Desenha um sprite em pixel art (folha de sprites com animações) e o integra ao jogo 2D. spec = { width, height (4–64), palette:{ "k":"#rrggbb" }, frames:[{ rows:["..kk..", …] }], animations:{ idle:[0,1], walk:[2,3,4,5] }, fps }. Cada linha precisa ter exatamente width caracteres; "." é transparente.',
+    input_schema: { type: 'object', properties: { name: { type: 'string' }, spec: { type: 'object' }, position: { type: 'array', items: { type: 'number' } }, role: { type: 'string', enum: ['player', 'enemy', 'decoration', 'item'] } }, required: ['name', 'spec'], additionalProperties: false },
   },
   validate_project: {
     description: 'Executa as verificações automáticas (IA Testadora): referências, sintaxe de scripts, valores inválidos e orçamento de desempenho.',
@@ -184,6 +222,46 @@ export function executeTool(state, name, input) {
     }
     case 'set_ui':
       return apply([{ op: 'set_ui', patch: z.object({ patch: z.record(z.string(), z.any()) }).parse(input).patch }]);
+    case 'get_forge_tools':
+      return JSON.stringify(state.forge || { tools: [], note: 'Indisponível.' });
+    case 'set_art_style': {
+      const i = z.object({ style: z.enum(['realistic', 'stylized', 'lowpoly', 'voxel', 'pixel', 'illustrated']), reason: z.string() }).parse(input);
+      return apply([{ op: 'set_art_style', style: i.style }]) + ` (${i.reason})`;
+    }
+    case 'generate_3d_model': {
+      const i = z.object({ name: z.string().max(40), prompt: z.string().min(3).max(1500), category: z.string(), position: vec3, rotation: vec3.optional(),
+        entityType: z.enum(['model', 'character', 'npc']).optional(), targetHeight: z.number().positive().max(500).optional(), provider: z.enum(['auto', 'tripo', 'meshy']).optional(), ai: z.record(z.string(), z.any()).optional() }).parse(input);
+      const available = state.forge?.tools?.filter((t) => ['tripo', 'meshy'].includes(t.id) && t.available) || [];
+      if (!available.length) throw new Error('Nenhum gerador 3D por IA (Tripo AI/Meshy AI) está configurado neste servidor. Alternativas: create_voxel_model, estruturas procedurais (add_entities) ou pedir ao usuário que importe um .glb. Registre a limitação.');
+      if ((state.forge?.quota?.remaining ?? 0) - state.forgeRequests.filter((r) => r.kind === 'model3d').length <= 0) throw new Error('Cota diária de gerações 3D por IA esgotada para o plano do usuário.');
+      const style = state.doc.artStyle || 'stylized';
+      if (style === 'voxel') throw new Error('O projeto é voxel: use create_voxel_model para manter a identidade visual.');
+      const type = i.entityType || (['character', 'creature'].includes(i.category) ? 'character' : 'model');
+      const eid = `frg_${Math.random().toString(36).slice(2, 10)}`;
+      apply([{ op: 'add_entity', entity: { id: eid, type, name: i.name, transform: { position: i.position, rotation: i.rotation || [0, 0, 0], scale: [1, 1, 1] },
+        props: { pendingJob: true, style, category: i.category }, components: { ...(type === 'model' ? { physics: { body: 'static' } } : {}), ...(i.ai ? { ai: i.ai } : {}), ...(type !== 'model' ? { animation: { clip: 'idle', loop: true, speed: 1 } } : {}) } } }]);
+      state.forgeRequests.push({ kind: 'model3d', placeholderId: eid, params: { prompt: `${i.prompt}${style === 'lowpoly' ? ', low poly' : style === 'realistic' ? ', realistic, PBR' : ', stylized'}`, name: i.name, category: i.category, style, provider: i.provider || 'auto', targetHeight: i.targetHeight } });
+      return `Marcador "${i.name}" (${eid}) adicionado. O modelo será produzido pela NEXPLAY FORGE em ${available.map((t) => t.name).join('/')} e substituirá o marcador automaticamente.`;
+    }
+    case 'create_voxel_model': {
+      const i = z.object({ name: z.string().max(40), spec: z.record(z.string(), z.any()), position: vec3, voxelSize: z.number().positive().max(2).optional(), category: z.string().optional(), solid: z.boolean().optional() }).parse(input);
+      gridFromSpec(i.spec); // valida agora para a IA corrigir erros imediatamente
+      const eid = `frg_${Math.random().toString(36).slice(2, 10)}`;
+      apply([{ op: 'add_entity', entity: { id: eid, type: 'model', name: i.name, transform: { position: i.position, rotation: [0, 0, 0], scale: [1, 1, 1] }, props: { pendingJob: true, style: 'voxel' }, components: i.solid === false ? {} : { physics: { body: 'static' } } } }]);
+      state.forgeRequests.push({ kind: 'voxel', placeholderId: eid, params: { name: i.name, voxelSpec: i.spec, voxelSize: i.voxelSize || 0.1, category: i.category || 'prop', style: 'voxel' } });
+      return `Modelo voxel "${i.name}" validado; marcador ${eid} adicionado e será substituído em segundos.`;
+    }
+    case 'create_pixel_sprite': {
+      const i = z.object({ name: z.string().max(40), spec: z.record(z.string(), z.any()), position: vec3.optional(), role: z.enum(['player', 'enemy', 'decoration', 'item']).optional() }).parse(input);
+      validateSpriteSpec(i.spec);
+      const eid = `frg_${Math.random().toString(36).slice(2, 10)}`;
+      const shape = i.role === 'enemy' ? 'enemy' : 'custom';
+      apply([{ op: 'add_entity', entity: { id: eid, type: 'sprite', name: i.name, transform: { position: i.position || [64, 400, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+        props: { pendingJob: true, shape, width: i.spec.width * 2, height: i.spec.height * 2, style: 'pixel', role: i.role || 'decoration' }, components: i.role === 'enemy' ? { ai: { speed: 80 } } : {} } }]);
+      if (i.role === 'player') state.doc.player.entityId = eid;
+      state.forgeRequests.push({ kind: 'sprite', placeholderId: eid, params: { name: i.name, spriteSpec: i.spec, style: 'pixel' } });
+      return `Sprite "${i.name}" validado; marcador ${eid} adicionado.`;
+    }
     case 'validate_project': {
       const rep = validateProject(state.doc);
       state.lastValidation = rep;

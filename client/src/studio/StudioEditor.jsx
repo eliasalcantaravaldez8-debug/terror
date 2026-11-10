@@ -11,6 +11,7 @@ import AIPanel from './AIPanel.jsx';
 import Preview from './Preview.jsx';
 import Editor2D from './Editor2D.jsx';
 import CodeEditor from './CodeEditor.jsx';
+import ForgePanel, { ForgeTester } from './ForgePanel.jsx';
 
 export default function StudioEditor() {
   const { id } = useParams();
@@ -36,6 +37,8 @@ function Editor({ initial, reload }) {
   const [modal, setModal] = useState(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [gizmo, setGizmo] = useState('translate');
+  const [jobs, setJobs] = useState([]);
+  const jobStatus = useRef(new Map());
   const undoStack = useRef([]);
   const redoStack = useRef([]);
   const lastCoalesce = useRef(null);
@@ -44,8 +47,10 @@ function Editor({ initial, reload }) {
   const saveTimer = useRef(null);
   const docRef = useRef(doc);
   docRef.current = doc;
+  const saveStateRef = useRef('salvo');
   const revRef = useRef(revision);
   revRef.current = revision;
+  saveStateRef.current = saveState;
   const is3d = doc.meta.dimension === '3d';
   const assetUrl = useCallback((a) => (a.assetId ? `/api/projects/${project.id}/assets/${a.assetId}/file` : null), [project.id]);
 
@@ -85,11 +90,59 @@ function Editor({ initial, reload }) {
       setSaveState('salvo');
       return r;
     } catch (e) {
+      if (e.code === 'revision_conflict' && await mergeForgeChanges()) return save(source, label);
       setSaveState('erro');
       if (e.code === 'revision_conflict') setModal('conflict'); else toast(e.message, 'error');
       return null;
     }
-  }, [project.id, toast]);
+  }, [project.id, toast]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Se as únicas revisões novas no servidor vieram da NEXPLAY FORGE (assets integrados), incorpora-as ao
+   * documento local sem perder as edições do usuário. Caso contrário, mostra o conflito normalmente.
+   */
+  const mergeForgeChanges = async () => {
+    const [{ versions }, server] = await Promise.all([api.get(`/projects/${project.id}/versions`), api.get(`/projects/${project.id}`)]);
+    const newer = versions.filter((v) => v.revision > revRef.current);
+    if (!newer.length || !newer.every((v) => /^FORGE:/.test(v.label))) return false;
+    const local = structuredClone(docRef.current);
+    const sdoc = server.doc;
+    const ids = new Set((local.assets || []).map((a) => a.id));
+    local.assets = [...(local.assets || []), ...(sdoc.assets || []).filter((a) => !ids.has(a.id))];
+    for (const se of sdoc.entities.filter((x) => x.props?.forgeJob)) {
+      const le = local.entities.find((x) => x.id === se.id);
+      if (le) { le.props = se.props; if (le.type !== se.type) le.type = se.type; }
+      else local.entities.push(se);
+    }
+    if (sdoc.player?.entityId && sdoc.entities.find((x) => x.id === sdoc.player.entityId)?.props?.forgeJob) local.player.entityId = sdoc.player.entityId;
+    revRef.current = server.project.revision; setRevision(server.project.revision);
+    setAssets(server.assets);
+    docRef.current = local; setDoc(local);
+    return true;
+  };
+
+  const reloadJobs = useCallback(async () => {
+    try {
+      const d = await api.get(`/pipeline/projects/${project.id}/jobs`);
+      setJobs(d.jobs);
+      let finished = false;
+      for (const j of d.jobs) {
+        const prev = jobStatus.current.get(j.id);
+        if (prev && prev !== j.status && ['done', 'failed'].includes(j.status)) finished = true;
+        jobStatus.current.set(j.id, j.status);
+      }
+      if (finished) {
+        if (saveStateRef.current === 'salvo') await reloadFromServer();
+        else await save('autosave');
+      }
+    } catch { /* projeto sem acesso à FORGE */ }
+  }, [project.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    reloadJobs();
+    const anyActive = jobs.some((j) => ['queued', 'running', 'integrating'].includes(j.status));
+    const t = setInterval(reloadJobs, anyActive ? 3000 : 15000);
+    return () => clearInterval(t);
+  }, [reloadJobs, jobs.some((j) => ['queued', 'running', 'integrating'].includes(j.status))]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (saveState !== 'alterado' || readOnly) return undefined;
     saveTimer.current = setTimeout(() => save('autosave'), 2500);
@@ -172,8 +225,9 @@ function Editor({ initial, reload }) {
       </div>
 
       <div className="studio-panel">
-        <div className="tabs" style={{ marginBottom: 8 }}>{[['add', 'Criar'], ['tree', 'Cena'], ['world', 'Mundo'], ['missions', 'Missões'], ['assets', 'Assets']].map(([k, l]) => <button key={k} className={`tab ${left === k ? 'active' : ''}`} style={{ padding: '6px 8px', fontSize: 12 }} onClick={() => setLeft(k)}>{l}</button>)}</div>
+        <div className="tabs" style={{ marginBottom: 8 }}>{[['add', 'Criar'], ['forge', 'FORGE'], ['tree', 'Cena'], ['world', 'Mundo'], ['missions', 'Missões'], ['assets', 'Assets']].map(([k, l]) => <button key={k} className={`tab ${left === k ? 'active' : ''}`} style={{ padding: '6px 8px', fontSize: 12 }} onClick={() => setLeft(k)}>{l}</button>)}</div>
         {left === 'add' && <Palette onAdd={addEntity} dimension={doc.meta.dimension} />}
+        {left === 'forge' && <ForgePanel project={project} doc={doc} apply={apply} jobs={jobs} reloadJobs={reloadJobs} dropPoint={() => vp.current?.dropPoint()} />}
         {left === 'tree' && <Hierarchy doc={doc} selectedId={selectedId} onSelect={setSelectedId} onFocus={(eid) => vp.current?.focus(eid)} onDuplicate={duplicate} onDelete={(eid) => { apply([{ op: 'remove_entity', id: eid }]); setSelectedId(null); }} />}
         {left === 'world' && <EnvironmentPanel doc={doc} setSettings={(patch) => apply([{ op: 'set_settings', patch }], null, { coalesce: `env:${Object.keys(patch).join()}` })} setPlayer={(patch) => apply([{ op: 'set_player', patch }])} />}
         {left === 'missions' && <MissionsPanel doc={doc} apply={apply} />}
@@ -182,9 +236,10 @@ function Editor({ initial, reload }) {
 
       <div className="viewport" style={{ display: 'flex', flexDirection: 'column' }}>
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-          {view === 'scene' && (is3d ? <div ref={vpBox} style={{ position: 'absolute', inset: 0 }} /> : <Editor2D doc={doc} apply={apply} />)}
+          {view === 'scene' && (is3d ? <div ref={vpBox} style={{ position: 'absolute', inset: 0 }} /> : <Editor2D doc={doc} apply={apply} assetUrl={assetUrl} />)}
           {view === 'play' && <Preview key={revision} doc={doc} projectId={project.id} onLog={log} onEvent={(n, d) => log('event', `${n} ${d ? JSON.stringify(d) : ''}`)} />}
           {view === 'code' && <CodeEditor doc={doc} apply={apply} validation={validation} />}
+          {!readOnly && <ForgeTester project={project} jobs={jobs} onTested={() => { reloadJobs(); if (saveStateRef.current === 'salvo') reloadFromServer(); }} />}
           {aiBusy && <div className="pill cyan" style={{ position: 'absolute', top: 10, right: 10 }}>A IA está trabalhando no projeto…</div>}
         </div>
         {(view === 'play' || logs.some((l) => l.kind === 'error')) && (

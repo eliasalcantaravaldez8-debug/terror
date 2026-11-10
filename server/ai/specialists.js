@@ -42,6 +42,8 @@ Luz: light.props {kind:'directional'|'point'|'spot'|'hemisphere', color, intensi
 Personagem/NPC: props {height, build:'athletic'|'thin'|'heavy', skinColor, shirtColor, pantsColor, shoesColor, hair:'short'|'long'|'bald'|'mohawk', hairColor, eyesGlow}; components.animation {clip, loop, speed}; npc.components.ai {behavior, speed, radius, detectRadius, attackDamage, dialogueId, team, role, path}.
 Clipes de animação procedurais: ${ANIMATION_CLIPS.join(', ')}. Comportamentos de NPC: ${NPC_BEHAVIORS.join(', ')}.
 Modelos importados: model.props.asset = id de um asset .glb do projeto (animações do arquivo são tocadas por nome).
+Modelos produzidos pela NEXPLAY FORGE: model.props {asset, lods:[assetIds], collision, style}; personagens/NPCs podem usar um modelo 3D com props.model (animações idle/walk/run do arquivo são usadas automaticamente).
+Estilo visual do projeto: doc.artStyle (realistic|stylized|lowpoly|voxel|pixel|illustrated) — respeite-o em tudo.
 Pickups: pickup.props {item, value, glow}. Triggers: trigger.props {size [x,y,z], event}. Veículos: vehicle.props {kind:'sports_car'|'pickup_truck'|'kart', color, accent}.
 2D: sprite.props {shape:'hero'|'enemy'|'coin'|'box', color, width, height, asset}; tilemap.props {tileSize, palette{char:{color, solid, kind}}, rows:[strings]}.
 Materiais PBR (materials[id]): {preset: ${MATERIAL_PRESETS.join('|')}, color, roughness, metalness, textureScale, normalStrength, emissive, emissiveIntensity, opacity, map (asset id)}. Predefinições geram texturas procedurais (albedo, normal e rugosidade). Use props.material = id do material.
@@ -72,7 +74,7 @@ export const SPECIALISTS = {
     name: 'IA 3D',
     description: 'Cria cenários, organiza objetos, configura materiais e melhora a qualidade visual.',
     prompt: `${COMMON}\nSua especialidade: CENÁRIOS 3D e DIREÇÃO DE ARTE. Monte ambientes completos e coesos (terreno, estruturas, vegetação, água, luzes, partículas), posicione objetos com intenção (caminhos, pontos focais, escala humana ~1,8 m) e ajuste renderização/atmosfera.`,
-    tools: ['get_project_overview', 'get_entities', 'add_entities', 'update_entities', 'remove_entities', 'set_material', 'set_environment', 'set_rendering', 'validate_project', 'report_limitation'],
+    tools: ['get_project_overview', 'get_entities', 'add_entities', 'update_entities', 'remove_entities', 'set_material', 'set_environment', 'set_rendering', 'get_forge_tools', 'generate_3d_model', 'create_voxel_model', 'validate_project', 'report_limitation'],
   },
   texture: {
     name: 'IA de Texturas',
@@ -91,6 +93,18 @@ export const SPECIALISTS = {
     description: 'Mecânicas, controles, IA de NPCs, missões, progressão.',
     prompt: `${COMMON}\nSua especialidade: GAME DESIGN e GAMEPLAY. Defina controles, comportamento de NPCs, missões com objetivos claros, diálogos, progressão e equilíbrio de dificuldade.\n${SCRIPT_API_DOC}`,
     tools: ['get_project_overview', 'get_entities', 'add_entities', 'update_entities', 'remove_entities', 'set_player', 'upsert_mission', 'remove_mission', 'upsert_dialogue', 'set_system', 'set_ui', 'write_script', 'read_script', 'validate_project', 'report_limitation'],
+  },
+  artdirector: {
+    name: 'IA Diretora de Arte',
+    description: 'Escolhe o estilo visual, coordena Tripo AI, Meshy AI, Blender, voxel e pixel art, e integra os assets no jogo.',
+    prompt: `${COMMON}\nSua especialidade: DIREÇÃO DE ARTE E PRODUÇÃO DE ASSETS (NEXPLAY FORGE).
+1) Chame get_forge_tools para saber o que está disponível de verdade neste servidor.
+2) Defina UM estilo com set_art_style conforme o pedido (realista para sobrevivência/corrida realista, lowpoly, voxel para estética de blocos, pixel/illustrated para 2D). Não misture estilos: todos os assets seguem o estilo do projeto.
+3) Produza os assets com a ferramenta certa: generate_3d_model (Tripo/Meshy → Blender → rigging → LODs) para personagens, veículos, casas e objetos detalhados; create_voxel_model para jogos voxel; create_pixel_sprite para jogos pixel art; estruturas e vegetação procedurais (add_entities) quando bastarem. Prompts de geração 3D em inglês, consistentes entre si (mesma paleta e acabamento).
+4) Posicione com escala humana (1,8 m) e coerência de cena. Personagens 3D gerados recebem esqueleto e animações automaticamente quando o Blender ou a Tripo estão disponíveis.
+5) Se uma ferramenta não estiver configurada ou a cota acabar, use a alternativa e registre com report_limitation o que não pôde ser feito (ex.: realismo fotográfico sem gerador 3D configurado).
+Os modelos externos levam minutos: marcadores provisórios são substituídos automaticamente e testados no motor quando o usuário abre o Studio.`,
+    tools: ['get_project_overview', 'get_entities', 'get_forge_tools', 'set_art_style', 'generate_3d_model', 'create_voxel_model', 'create_pixel_sprite', 'add_entities', 'update_entities', 'remove_entities', 'set_material', 'set_environment', 'set_rendering', 'validate_project', 'report_limitation'],
   },
   tester: {
     name: 'IA Testadora',

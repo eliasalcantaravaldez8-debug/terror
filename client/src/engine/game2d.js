@@ -22,7 +22,53 @@ export class Game2D {
   get map() { return this.doc.entities.find((e) => e.type === 'tilemap'); }
   get tile() { return this.map?.props.tileSize || 32; }
 
+  /** Carrega as folhas de sprites (assets do projeto) usadas pelas entidades. */
+  loadImages() {
+    for (const e of this.doc.entities) {
+      if (e.type !== 'sprite' || !e.props?.asset || this.images.has(e.props.asset)) continue;
+      const a = (this.doc.assets || []).find((x) => x.id === e.props.asset);
+      const url = a && this.assetUrl?.(a);
+      if (!url) continue;
+      const img = new Image();
+      const entry = { img, ok: false, error: null };
+      img.onload = () => { entry.ok = true; };
+      img.onerror = () => { entry.error = 'Imagem não carregou.'; };
+      img.src = url;
+      this.images.set(e.props.asset, entry);
+    }
+  }
+
+  /** Desenha um quadro da folha de sprites; retorna false se a imagem não estiver pronta. */
+  drawSprite(ctx, e, x, y, w, h, anim, face = 1, t = performance.now() / 1000) {
+    const entry = e.props?.asset && this.images.get(e.props.asset);
+    if (!entry?.ok) return false;
+    const f = e.props.frames || { frameWidth: entry.img.width, frameHeight: entry.img.height, frames: 1, animations: { idle: [0] }, fps: 8 };
+    const list = f.animations?.[anim] || f.animations?.idle || [0];
+    const frame = list[Math.floor(t * (f.fps || 8)) % list.length] || 0;
+    const cols = f.columns || f.frames || 1;
+    const sx = (frame % cols) * f.frameWidth; const sy = Math.floor(frame / cols) * f.frameHeight;
+    ctx.save();
+    ctx.imageSmoothingEnabled = !(f.pixelArt || this.doc.artStyle === 'pixel');
+    if (face < 0) { ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(entry.img, sx, sy, f.frameWidth, f.frameHeight, 0, 0, w, h); }
+    else ctx.drawImage(entry.img, sx, sy, f.frameWidth, f.frameHeight, x, y, w, h);
+    ctx.restore();
+    return true;
+  }
+
+  async runTest(entityId) {
+    this.hud?.menu({});
+    const e = this.doc.entities.find((x) => x.id === entityId);
+    if (!e) return { loaded: false, error: 'Entidade não encontrada no projeto.' };
+    const entry = e.props?.asset && this.images.get(e.props.asset);
+    for (let i = 0; i < 50 && entry && !entry.ok && !entry.error; i++) await new Promise((r) => setTimeout(r, 100));
+    if (!entry?.ok) return { loaded: false, error: entry?.error || 'Sprite sem imagem.' };
+    const t0 = performance.now(); let frames = 0;
+    await new Promise((resolve) => { const tick = () => { frames++; if (performance.now() - t0 < 1500) requestAnimationFrame(tick); else resolve(); }; requestAnimationFrame(tick); });
+    return { loaded: true, fps: Math.round((frames * 1000) / (performance.now() - t0)), size: [e.props.width || 0, e.props.height || 0, 0] };
+  }
+
   init() {
+    this.loadImages();
     this.resize = () => { const r = this.container.getBoundingClientRect(); this.canvas.width = r.width * devicePixelRatio; this.canvas.height = r.height * devicePixelRatio; };
     this.resize(); window.addEventListener('resize', this.resize);
     this.reset();
@@ -155,10 +201,18 @@ export class Game2D {
       if (!this.rows[r - 1]?.[c] || this.rows[r - 1][c] === '0') { ctx.fillStyle = 'rgba(167,243,208,.75)'; ctx.fillRect(x, y, t, 4); }
       ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.strokeRect(x + 0.5, y + 0.5, t - 1, t - 1);
     }
-    for (const en of this.enemies || []) if (en.alive) drawCreature(ctx, en.x, en.y, en.w, en.h, en.e.props.color || '#ef4444', en.vx > 0 ? 1 : -1, time, true);
-    for (const e of this.doc.entities) if (e.type === 'sprite' && e.props.shape === 'coin') { ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(e.transform.position[0], e.transform.position[1], 10, 0, Math.PI * 2); ctx.fill(); }
+    for (const en of this.enemies || []) if (en.alive && !this.drawSprite(ctx, en.e, en.x, en.y, en.w, en.h, 'walk', en.vx > 0 ? 1 : -1, time)) drawCreature(ctx, en.x, en.y, en.w, en.h, en.e.props.color || '#ef4444', en.vx > 0 ? 1 : -1, time, true);
+    for (const e of this.doc.entities) {
+      if (e.type !== 'sprite' || e.id === this.player?.e.id || e.props.shape === 'enemy') continue;
+      const [x, y] = e.transform.position;
+      if (e.props.shape === 'coin') { ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill(); continue; }
+      if (!this.drawSprite(ctx, e, x, y, e.props.width || 32, e.props.height || 32, 'idle', 1, time) && e.props.pendingJob) { ctx.strokeStyle = '#a78bfa'; ctx.setLineDash([4, 4]); ctx.strokeRect(x, y, e.props.width || 32, e.props.height || 32); ctx.setLineDash([]); }
+    }
     const p = this.player;
-    if (p && (!(p.inv > 0) || Math.floor(time * 12) % 2 === 0)) drawCreature(ctx, p.x, p.y, p.w, p.h, p.e.props.color || '#22d3ee', p.face, time, false, Math.abs(p.vx) > 10 && p.onGround);
+    if (p && (!(p.inv > 0) || Math.floor(time * 12) % 2 === 0)) {
+      const anim = !p.onGround ? 'jump' : Math.abs(p.vx) > 10 ? 'walk' : 'idle';
+      if (!this.drawSprite(ctx, p.e, p.x, p.y, p.w, p.h, anim, p.face, time)) drawCreature(ctx, p.x, p.y, p.w, p.h, p.e.props.color || '#22d3ee', p.face, time, false, Math.abs(p.vx) > 10 && p.onGround);
+    }
     for (const pt of this.particles) { ctx.globalAlpha = Math.max(0, pt.life / 0.6); ctx.fillStyle = pt.color; ctx.fillRect(pt.x, pt.y, 4, 4); }
     ctx.globalAlpha = 1;
     if (this.mode === 'edit') {
@@ -176,7 +230,7 @@ export class Game2D {
     return { c: Math.floor(x / this.tile), r: Math.floor(y / this.tile), x, y };
   }
 
-  setDoc(doc) { this.doc = doc; this.reset(); }
+  setDoc(doc) { this.doc = doc; this.reset(); this.loadImages(); }
 
   dispose() { this.running = false; cancelAnimationFrame(this.raf); window.removeEventListener('resize', this.resize); this.input?.dispose(); this.hud?.dispose(); this.audio?.dispose(); this.canvas.remove(); }
 }

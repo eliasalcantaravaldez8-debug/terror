@@ -732,3 +732,25 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
+
+-- ───────────────────────── NEXPLAY FORGE (linha de produção de assets) ─────────────────────────
+CREATE TABLE IF NOT EXISTS asset_jobs (
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('model3d','voxel','sprite','import')),
+  provider TEXT NOT NULL,              -- tripo, meshy, voxel, pixel, upload
+  style TEXT NOT NULL,                 -- realistic, stylized, lowpoly, voxel, pixel, illustrated
+  category TEXT NOT NULL DEFAULT 'prop',
+  prompt TEXT NOT NULL DEFAULT '',
+  params TEXT NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','integrating','done','failed','canceled')),
+  steps TEXT NOT NULL DEFAULT '[]',
+  result TEXT NOT NULL DEFAULT '{}',
+  error TEXT,
+  external_id TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_asset_jobs_project ON asset_jobs(project_id, id);
+CREATE INDEX IF NOT EXISTS idx_asset_jobs_user ON asset_jobs(user_id, created_at);

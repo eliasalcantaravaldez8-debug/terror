@@ -12,6 +12,7 @@ Plataforma de jogos, comunidade gamer e criação de jogos com IA.
 - **Planos FREE, PRO (4× a IA do FREE) e DELUXE (IA sem limite de comandos + AUTOPILOT + DELUXE LAB)**.
 - **NEXPLAY STUDIO**: editor 2D/3D (modo fácil visual e modo avançado com código), motor 3D próprio sobre three.js com materiais PBR, céu físico, ciclo dia/noite, chuva/neve/raios, neblina, água, vegetação instanciada com vento, personagens humanoides animados, física, IA de NPCs, missões, diálogos, HUD e menus.
 - **NEXPLAY AI**: seis especialidades (Programadora, 3D, Texturas, Animação, Gameplay, Testadora) que **editam o projeto diretamente** por ferramentas, e o **AUTOPILOT** (planejamento → aprovação → etapas → testes → correção → histórico).
+- **NEXPLAY FORGE**: linha de produção de assets que coordena Tripo AI, Meshy AI, Blender (headless), voxel compatível com MagicaVoxel, pixel art e Krita — inspeção, reparo, escala, aprimoramento, rigging e animações automáticas, LODs, colisão, integração no projeto e teste no motor do jogo, sempre no estilo visual definido para o projeto. Ver [docs/FORGE.md](docs/FORGE.md).
 - **NEXPLAY CLOUD**: projetos na nuvem, histórico de versões, restauração, backup/importação e colaboradores.
 - **Administração**: painel protegido no servidor com moderação, denúncias, usuários, curadoria, eventos/awards, rewards, concessão de PRO/DELUXE (7, 30, 90 dias ou permanente), planos, configurações e auditoria.
 
@@ -43,6 +44,7 @@ Veja [docs/DEPLOY.md](docs/DEPLOY.md) para domínios, TLS, proxy e serviços ext
 
 ```bash
 npm test
+# com Blender real (opcional): FORGE_TEST_BPY=/caminho/para/python-com-bpy npm test
 ```
 
 Testes de integração da API (banco em memória, IA simulada apenas nos testes): autenticação, CSRF, permissões administrativas, regra PRO = 4× FREE, publicação com verificação e sandbox com token, bloqueio de builds maliciosos (executáveis, mineradores, zip-slip), filtro do MULTIPLAYER, REWARDS (antifraude, loja, conversão, compra com créditos), concessão/revogação de planos, mensagens com amizade/bloqueio, modelos do Studio, NEXPLAY CLOUD (versões, conflito, restauração, colaboradores, backup), comandos de IA e cotas, publicação a partir do Studio e curadoria.
@@ -51,6 +53,7 @@ Testes de integração da API (banco em memória, IA simulada apenas nos testes)
 
 - [docs/STATUS.md](docs/STATUS.md) — o que está implementado, o que depende de configuração externa e o que falta.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — arquitetura, segurança e modelo de dados.
+- [docs/FORGE.md](docs/FORGE.md) — linha de produção de assets 2D/3D (ferramentas, estilos, licenças).
 - [docs/STUDIO.md](docs/STUDIO.md) — formato de projeto, API de scripts e NEXPLAY AI.
 - [docs/SDK.md](docs/SDK.md) — NEXPLAY SDK para jogos HTML5 (multiplayer, conquistas).
 - [docs/DEPLOY.md](docs/DEPLOY.md) — publicação em produção.

@@ -4,7 +4,7 @@ import { Game2D } from '../engine/game2d.js';
 
 const TOOLS = [['1', 'Chão'], ['2', 'Tijolo'], ['3', 'Moeda'], ['4', 'Perigo'], ['5', 'Chegada'], ['0', 'Borracha'], ['player', 'Início do jogador'], ['enemy', 'Inimigo']];
 
-export default function Editor2D({ doc, apply }) {
+export default function Editor2D({ doc, apply, assetUrl }) {
   const box = useRef(null);
   const game = useRef(null);
   const [tool, setTool] = useState('1');
@@ -13,7 +13,7 @@ export default function Editor2D({ doc, apply }) {
   docRef.current = doc;
 
   useEffect(() => {
-    const g = new Game2D(box.current, doc, { mode: 'edit' });
+    const g = new Game2D(box.current, doc, { mode: 'edit', assetUrl });
     g.init();
     game.current = g;
     const keys = (e) => { const d = { ArrowLeft: -64, ArrowRight: 64 }[e.code]; if (d) g.cam.x = Math.max(0, g.cam.x + d); const v = { ArrowUp: -64, ArrowDown: 64 }[e.code]; if (v) g.cam.y += v; };

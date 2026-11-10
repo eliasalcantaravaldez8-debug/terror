@@ -14,7 +14,15 @@ function open() {
   const db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   db.exec(fs.readFileSync(path.join(here, 'schema.sql'), 'utf8'));
+  migrate(db);
   return db;
+}
+
+/** Migrações aditivas para bancos criados por versões anteriores. */
+function migrate(database) {
+  const cols = (t) => database.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
+  if (!cols('project_assets').includes('meta')) database.exec(`ALTER TABLE project_assets ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'`);
+  // CHECK de kind em project_assets passou a aceitar 'sprite'; tabelas antigas continuam usando 'texture' para sprites.
 }
 
 export const db = open();

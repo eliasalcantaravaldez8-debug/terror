@@ -78,7 +78,7 @@ export class EditorViewport {
       const sig = JSON.stringify(e);
       if (this.signatures.get(e.id) === sig) continue;
       this.world.removeEntity(e.id);
-      if (e.type === 'model') await this.world.addModel(e); else this.world.addEntity(e);
+      if (e.type === 'model' || ((e.type === 'character' || e.type === 'npc') && e.props?.model)) await this.world.addModel(e); else this.world.addEntity(e);
       this.signatures.set(e.id, sig);
     }
     if (this.selectedId) this.select(this.selectedId, false);

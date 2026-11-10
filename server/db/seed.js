@@ -102,6 +102,8 @@ export function seed({ one, run, tx }) {
         require_verified_email: true,
         min_play_minutes_for_redemption: 120,
       },
+      // Gerações em provedores externos pagos (Tripo/Meshy) por dia. Operações locais não entram aqui.
+      pipeline_limits: { free: 3, pro: 12, deluxe: 60 },
       conversion_tiers: [
         { nc: 3000, credit_cents: 300 },
         { nc: 5000, credit_cents: 500 },

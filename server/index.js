@@ -20,6 +20,8 @@ import communityRoutes from './routes/community.js';
 import studioRoutes from './routes/studios.js';
 import multiplayerRoutes, { attachMultiplayer } from './routes/multiplayer.js';
 import adminRoutes from './routes/admin.js';
+import pipelineRoutes from './routes/pipeline.js';
+import { recoverJobs } from './pipeline/index.js';
 import { createSandboxApp, mountRuntime } from './sandbox/server.js';
 import { recoverAutopilotRuns } from './ai/autopilot.js';
 
@@ -69,6 +71,7 @@ export function createApp() {
       email: mailConfigured() ? 'configured' : 'not_configured',
       ai: config.ai.enabled ? (config.ai.provider === 'mock' ? 'mock' : 'configured') : 'not_configured',
       payments: config.payments.provider === 'stripe' ? 'configured' : 'not_configured',
+      forge: { tripo: Boolean(process.env.TRIPO_API_KEY), meshy: Boolean(process.env.MESHY_API_KEY), blender: Boolean(process.env.BLENDER_PATH || process.env.NEXPLAY_BPY_PYTHON) },
     },
     sandboxOrigin: config.sandboxOrigin,
   }));
@@ -84,6 +87,7 @@ export function createApp() {
   app.use('/api/studios', studioRoutes);
   app.use('/api/multiplayer', multiplayerRoutes);
   app.use('/api/admin', adminRoutes);
+  app.use('/api/pipeline', pipelineRoutes);
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'Rota não encontrada.')));
 
   // Imagens enviadas (validadas por assinatura de arquivo; nunca HTML/SVG).
@@ -113,6 +117,7 @@ export function createApp() {
 
 export async function start() {
   recoverAutopilotRuns();
+  recoverJobs();
   const app = createApp();
   const server = http.createServer(app);
   attachMultiplayer(server);

@@ -23,6 +23,19 @@ Relatório honesto do que existe hoje. "Funciona" significa implementado de pont
 | Cloud | Projetos na nuvem, revisões com controle otimista (sem sobrescrever colaboradores), histórico com poda por plano, restauração, backup/importação, colaboradores (edição/leitura), limites de armazenamento. |
 | Administração | Tudo verificado no servidor; auditoria de operações administrativas, de NC, de planos e de moderação. |
 
+## NEXPLAY FORGE (linha de produção 2D/3D) — ver docs/FORGE.md
+
+| Parte | Estado |
+|---|---|
+| Processamento glTF interno (inspeção, reparo, escala, texturas, LODs, colisão) | Funciona sempre; testado. |
+| Blender headless (aprimoramento, low poly, rigging automático + animações) | Funciona quando `BLENDER_PATH`/`NEXPLAY_BPY_PYTHON` está configurado; testado com Blender 5.2 (módulo `bpy`). |
+| Voxel (especificação da IA, `.vox` do MagicaVoxel, exportação `.vox`) | Funciona; testado. |
+| Pixel art (editor, IA, imagens, Krita `.kra`/`.ora`) | Funciona; testado. |
+| Estilo visual do projeto, classificação automática e alerta de inconsistência | Funciona. |
+| Integração automática no projeto + teste no motor do jogo com correções | Funciona; testado no navegador. |
+| IA Diretora de Arte, ferramentas de geração para IA e Autopilot aguardando assets | Implementado; testado com IA simulada. |
+| Tripo AI / Meshy AI | Implementado, **não testado contra as APIs reais** (sem chaves/rede). Requer chaves. |
+
 ## Depende de configuração externa
 
 | Recurso | O que configurar | Sem configuração |
@@ -30,6 +43,8 @@ Relatório honesto do que existe hoje. "Funciona" significa implementado de pont
 | **NEXPLAY AI e AUTOPILOT** | `ANTHROPIC_API_KEY` (modelo padrão `claude-opus-5-5`, com fallback do servidor em recusas). | A interface informa que a IA não está configurada; nenhuma resposta é simulada. |
 | **E-mail** (confirmação e recuperação) | `SMTP_*` | O link é escrito no console do servidor e a interface avisa que o e-mail não foi enviado. |
 | **Pagamentos** (assinaturas, compra com cartão, doações) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_DELUXE` | Rotas respondem 503; nada é simulado. Créditos NEXPLAY funcionam (são internos). Planos podem ser concedidos pelo admin. |
+| **Geração 3D por IA (FORGE)** | `TRIPO_API_KEY` e/ou `MESHY_API_KEY` | A geração é recusada com explicação; voxel, sprites, importação e Blender continuam funcionando. |
+| **Blender** | `BLENDER_PATH` ou `NEXPLAY_BPY_PYTHON` | O otimizador interno é usado (sem rigging nem refino avançado), e isso aparece nas etapas do job. |
 | **Hospedagem** | Dois domínios (app e jogos), TLS, proxy reverso com WebSocket — ver DEPLOY.md. | Funciona em localhost. |
 | Comissão da plataforma | Painel admin → Configurações. | 0%. |
 | Preços dos planos | Painel admin → Planos (valores atuais são sugestões). | R$ 24,90 / R$ 69,90. |

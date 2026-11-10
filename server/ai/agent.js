@@ -7,6 +7,7 @@ import { SPECIALISTS, aiTier } from './specialists.js';
 import { toolsFor, executeTool } from './tools.js';
 import { createMessage, AIUnavailableError, Anthropic, isRetryableJsonError } from './provider.js';
 import { config } from '../config.js';
+import { toolStatus, quotaFor, createJob } from '../pipeline/index.js';
 
 // ───────── Cotas por plano ─────────
 const running = new Map(); // userId → número de execuções simultâneas
@@ -45,7 +46,7 @@ export async function runSpecialist({ userId, doc, specialist, prompt, history =
   const spec = SPECIALISTS[specialist];
   if (!spec) throw new HttpError(400, 'Especialidade inválida.');
   const tier = aiTier(entitlements(userId).code);
-  const state = { doc, changes: [], limitations: [], lastValidation: null };
+  const state = { doc, changes: [], limitations: [], lastValidation: null, forgeRequests: [], forge: spec.tools.some((t) => /forge|3d_model|voxel|pixel/.test(t)) ? { tools: toolStatus(), quota: quotaFor(userId), projectStyle: doc.artStyle || null } : null };
   const tools = toolsFor(spec.tools);
   const messages = [...history, { role: 'user', content: prompt }];
   const usage = { input: 0, output: 0 };
@@ -103,7 +104,7 @@ export async function runSpecialist({ userId, doc, specialist, prompt, history =
     }
     messages.push({ role: 'user', content: results });
   }
-  return { doc: state.doc, changes: state.changes, limitations: state.limitations, validation: state.lastValidation, text: finalText, usage, stopReason };
+  return { doc: state.doc, changes: state.changes, limitations: state.limitations, validation: state.lastValidation, text: finalText, usage, stopReason, forgeRequests: state.forgeRequests };
 }
 
 /** Comando de IA completo para o Studio: cota, execução, gravação de revisão e histórico de conversa. */
@@ -136,12 +137,27 @@ export async function runCommand({ req, project, specialist, prompt, saveRevisio
       versionId = saved.versionId;
       revision = saved.revision;
     }
+    const jobs = startForgeJobs(userId, project.id, result);
     run('INSERT INTO ai_conversations(project_id, user_id, role, specialist, content, changes, version_id) VALUES (?,?,?,?,?,?,?)',
       project.id, userId, 'assistant', specialist, result.text || '(sem resposta)', JSON.stringify({ changes: result.changes, limitations: result.limitations }), versionId);
-    return { ...result, versionId, revision };
+    return { ...result, versionId, revision, forgeJobs: jobs };
   } finally {
     running.set(userId, Math.max(0, (running.get(userId) || 1) - 1));
   }
+}
+
+/** Cria na NEXPLAY FORGE os assets encomendados pela IA (após salvar a revisão com os marcadores). */
+export function startForgeJobs(userId, projectId, result) {
+  const jobs = [];
+  for (const req of result.forgeRequests || []) {
+    try {
+      const project = one('SELECT * FROM projects WHERE id=?', projectId);
+      jobs.push(createJob({ userId, project, kind: req.kind, params: { ...req.params, placeholderId: req.placeholderId } }).id);
+    } catch (e) {
+      result.limitations.push({ task: `Produzir "${req.params.name}"`, reason: e.message });
+    }
+  }
+  return jobs;
 }
 
 export function markRunning(userId, delta) {

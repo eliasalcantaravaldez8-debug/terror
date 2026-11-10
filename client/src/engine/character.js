@@ -179,3 +179,48 @@ export class ProceduralAnimator {
 }
 
 export const CLIP_NAMES = Object.keys(CLIPS);
+
+/**
+ * Animador para personagens com modelo GLB (ex.: produzidos pela NEXPLAY FORGE): mesma interface do
+ * ProceduralAnimator (play/update/cadence/clip), usando os clipes do arquivo com transição suave.
+ */
+const ALIASES = { sprint: ['sprint', 'run'], dribble: ['dribble', 'run'], fall: ['fall', 'jump'], kick: ['kick', 'attack'], pass: ['pass', 'kick'], celebrate: ['celebrate', 'dance', 'wave'], die: ['die', 'death'], hit: ['hit', 'hurt'], talk: ['talk', 'idle'] };
+export class MixerAnimator {
+  constructor(mixer, clips, initial = 'idle') {
+    this.mixer = mixer;
+    this.clips = clips;
+    this.cadence = 1;
+    this.clip = null;
+    this.action = null;
+    this.play(initial);
+  }
+
+  find(name) {
+    const want = ALIASES[name] || [name];
+    for (const w of want) {
+      const c = this.clips.find((x) => x.name.toLowerCase() === w) || this.clips.find((x) => x.name.toLowerCase().includes(w));
+      if (c) return c;
+    }
+    return null;
+  }
+
+  play(name) {
+    if (name === this.clip) return;
+    const c = this.find(name);
+    if (!c) return;
+    const next = this.mixer.clipAction(c);
+    const oneShot = ['kick', 'pass', 'attack', 'hit', 'die', 'jump'].includes(name);
+    next.reset();
+    next.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
+    next.clampWhenFinished = oneShot;
+    if (this.action && this.action !== next) next.crossFadeFrom(this.action, 0.2, false);
+    next.play();
+    this.action = next;
+    this.clip = name;
+  }
+
+  update(dt) {
+    if (this.action) this.action.timeScale = this.cadence;
+    this.mixer.update(dt);
+  }
+}
