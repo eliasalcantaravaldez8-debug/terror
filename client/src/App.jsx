@@ -33,6 +33,7 @@ const StudioPage = lazy(() => import('./pages/StudioPage.jsx'));
 const StudioHome = lazy(() => import('./pages/StudioHome.jsx'));
 const SubmitGame = lazy(() => import('./pages/SubmitGame.jsx'));
 const AIChat = lazy(() => import('./pages/AIChat.jsx'));
+const LocalGames = lazy(() => import('./pages/LocalGames.jsx'));
 const StudioEditor = lazy(() => import('./studio/StudioEditor.jsx'));
 const DeluxeLab = lazy(() => import('./pages/DeluxeLab.jsx'));
 const Admin = lazy(() => import('./pages/admin/Admin.jsx'));
@@ -138,13 +139,13 @@ export function RequireAuth({ children }) {
 }
 
 // Versão sem servidor: só o que roda no aparelho (Início, Arcade, Studio com editor e NEXPLAY AI).
-const LOCAL_OK = /^\/($|arcade$|studio($|\/)|criar-com-ia($|\/)|termos$)/;
+const LOCAL_OK = /^\/($|arcade$|studio($|\/)|criar-com-ia($|\/)|enviar-jogo$|termos$)/;
 function ServerOnly() {
   return (
     <div className="empty fade-in">
       <Icon name="cloud" />
       <h3>Esta área precisa do servidor da NEXPLAY</h3>
-      <div className="muted" style={{ maxWidth: 560 }}>Você está na versão para celular, sem servidor. Aqui funcionam o <b>NEXPLAY Studio</b> (criar, editar, testar e salvar projetos neste aparelho) e a <b>NEXPLAY AI</b>. Contas, comunidade, Arcade com jogos publicados, publicação e envio de jogos prontos funcionam na plataforma completa.</div>
+      <div className="muted" style={{ maxWidth: 560 }}>Você está na versão para celular, sem servidor. Aqui funcionam o <b>NEXPLAY Studio</b> (criar, editar, testar e salvar projetos neste aparelho) e a <b>NEXPLAY AI</b>. Contas, comunidade, Arcade com jogos publicados e publicação funcionam na plataforma completa.</div>
       <div className="row mt" style={{ justifyContent: 'center' }}><Link className="btn primary" to="/studio">Abrir o NEXPLAY Studio</Link><Link className="btn" to="/studio/novo">Criar jogo</Link></div>
     </div>
   );
@@ -161,7 +162,7 @@ export default function App() {
       <div className="main">
         <Topbar onMenu={() => setOpen(true)} />
         <main className={fullBleed ? '' : 'content'}>
-          {STANDALONE && !fullBleed && !loc.pathname.startsWith('/criar-com-ia') && <div className="tiny muted" style={{ marginBottom: 12, padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 10 }}>Versão para celular, sem servidor: seus projetos ficam salvos <b>neste aparelho</b>. Publicar no Arcade e enviar jogos prontos só na plataforma completa.</div>}
+          {STANDALONE && !fullBleed && !loc.pathname.startsWith('/criar-com-ia') && <div className="tiny muted" style={{ marginBottom: 12, padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 10 }}>Versão para celular, sem servidor: seus projetos ficam salvos <b>neste aparelho</b>. Publicar no Arcade para outras pessoas só na plataforma completa.</div>}
           <Suspense fallback={<div className="spinner" />}>
             {STANDALONE && !LOCAL_OK.test(loc.pathname) ? <ServerOnly /> : (
             <Routes>
@@ -195,7 +196,7 @@ export default function App() {
               <Route path="/criar-com-ia/:id" element={<RequireAuth><AIChat /></RequireAuth>} />
               <Route path="/studio/novo" element={<RequireAuth><StudioHome /></RequireAuth>} />
               <Route path="/studio/:id" element={<RequireAuth><StudioEditor /></RequireAuth>} />
-              <Route path="/enviar-jogo" element={<RequireAuth><SubmitGame /></RequireAuth>} />
+              <Route path="/enviar-jogo" element={<RequireAuth>{STANDALONE ? <LocalGames /> : <SubmitGame />}</RequireAuth>} />
               <Route path="/deluxe-lab" element={<DeluxeLab />} />
               <Route path="/admin/*" element={<RequireAuth><Admin /></RequireAuth>} />
               <Route path="/termos" element={<Terms />} />

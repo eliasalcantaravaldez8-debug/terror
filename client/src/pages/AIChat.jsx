@@ -17,7 +17,7 @@ const IDEAS = [
 ];
 // Pedido feito antes de o projeto existir: sobrevive à troca de rota /criar-com-ia → /criar-com-ia/:id.
 let pendingPrompt = null;
-const NEXT = ['Melhore os gráficos', 'Deixe mais difícil', 'Adicione mais inimigos', 'Mude para noite com chuva', 'Adicione placar e cronômetro', 'Crie uma segunda fase'];
+const NEXT = ['Upgrade em tudo: gráficos, jogabilidade, menus e desafio', 'Melhore os gráficos', 'Deixe mais difícil', 'Adicione mais inimigos', 'Mude para noite com chuva', 'Adicione placar e cronômetro', 'Crie uma segunda fase'];
 const STEP = {
   get_project_overview: 'Analisando o jogo…', get_entities: 'Analisando objetos…', read_script: 'Lendo o código…', add_entities: 'Montando o cenário e os objetos…',
   update_entities: 'Ajustando objetos…', remove_entities: 'Removendo objetos…', set_material: 'Aplicando materiais e texturas…', set_environment: 'Ajustando céu, clima e luz…',
@@ -142,6 +142,7 @@ export default function AIChat() {
                 <details className="tiny muted" style={{ width: '100%' }}><summary>{m.changes.changes.length} alteração(ões) no projeto</summary>{m.changes.changes.slice(0, 60).map((c, i) => <div key={i}>• {c.label}</div>)}</details>
               </div>
             )}
+            {m.role === 'assistant' && m.content.startsWith('Erro:') && !busy && (() => { const prev = messages[messages.indexOf(m) - 1]; return prev?.role === 'user' ? <div className="aichat-actions"><button className="btn sm primary" onClick={() => send(prev.content)}><Icon name="undo" size={14} /> Tentar de novo</button></div> : null; })()}
             {m.changes?.limitations?.length > 0 && <div className="warn-box tiny" style={{ marginTop: 6 }}>Não deu para fazer: {m.changes.limitations.map((l) => `${l.task} (${l.reason})`).join('; ')}</div>}
           </div>
         ))}

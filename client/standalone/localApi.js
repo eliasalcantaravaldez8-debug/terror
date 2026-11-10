@@ -11,53 +11,12 @@ import { TOOL_DEFS, executeTool } from '../../server/ai/tools.js';
 export const SERVER_ONLY = 'Esta função precisa do servidor da NEXPLAY e não existe na versão para celular (sem servidor).';
 const FORGE_TOOLS = new Set(['get_forge_tools', 'generate_3d_model', 'create_voxel_model', 'create_pixel_sprite', 'set_art_style']);
 const MAX_VERSIONS = 50;
+const MAX_TOOLS = 16;
+const TOOL_PRIORITY = ['get_project_overview', 'add_entities', 'update_entities', 'remove_entities', 'validate_project', 'set_environment', 'set_rendering',
+  'set_material', 'set_player', 'upsert_mission', 'set_ui', 'write_script', 'get_entities', 'report_limitation', 'set_system', 'upsert_dialogue',
+  'read_script', 'remove_mission', 'delete_script'];
 
-// ───────── Armazenamento (IndexedDB; se o navegador bloquear, fica só na memória e avisamos) ─────────
-let memory = null;
-const dbp = new Promise((resolve) => {
-  try {
-    const req = indexedDB.open('nexplay-local', 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      db.createObjectStore('projects', { keyPath: 'id', autoIncrement: true });
-      db.createObjectStore('versions', { keyPath: 'id', autoIncrement: true }).createIndex('projectId', 'projectId');
-      db.createObjectStore('convos', { keyPath: 'id', autoIncrement: true }).createIndex('projectId', 'projectId');
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => resolve(null);
-    req.onblocked = () => resolve(null);
-  } catch { resolve(null); }
-}).then((db) => { if (!db) memory = { projects: new Map(), versions: new Map(), convos: new Map(), seq: 1 }; return db; });
-
-export const storageMode = () => dbp.then((db) => (db ? 'device' : 'memory'));
-
-async function tx(store, mode, fn) {
-  const db = await dbp;
-  if (!db) return fn(null);
-  return new Promise((resolve, reject) => {
-    const t = db.transaction(store, mode);
-    const s = t.objectStore(store);
-    let out;
-    Promise.resolve(fn(s)).then((v) => { out = v; }, reject);
-    t.oncomplete = () => resolve(out);
-    t.onerror = () => reject(t.error);
-    t.onabort = () => reject(t.error || new Error('Falha ao salvar no aparelho (espaço cheio?).'));
-  });
-}
-const wrap = (r) => new Promise((resolve, reject) => { r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
-const store = {
-  async all(name) { if (memory) return [...memory[name].values()]; return tx(name, 'readonly', (s) => wrap(s.getAll())); },
-  async get(name, id) { if (memory) return memory[name].get(id); return tx(name, 'readonly', (s) => wrap(s.get(id))); },
-  async put(name, row) {
-    if (memory) { if (!row.id) row.id = memory.seq++; memory[name].set(row.id, structuredClone(row)); return row.id; }
-    return tx(name, 'readwrite', (s) => wrap(s.put(row)));
-  },
-  async del(name, id) { if (memory) { memory[name].delete(id); return; } return tx(name, 'readwrite', (s) => wrap(s.delete(id))); },
-  async byProject(name, projectId) {
-    if (memory) return [...memory[name].values()].filter((r) => r.projectId === projectId);
-    return tx(name, 'readonly', (s) => wrap(s.index('projectId').getAll(projectId)));
-  },
-};
+import { localStore as store, storageMode } from '../src/localdb.js';
 
 // ───────── Claude da página (capacidade "sample" do Artifact) ─────────
 let samplePromise = null;
@@ -112,7 +71,9 @@ async function aiCommand(projectId, { prompt, specialist }, onEvent) {
   if (!spec) throw new ApiError(400, 'Especialidade inválida.');
   const p = await loadProject(projectId);
   const state = { doc: structuredClone(p.doc), changes: [], limitations: [], lastValidation: null, forgeRequests: [], forge: null };
-  const names = spec.tools.filter((t) => !FORGE_TOOLS.has(t) && TOOL_DEFS[t]);
+  // O Claude da página aceita no máximo 16 ferramentas por chamada: ficam as mais importantes, nesta ordem.
+  const names = spec.tools.filter((t) => !FORGE_TOOLS.has(t) && TOOL_DEFS[t])
+    .sort((a, b) => (TOOL_PRIORITY.indexOf(a) + 1 || 99) - (TOOL_PRIORITY.indexOf(b) + 1 || 99)).slice(0, MAX_TOOLS);
   const tools = names.map((n) => ({
     name: n, description: TOOL_DEFS[n].description, inputSchema: TOOL_DEFS[n].input_schema,
     execute: (input) => {
@@ -139,7 +100,7 @@ async function aiCommand(projectId, { prompt, specialist }, onEvent) {
   try {
     r = await sample([...history, { role: 'user', content: `${instructions}\n\n---\nPedido do criador:\n${prompt}` }], { tools, modelTier: 'complex', cache: false });
   } catch (e) {
-    const msg = { not_granted: 'Você não permitiu o uso do Claude nesta página. Abra as permissões do Artifact para liberar.', rate_limited: 'Muitos pedidos seguidos. Espere um pouco e tente de novo.' }[e?.code] || e?.message || 'Falha na IA.';
+    const msg = { tool_limit: 'Limite de ferramentas da IA.', not_granted: 'Você não permitiu o uso do Claude nesta página. Abra as permissões do Artifact para liberar.', rate_limited: 'Muitos pedidos seguidos. Espere um pouco e tente de novo.' }[e?.code] || e?.message || 'Falha na IA.';
     await store.put('convos', { projectId: p.id, role: 'assistant', specialist, content: `Erro: ${msg}`, createdAt: now() });
     throw new ApiError(503, msg, e?.code || 'ai_error');
   }

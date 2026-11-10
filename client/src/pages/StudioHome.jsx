@@ -29,7 +29,7 @@ export default function StudioHome() {
       <div className="row between">
         <div><h1>NEXPLAY STUDIO</h1><p className="muted">Crie jogos 2D e 3D com ferramentas visuais, código e a NEXPLAY AI. Cada projeto é salvo separadamente {STANDALONE ? 'neste aparelho' : 'na NEXPLAY CLOUD'}. Para modificar um jogo, toque em <b>Abrir</b>; a <b>NEXPLAY AI</b> fica dentro do editor.</p></div>
         <div className="row">
-          {!STANDALONE && <Link className="btn" to="/enviar-jogo"><Icon name="upload" /> Enviar jogo pronto</Link>}
+          <Link className="btn" to="/enviar-jogo"><Icon name="upload" /> {STANDALONE ? 'Enviar jogo pronto / meus jogos' : 'Enviar jogo pronto'}</Link>
           <label className="btn"><Icon name="download" /> Importar backup<input type="file" accept=".json" hidden onChange={async (e) => { const f = e.target.files[0]; if (!f) return; try { const d = await api.post('/projects/import', JSON.parse(await f.text())); nav(`/studio/${d.project.id}`); } catch (x) { toast(x.message, 'error'); } }} /></label>
           <Link className="btn" to="/criar-com-ia"><Icon name="sparkles" /> Criar com IA</Link>
           <button className="btn primary" onClick={() => setCreating(true)}><Icon name="plus" /> Criar jogo</button>
