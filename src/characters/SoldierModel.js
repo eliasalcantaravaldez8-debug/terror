@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { solveTwoBone, aimBone } from './IK.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { makeWeaponModel } from '../weapons/WeaponModels.js';
+import { mergeStatic, skinHierarchy } from '../render/mergeUtil.js';
 import { clamp, lerp, damp, easeInOut } from '../utils/math.js';
 
 /**
@@ -204,6 +205,9 @@ export class SoldierModel {
     this.weapon = makeWeaponModel(weapon === 'rifle' ? 'vk7' : weapon === 'sniper' ? 'lr6' : weapon, mats, 'low');
     this.weaponMount.add(this.weapon);
     this.weaponDropped = false;
+    // performance: collapse the many small parts of each joint into one mesh per material
+    this.skinned = skinHierarchy(this.root, { skip: [this.weaponMount] });
+    mergeStatic(this.weapon, { deep: true, keep: [this.weapon.userData.magazine, this.weapon.userData.pump].filter(Boolean) });
 
     // state
     this.phase = Math.random() * 6;

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { WEAPONS } from '../weapons/WeaponData.js';
 import { makeWeaponModel } from '../weapons/WeaponModels.js';
+import { mergeStatic } from '../render/mergeUtil.js';
 
 const _p = new THREE.Vector3(), _d = new THREE.Vector3();
 
@@ -20,7 +21,7 @@ export class Pickups {
     if (!def) return null;
     let mesh = o.mesh;
     if (!mesh) {
-      mesh = makeWeaponModel(o.weaponId, this.game.mats, 'low');
+      mesh = mergeStatic(makeWeaponModel(o.weaponId, this.game.mats, 'low'), { deep: true });
       mesh.position.copy(o.position);
       mesh.rotation.set(0, o.yaw ?? Math.random() * 6.28, Math.PI / 2);
       this.game.scene.add(mesh);

@@ -22,6 +22,10 @@ import { HUD } from '../ui/HUD.js';
 import { Menus } from '../ui/Menus.js';
 import { Dialogue } from '../ui/Dialogue.js';
 import { Mission01 } from '../missions/Mission01.js';
+import { SoldierModel, APPEARANCE } from '../characters/SoldierModel.js';
+import { WEAPONS } from '../weapons/WeaponData.js';
+import { makeWeaponModel, makeGrenade } from '../weapons/WeaponModels.js';
+import { mergeStatic } from '../render/mergeUtil.js';
 import { Mission02 } from '../missions/Mission02.js';
 
 export const MISSION_ORDER = ['m01', 'm02'];
@@ -95,10 +99,21 @@ export class Game {
 
     this.events.on('playerDied', () => this.onPlayerDied());
     this.events.on('soldierKilled', ({ soldier, info }) => {
-      if (soldier.team === 'enemy') {
-        const killer = info?.shooter;
+      if (soldier.team !== 'enemy') return;
+      const killer = info?.shooter;
+      if (killer && !killer.isPlayer && killer.team === 'ally') {
+        // squad-mates score kills too
+        this.hud.feed(`${killer.name} ABATEU UM HOSTIL`);
+        if (Math.random() < 0.6) this.squad.bark(killer, 'kill');
+      } else {
         const s = this.squad.alive[Math.floor(Math.random() * this.squad.alive.length)];
         if (s && Math.random() < 0.35) this.squad.bark(s, killer?.isPlayer ? 'playerKill' : 'kill');
+      }
+      // cinematic slow motion on the last hostile of an engagement
+      if (this.mission.isLastOfWave?.(soldier) && this.state === 'playing') {
+        this.slowMotion(0.25, 1.6);
+        this.hud.feed('ÁREA LIMPA');
+        this.audio.concussion(0.8, 0.15);
       }
     });
     this.input.onLockChange = (locked) => {
@@ -118,13 +133,51 @@ export class Game {
     await nextFrame();
     this.pipeline.camera.position.set(0, 30, 80);
     this.pipeline.camera.lookAt(0, 0, -50);
-    this.pipeline.renderer.compile(this.scene, this.pipeline.camera);
+    this._warmUp();
     onProgress(1, 'Pronto');
     this.state = 'menu';
     this.hud.show(false);
     this._clock = performance.now();
     this._menuCam = 0;
     requestAnimationFrame(() => this.loop());
+  }
+
+  /**
+   * Compile every shader variant the game can need before play starts
+   * (soldier variants, every weapon, grenades, particles, both times of day),
+   * so nothing compiles mid-fight and causes a hitch.
+   */
+  _warmUp() {
+    const cam = this.pipeline.camera;
+    const warm = new THREE.Group();
+    const looks = [APPEARANCE.ally(this.mats, { beard: true }), APPEARANCE.ally(this.mats), APPEARANCE.enemy(this.mats), APPEARANCE.enemy(this.mats, { mask: true }), APPEARANCE.enemy(this.mats, { cap: true }), APPEARANCE.pilot(this.mats)];
+    const weapons = Object.keys(WEAPONS);
+    looks.forEach((a, i) => { const m = new SoldierModel(this.mats, a, { weapon: weapons[i % weapons.length] }); m.root.position.set(i * 1.5, 0, 0); warm.add(m.root); });
+    weapons.forEach((id, i) => {
+      const lo = mergeStatic(makeWeaponModel(id, this.mats, 'low'), { deep: true }); lo.position.set(i, 1, 2); warm.add(lo);
+      const hi = makeWeaponModel(id, this.mats, 'high'); hi.position.set(i, 1.5, 2); warm.add(hi);
+    });
+    const gr = makeGrenade(this.mats); gr.position.set(0, 1, 3); warm.add(gr);
+    warm.position.copy(cam.position).add(new THREE.Vector3(0, -2, -6).applyQuaternion(cam.quaternion));
+    this.scene.add(warm);
+    for (const tod of ['dusk', 'morning']) {
+      this.pipeline.setTimeOfDay(tod);
+      this.pipeline.renderer.compile(this.scene, cam);
+      this.pipeline.renderer.compile(this.pipeline.vmScene, this.pipeline.vmCamera);
+    }
+    this.scene.remove(warm);
+  }
+
+  /** Dynamic resolution: trade a little sharpness for a steady frame rate. */
+  _adaptResolution(dt) {
+    if (!this.settings.get('dynamicRes') || this.state !== 'playing') return;
+    const fps = 1 / Math.max(dt, 1e-3);
+    this._fpsAvg = this._fpsAvg ? this._fpsAvg * 0.95 + fps * 0.05 : fps;
+    this._resTimer = (this._resTimer || 0) + dt;
+    const scale = this.pipeline.resolutionScale;
+    if (this._fpsAvg < 48 && this._resTimer > 1.5 && scale > 0.55) { this.pipeline.setResolutionScale(scale - 0.1); this._resTimer = 0; }
+    else if (this._fpsAvg > 58 && this._resTimer > 5 && scale < 1) { this.pipeline.setResolutionScale(Math.min(1, scale + 0.05)); this._resTimer = 0; }
+    else if (this._fpsAvg >= 48 && this._fpsAvg <= 58) this._resTimer = Math.min(this._resTimer, 1);
   }
 
   // ------------------------------------------------------------ front-end flow
@@ -177,14 +230,14 @@ export class Game {
     this.state = 'paused';
     this.menus.pause();
     this.input.exitLock();
-    try { speechSynthesis.pause(); } catch { /* */ }
+    this.dialogue.pause();
   }
   resume() {
     if (this.state !== 'paused') return;
     this.menus.hide();
     this.state = 'playing';
     this.input.consumeMouse();
-    try { speechSynthesis.resume(); } catch { /* */ }
+    this.dialogue.resume();
     if (!this.testMode) this.input.requestLock();
   }
   quitToMenu() {
@@ -237,6 +290,8 @@ export class Game {
     let dt = (now - this._clock) / 1000;
     this._clock = now;
     dt = Math.min(dt, 0.05);
+    this._adaptResolution((now - (this._prevNow || now)) / 1000 || 0.016);
+    this._prevNow = now;
     if (this.state === 'playing' || this.state === 'dead') this.simulate(dt);
     else if (this.state === 'menu') this._menuCamera(dt);
     this.render(dt);

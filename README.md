@@ -33,6 +33,7 @@ Clique em **Nova campanha**. O mouse é capturado ao clicar na tela.
 | Botão esquerdo / direito | Atirar / Mirar |
 | R | Recarregar |
 | G | Granada |
+| V ou F | Golpe corpo a corpo |
 | 1, 2, Q, roda do mouse | Trocar arma |
 | E | Interagir (caixas de munição, portas) |
 | Esc / P | Pausar |
@@ -57,7 +58,13 @@ volumes, inverter Y, legendas, vozes provisórias, contador de FPS.
   granadas com quique e explosão.
 - **Personagens** com rosto esculpido, membros com volume, colete com
   carregadores, capacete com trilhos e jugular; inimigos com balaclava ou máscara de gás.
-- **Gráficos**: oclusão de ambiente (GTAO) no nível Alto, bloom no Médio e Alto.
+- **Gráficos**: níveis Baixo/Médio/Alto/Ultra, oclusão de ambiente (GTAO), bloom,
+  aberração cromática e nitidez, janelas acesas à noite; **resolução dinâmica** mantém o FPS estável.
+- **Desempenho**: soldados como malha única com esqueleto (skinning na GPU), animação reduzida para
+  soldados distantes/inativos, shaders pré-compilados no carregamento (sem travadas no combate).
+- **Vozes sincronizadas** com as legendas (cada fala espera a voz terminar).
+- **Golpe corpo a corpo** (V/F) e **câmera lenta** ao abater o último inimigo de cada área;
+  parceiros abatem inimigos e aparecem no feed de abates.
 - **IA aliada** (Kane, Ruiz, Okafor): avança por pontos de cobertura,
   engaja inimigos, fala durante o combate.
 - **IA inimiga** (VÉRTICE): procura cobertura real (teste de linha de visada),

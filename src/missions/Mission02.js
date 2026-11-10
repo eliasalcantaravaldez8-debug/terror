@@ -77,6 +77,7 @@ export class Mission02 extends MissionBase {
     // dusk, heavier rain, the street is now open to the east
     const tod = g.pipeline.setTimeOfDay('dusk');
     g.effects.rainIntensity = tod.rain;
+    g.mats.setNightLights(1.6);
     this.setEastGate(false, false);
     this.setHaldenDoor(true, true);
     const car = g.city.namedProps.rpgTarget;

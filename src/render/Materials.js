@@ -44,7 +44,16 @@ export class Materials {
     return this.get('roof', () => new THREE.MeshStandardMaterial({ ...TF.roof(), roughness: 0.95 }));
   }
   facade(style) {
-    return this.get('facade' + JSON.stringify(style), () => new THREE.MeshStandardMaterial({ ...TF.facade(style), roughness: 1, metalness: 0, envMapIntensity: 1.2 }));
+    return this.get('facade' + JSON.stringify(style), () => {
+      const m = new THREE.MeshStandardMaterial({ ...TF.facade(style), roughness: 1, metalness: 0, envMapIntensity: 1.2, emissive: 0xffffff, emissiveIntensity: this.nightLights || 0 });
+      (this.facades ||= []).push(m);
+      return m;
+    });
+  }
+  /** Lit windows across the city (0 by day). */
+  setNightLights(v) {
+    this.nightLights = v;
+    for (const m of this.facades || []) m.emissiveIntensity = v;
   }
   shop(style) {
     return this.get('shop' + JSON.stringify(style), () => new THREE.MeshStandardMaterial({ ...TF.shopfront(style), roughness: 1, envMapIntensity: 1.2 }));
@@ -85,7 +94,7 @@ export class Materials {
     return this.get('web' + color, () => new THREE.MeshStandardMaterial({ ...TF.webbing(color), roughness: 0.92 }));
   }
   polymer(color = 0x2b2a27) {
-    return this.get('polymer' + color, () => new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0.05 }));
+    return this.get('polymer' + color, () => { const m = new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0.05 }); m.userData.flat = true; return m; });
   }
   wood() {
     return this.get('wood', () => new THREE.MeshStandardMaterial({ ...TF.wood(), roughness: 0.85 }));
@@ -131,10 +140,10 @@ export class Materials {
     return this.get('skin' + tone, () => new THREE.MeshStandardMaterial({ color: tone, roughness: 0.65, metalness: 0 }));
   }
   glove() {
-    return this.get('glove', () => new THREE.MeshStandardMaterial({ color: 0x2c2a25, roughness: 0.85 }));
+    return this.get('glove', () => { const m = new THREE.MeshStandardMaterial({ color: 0x2c2a25, roughness: 0.85 }); m.userData.flat = true; return m; });
   }
   boot() {
-    return this.get('boot', () => new THREE.MeshStandardMaterial({ color: 0x4a3d2c, roughness: 0.8 }));
+    return this.get('boot', () => { const m = new THREE.MeshStandardMaterial({ color: 0x4a3d2c, roughness: 0.8 }); m.userData.flat = true; return m; });
   }
   balaclava() {
     return this.get('balaclava', () => new THREE.MeshStandardMaterial({ ...TF.fabric(93, ['#1c1c1d', '#232324', '#18181a'], 8), roughness: 1 }));

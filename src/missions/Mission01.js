@@ -152,6 +152,7 @@ export class Mission01 extends MissionBase {
     const g = this.game;
     this.resetWorld();
     g.effects.rainIntensity = g.pipeline.setTimeOfDay('morning').rain;
+    g.mats.setNightLights(0);
     this.setEastGate(true, false);
     this.checkpoint = checkpoint;
     this.endTriggered = false;

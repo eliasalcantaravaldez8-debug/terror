@@ -87,6 +87,7 @@ export class Menus {
             <option value="low" ${q === 'low' ? 'selected' : ''}>Baixa</option>
             <option value="medium" ${q === 'medium' ? 'selected' : ''}>Média</option>
             <option value="high" ${q === 'high' ? 'selected' : ''}>Alta</option>
+            <option value="ultra" ${q === 'ultra' ? 'selected' : ''}>Ultra</option>
           </select></label>
         <label>Sensibilidade do mouse <input id="s-sens" type="range" min="0.2" max="3" step="0.05" value="${s.get('sensitivity')}"><span id="s-sens-v">${s.get('sensitivity').toFixed(2)}</span></label>
         <label>Campo de visão <input id="s-fov" type="range" min="60" max="100" step="1" value="${s.get('fov')}"><span id="s-fov-v">${s.get('fov')}°</span></label>
@@ -96,6 +97,7 @@ export class Menus {
         <label class="chk"><input id="s-subs" type="checkbox" ${s.get('subtitles') ? 'checked' : ''}> Legendas</label>
         <label class="chk"><input id="s-voices" type="checkbox" ${s.get('voices') ? 'checked' : ''}> Vozes sintetizadas (provisório)</label>
         <label class="chk"><input id="s-fps" type="checkbox" ${s.get('showFps') ? 'checked' : ''}> Mostrar FPS</label>
+        <label class="chk"><input id="s-dyn" type="checkbox" ${s.get('dynamicRes') ? 'checked' : ''}> Resolução dinâmica (mantém o jogo fluido)</label>
       </div>
       <div class="menu-buttons"><button id="s-back" class="primary">Voltar</button></div>`, 'settings-menu');
     const r = this.root;
@@ -108,6 +110,7 @@ export class Menus {
     r.querySelector('#s-subs').addEventListener('change', (e) => s.set('subtitles', e.target.checked));
     r.querySelector('#s-voices').addEventListener('change', (e) => s.set('voices', e.target.checked));
     r.querySelector('#s-fps').addEventListener('change', (e) => s.set('showFps', e.target.checked));
+    r.querySelector('#s-dyn').addEventListener('change', (e) => { s.set('dynamicRes', e.target.checked); if (!e.target.checked) this.game.pipeline.setResolutionScale(1); });
     this._bind('s-back', back);
   }
 
@@ -115,7 +118,7 @@ export class Menus {
     this.current = 'controls';
     const rows = [
       ['W A S D', 'Mover'], ['Shift', 'Correr'], ['C / Ctrl (segurar)', 'Agachar'], ['Espaço', 'Pular'],
-      ['Botão esquerdo', 'Atirar'], ['Botão direito', 'Mirar (ADS)'], ['R', 'Recarregar'], ['G', 'Granada'],
+      ['Botão esquerdo', 'Atirar'], ['Botão direito', 'Mirar (ADS)'], ['R', 'Recarregar'], ['G', 'Granada'], ['V / F', 'Golpe corpo a corpo'],
       ['1 / 2 / Q / Roda', 'Trocar arma'], ['E', 'Interagir'], ['Esc / P', 'Pausar'],
     ];
     this._show(`

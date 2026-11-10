@@ -267,6 +267,8 @@ export const TextureFactory = {
       const c = canvas(W, Hh), ctx = c.getContext('2d');
       const [hc, hx] = grayCanvas(W, Hh, 150);
       const [rc, rx] = grayCanvas(W, Hh, 235);
+      const [ec, ex] = grayCanvas(W, Hh, 0); // night: lit windows
+      const lrnd = mulberry32(s.seed + 999);
       const rnd = mulberry32(s.seed);
       const field = noiseFill(ctx, W, Hh, s.wall, { seed: s.seed, period: 12, amount: s.brick ? 0.1 : 0.14, speckle: 0.05, large: 0.45 });
       if (s.brick) {
@@ -325,6 +327,13 @@ export const TextureFactory = {
             else { gg.addColorStop(0, '#5f6d7d'); gg.addColorStop(0.45, '#2c3440'); gg.addColorStop(1, '#3a4452'); }
             ctx.fillStyle = gg; ctx.fillRect(wx + inset, wy + inset, ww - inset * 2, wh - inset * 2);
             rx.fillStyle = gray(broken ? 0.9 : 0.08); rx.fillRect(wx + inset, wy + inset, ww - inset * 2, wh - inset * 2);
+            if (!broken && lrnd() < 0.24) {
+              const lg = ex.createLinearGradient(0, wy, 0, wy + wh);
+              const warm = lrnd() < 0.8 ? [255, 190, 110] : [170, 200, 255];
+              lg.addColorStop(0, `rgba(${warm[0] * 0.6},${warm[1] * 0.6},${warm[2] * 0.6},1)`); lg.addColorStop(1, `rgba(${warm[0]},${warm[1]},${warm[2]},1)`);
+              ex.fillStyle = lg; ex.fillRect(wx + inset, wy + inset, ww - inset * 2, wh - inset * 2);
+              ex.fillStyle = 'rgba(0,0,0,0.6)'; ex.fillRect(wx + ww / 2 - 2, wy + inset, 5, wh - inset * 2); ex.fillRect(wx + inset, wy + wh * 0.32, ww - inset * 2, 4);
+            }
             if (broken) {
               ctx.strokeStyle = 'rgba(160,170,180,0.6)'; ctx.lineWidth = 1.5;
               for (let k = 0; k < 6; k++) {
@@ -378,7 +387,7 @@ export const TextureFactory = {
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
       }
       const n = normalFromHeight(hx, W, Hh, 4.0, field, 1.5);
-      return { map: tex(c), normalMap: tex(n, false), roughnessMap: tex(rc, false) };
+      return { map: tex(c), normalMap: tex(n, false), roughnessMap: tex(rc, false), emissiveMap: tex(ec) };
     });
   },
 

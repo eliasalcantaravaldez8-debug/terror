@@ -276,14 +276,14 @@ export class AllyBrain {
       s.crouchT = lowCover ? 1 : 0.6;
       s.aimT = 0.6;
       if (!s.aimTarget) { s.lookPoint = this.threatPoint(); }
-      if (this.phaseT > 0.8 + Math.random() * 0.8 && this.target) { this.phase = 'peek'; this.phaseT = 0; this.fired = false; }
+      if (this.phaseT > 0.45 + Math.random() * 0.6 && this.target) { this.phase = 'peek'; this.phaseT = 0; this.fired = false; }
     } else {
       s.crouchT = lowCover ? 0 : 0.6;
       s.aimT = 1;
       if (this.phaseT > 0.3 && !this.fired && this.target) {
         this.fired = true;
         const d = s.pos.distanceTo(this.target.pos);
-        const chance = clamp(0.2 * (1.3 - d / 70), 0.06, 0.25) * game.difficulty.allyAccuracy;
+        const chance = clamp(0.34 * (1.25 - d / 80), 0.12, 0.4) * game.difficulty.allyAccuracy;
         s.startBurst(this.target, chance);
         if (this.calloutCooldown <= 0) { this.calloutCooldown = 9 + Math.random() * 10; squad.bark(s, 'contact', this.target); }
       }

@@ -10,6 +10,7 @@ import { Sky } from 'three/examples/jsm/objects/Sky.js';
 export const QUALITY_PRESETS = {
   low: { pixelRatio: 0.75, shadows: true, shadowSize: 1024, shadowRange: 30, post: false, bloom: false, msaa: 0, rain: 700, particles: 0.5, fogBoost: 1.25, farLights: false },
   medium: { pixelRatio: 1.0, shadows: true, shadowSize: 2048, shadowRange: 45, post: true, bloom: true, ao: false, msaa: 2, rain: 1600, particles: 0.8, fogBoost: 1.0, farLights: true },
+  ultra: { pixelRatio: 2.0, shadows: true, shadowSize: 4096, shadowRange: 75, post: true, bloom: true, ao: true, msaa: 4, rain: 4200, particles: 1.25, fogBoost: 0.9, farLights: true },
   high: { pixelRatio: 1.5, shadows: true, shadowSize: 4096, shadowRange: 60, post: true, bloom: true, ao: true, msaa: 4, rain: 3000, particles: 1.0, fogBoost: 1.0, farLights: true },
 };
 
@@ -28,14 +29,22 @@ const GradeShader = {
     uDamage: { value: 0 },
     uSaturation: { value: 0.86 },
     uFlash: { value: 0 },
+    uCA: { value: 0.0012 },
+    uTexel: { value: new THREE.Vector2(1 / 1920, 1 / 1080) },
   },
   vertexShader: /* glsl */`varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
   fragmentShader: /* glsl */`
-    uniform sampler2D tDiffuse; uniform float uTime, uVignette, uDamage, uSaturation, uFlash; varying vec2 vUv;
+    uniform sampler2D tDiffuse; uniform float uTime, uVignette, uDamage, uSaturation, uFlash, uCA; uniform vec2 uTexel; varying vec2 vUv;
     float rand(vec2 c){ return fract(sin(dot(c, vec2(12.9898,78.233))) * 43758.5453); }
     void main(){
       vec4 c = texture2D(tDiffuse, vUv);
-      vec3 col = c.rgb;
+      // subtle lens chromatic aberration toward the edges (stronger when hurt)
+      vec2 dc = (vUv - 0.5) * (uCA + uDamage * 0.004);
+      vec3 col = vec3(texture2D(tDiffuse, vUv + dc).r, c.g, texture2D(tDiffuse, vUv - dc).b);
+      // light sharpening to counter TAA-less softness
+      vec3 blur = (texture2D(tDiffuse, vUv + vec2(uTexel.x, 0.0)).rgb + texture2D(tDiffuse, vUv - vec2(uTexel.x, 0.0)).rgb
+                 + texture2D(tDiffuse, vUv + vec2(0.0, uTexel.y)).rgb + texture2D(tDiffuse, vUv - vec2(0.0, uTexel.y)).rgb) * 0.25;
+      col += (col - blur) * 0.35;
       float l = dot(col, vec3(0.299,0.587,0.114));
       col = mix(vec3(l), col, uSaturation - uDamage*0.5);
       col = mix(col, col*vec3(1.04,1.0,0.94), 0.6);           // warm highlights
@@ -176,7 +185,8 @@ export class RenderPipeline {
     this.quality = q;
     this.qualityName = name;
     const r = this.renderer;
-    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pixelRatio));
+    this.resolutionScale = this.resolutionScale ?? 1;
+    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pixelRatio) * this.resolutionScale);
     r.shadowMap.enabled = q.shadows;
     const s = this.sunLight.shadow;
     if (s.mapSize.x !== q.shadowSize) {
@@ -227,6 +237,13 @@ export class RenderPipeline {
     this.composer = composer;
   }
 
+  /** Dynamic resolution scale (0.55..1) applied on top of the quality preset. */
+  setResolutionScale(k) {
+    this.resolutionScale = Math.max(0.5, Math.min(1, k));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.quality.pixelRatio) * this.resolutionScale);
+    this.resize();
+  }
+
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
     this.renderer.setSize(w, h);
@@ -237,6 +254,8 @@ export class RenderPipeline {
     if (this.composer) {
       this.composer.setPixelRatio(this.renderer.getPixelRatio());
       this.composer.setSize(w, h);
+      const pr = this.renderer.getPixelRatio();
+      this.grade?.uniforms.uTexel.value.set(1 / (w * pr), 1 / (h * pr));
     }
   }
 

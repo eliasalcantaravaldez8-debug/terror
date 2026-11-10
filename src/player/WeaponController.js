@@ -145,10 +145,12 @@ export class WeaponController {
       if (input.actionPressed('swap') || input.wheel !== 0) this.switchTo(this.currentIndex === 0 ? 1 : 0);
       if (input.actionPressed('reload') && w.canReload() && this.state === 'idle') { w.startReload(); this._startState('reload'); }
       if (input.actionPressed('grenade') && this.grenades > 0 && this.state === 'idle') { w.cancelReload(); this._startState('grenade'); }
+      if (input.actionPressed('melee') && (this.state === 'idle' || this.state === 'reload')) { w.cancelReload(); this._melee(); }
     }
     if (this.state === 'draw' && this.stateT > def.drawTime) this.state = 'idle';
     if (this.state === 'reload' && w.reloading <= 0) this.state = 'idle';
     if (this.state === 'grenade') this._updateGrenadeThrow();
+    if (this.state === 'melee' && this.stateT > 0.5) this.state = 'idle';
 
     // ADS
     const wantAds = canAct && input.aimHeld() && this.state !== 'grenade' && !player.sprinting;
@@ -220,6 +222,36 @@ export class WeaponController {
     this.kickRot += (Math.random() - 0.5) * 0.6;
     player.addTrauma(0.04);
     game.events.emit('playerShot', {});
+  }
+
+  /** Rifle-butt strike: instant takedown of a hostile within arm's reach in front of the player. */
+  _melee() {
+    const game = this.game, p = game.player;
+    this._startState('melee');
+    game.audio._burst?.(game.audio.sfx, { dur: 0.18, type: 'bandpass', freq: 900, q: 0.8, gain: 0.35, freqEnd: 300 });
+    const eye = p.getEye(new THREE.Vector3());
+    let best = null, bestD = 3.0; // short lunge range
+    for (const a of game.actors) {
+      if (a.team !== 'enemy' || !a.alive || !a.model.root.visible) continue;
+      const c = a.getAimPoint(new THREE.Vector3());
+      const d = Math.hypot(c.x - eye.x, c.z - eye.z);
+      if (d > bestD || Math.abs(c.y - eye.y) > 1.4) continue;
+      const dir = new THREE.Vector3(c.x - eye.x, 0, c.z - eye.z).normalize();
+      const f = new THREE.Vector3(p.forward.x, 0, p.forward.z).normalize();
+      if (dir.dot(f) < 0.55) continue;
+      best = a; bestD = d;
+    }
+    if (!best) return;
+    const c = best.getAimPoint(new THREE.Vector3());
+    const dir = new THREE.Vector3().subVectors(c, eye).normalize();
+    best.takeDamage(999, eye, { zone: 'chest', dir, shooter: p, melee: true });
+    p.kills++;
+    game.effects.bloodHit(c, dir);
+    game.audio.playImpact(c, 'flesh');
+    game.audio.playHitmarker(true);
+    game.events.emit('hitmarker', { kill: true });
+    game.hud.feed('ABATE CORPO A CORPO');
+    p.addTrauma(0.35);
   }
 
   _updateGrenadeThrow() {
@@ -297,6 +329,13 @@ export class WeaponController {
       if (p > 0.22 && !this.reloadStageFired.out) { this.reloadStageFired.out = true; this.game.audio.playFoley('magOut'); }
       if (p > 0.62 && !this.reloadStageFired.in) { this.reloadStageFired.in = true; this.game.audio.playFoley('magIn'); }
       if (w.reloadTotal === def.reloadEmptyTime && p > 0.84 && !this.reloadStageFired.bolt) { this.reloadStageFired.bolt = true; this.game.audio.playFoley('bolt'); }
+    }
+    // melee strike: shove the rifle forward and across
+    if (this.state === 'melee') {
+      const k = clamp(this.stateT / 0.42, 0, 1);
+      const env = Math.sin(k * Math.PI) * (k < 0.35 ? k / 0.35 : 1);
+      pos.z -= 0.2 * env; pos.x -= 0.12 * env; pos.y += 0.05 * env;
+      rot.z += 0.9 * env; rot.y += 0.6 * env; rot.x += 0.15 * env;
     }
     // draw
     let low = this.lowered;

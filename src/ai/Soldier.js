@@ -8,7 +8,7 @@ const DEG = Math.PI / 180;
 /** AI weapon profiles (fictional). */
 export const AI_WEAPONS = {
   rifleman: { name: 'rifle', damage: 11, range: 250, fireInterval: 0.11, burst: [3, 6], mag: 30, reload: 2.6, sound: 'rifle', headMultiplier: 2, falloffStart: 30, falloffEnd: 120, minDamageScale: 0.6, accuracy: 1 },
-  ally: { name: 'rifle', damage: 22, range: 300, fireInterval: 0.12, burst: [3, 5], mag: 30, reload: 2.4, sound: 'rifle', headMultiplier: 3, falloffStart: 40, falloffEnd: 120, minDamageScale: 0.6, accuracy: 1 },
+  ally: { name: 'rifle', damage: 32, range: 300, fireInterval: 0.12, burst: [3, 5], mag: 30, reload: 2.4, sound: 'rifle', headMultiplier: 3, falloffStart: 40, falloffEnd: 120, minDamageScale: 0.6, accuracy: 1 },
   mg: { name: 'mg', damage: 9, range: 250, fireInterval: 0.085, burst: [8, 14], mag: 100, reload: 4, sound: 'mg', headMultiplier: 2, falloffStart: 30, falloffEnd: 120, minDamageScale: 0.6, accuracy: 0.8 },
   smg: { name: 'smg', damage: 8, range: 150, fireInterval: 0.075, burst: [5, 9], mag: 32, reload: 2.0, sound: 'pistol', headMultiplier: 2, falloffStart: 15, falloffEnd: 60, minDamageScale: 0.5, accuracy: 0.85 },
   shotgun: { name: 'shotgun', damage: 26, range: 45, fireInterval: 1.0, burst: [1, 2], mag: 7, reload: 3, sound: 'sniper', headMultiplier: 1.5, falloffStart: 6, falloffEnd: 25, minDamageScale: 0.2, accuracy: 1.2 },
@@ -63,6 +63,7 @@ export class Soldier {
     this.onKilled = null;
     this.hitSpheres = this.model.hitSpheres;
     this.syncModel(0);
+    this._hsPos = this.pos.clone();
   }
 
   get isCrouched() { return this.crouchT > 0.5; }
@@ -152,11 +153,33 @@ export class Soldier {
     this.time += dt;
     if (this.attachedSeat) return; // driven by the vehicle it sits in
     this.suppression = Math.max(0, this.suppression - dt * 0.35);
-    if (!this.alive) { this.model.update(dt, {}); return; }
+    if (!this.alive) {
+      // corpses only animate while falling
+      if (this.model.deathT < 3) this.model.update(dt, {});
+      return;
+    }
     if (this.brain && !this.scripted) this.brain.update(dt);
     this._locomotion(dt);
     this._firing(dt);
-    this.syncModel(dt);
+    // animation LOD: dormant or distant soldiers animate at a lower rate
+    const cam = this.game.pipeline.camera.position;
+    const d2 = (this.pos.x - cam.x) ** 2 + (this.pos.z - cam.z) ** 2;
+    const dormant = this.team === 'enemy' && this.brain && !this.brain.active && this.speed < 0.1;
+    const interval = dormant ? 0.5 : d2 > 60 * 60 ? 1 / 12 : d2 > 30 * 30 ? 1 / 24 : 0;
+    this._animAcc = (this._animAcc || 0) + dt;
+    if (this._animAcc >= interval || !this.model.root.visible) {
+      this.syncModel(this._animAcc);
+      this._animAcc = 0;
+      (this._hsPos ||= new THREE.Vector3()).copy(this.pos);
+    } else {
+      this.model.root.position.copy(this.pos);
+      this.model.root.rotation.set(0, this.yaw, 0);
+      // keep hit spheres glued to the body between animation updates
+      if (this._hsPos) {
+        const dx = this.pos.x - this._hsPos.x, dy = this.pos.y - this._hsPos.y, dz = this.pos.z - this._hsPos.z;
+        if (dx || dy || dz) { for (const h of this.hitSpheres) { h.c.x += dx; h.c.y += dy; h.c.z += dz; } this._hsPos.copy(this.pos); }
+      }
+    }
   }
 
   _locomotion(dt) {

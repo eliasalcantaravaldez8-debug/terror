@@ -126,6 +126,13 @@ export class MissionBase {
     this.game.audio.battleIntensity = 1;
   }
 
+  /** True when `soldier` was the last living hostile of an active engagement. */
+  isLastOfWave(soldier) {
+    const w = this.waves[soldier.waveIndex];
+    if (!w || !w.active || w.soldiers.length < 3) return false;
+    return w.soldiers.every((s) => !s.alive);
+  }
+
   markWavesDone(indices) { for (const i of indices) this.waves[i] = { soldiers: [], active: true, done: true }; }
 
   waveCleared(i) {
