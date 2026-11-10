@@ -13,6 +13,7 @@ import Editor2D from './Editor2D.jsx';
 import CodeEditor from './CodeEditor.jsx';
 import ForgePanel, { ForgeTester } from './ForgePanel.jsx';
 import PublishModal from './PublishModal.jsx';
+import { STANDALONE } from '../standalone.js';
 
 export default function StudioEditor() {
   const { id } = useParams();
@@ -38,6 +39,7 @@ function Editor({ initial, reload }) {
   const [modal, setModal] = useState(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [gizmo, setGizmo] = useState('translate');
+  const [mpane, setMpane] = useState('scene'); // abas do celular
   const [jobs, setJobs] = useState([]);
   const jobStatus = useRef(new Map());
   const undoStack = useRef([]);
@@ -201,34 +203,43 @@ function Editor({ initial, reload }) {
     setDoc(d.doc); setRevision(d.project.revision); revRef.current = d.project.revision; setAssets(d.assets);
     setValidation(validateProject(d.doc)); setSaveState('salvo');
   };
-  useEffect(() => { if (vp.current) vp.current.paused = modal === 'publish'; }, [modal]);
+  // Pausa o editor 3D quando não está visível (teste de publicação ou outra aba no celular) para poupar bateria/GPU.
+  useEffect(() => { if (vp.current) vp.current.paused = modal === 'publish' || (mpane !== 'scene' && matchMedia('(max-width: 1100px)').matches); }, [modal, mpane]);
   const selected = doc.entities.find((e) => e.id === selectedId) || null;
   const log = (kind, message) => setLogs((l) => [...l.slice(-199), { kind, message, at: new Date() }]);
 
   return (
-    <div className="studio">
+    <div className={`studio m-${mpane}`}>
       <div className="studio-toolbar">
         <Link to="/studio" className="btn sm ghost">← Projetos</Link>
         <b style={{ whiteSpace: 'nowrap' }}>{project.name}</b>
-        <span className={`pill ${saveState === 'salvo' ? 'green' : saveState === 'erro' ? 'red' : ''}`} title={`Revisão ${revision}`}>{{ salvo: 'Salvo na nuvem', alterado: 'Alterações…', salvando: 'Salvando…', erro: 'Erro ao salvar' }[saveState]}</span>
-        <button className="btn sm" onClick={undo} title="Desfazer (Ctrl+Z)"><Icon name="undo" /></button>
+        <span className={`pill ${saveState === 'salvo' ? 'green' : saveState === 'erro' ? 'red' : ''}`} title={`Revisão ${revision}`}>{{ salvo: STANDALONE ? 'Salvo no aparelho' : 'Salvo na nuvem', alterado: 'Alterações…', salvando: 'Salvando…', erro: 'Erro ao salvar' }[saveState]}</span>
+        <button className="btn sm" onClick={undo} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Icon name="undo" /></button>
         <button className="btn sm" onClick={redo} title="Refazer (Ctrl+Shift+Z)" style={{ transform: 'scaleX(-1)' }}><Icon name="undo" /></button>
         <span style={{ width: 8 }} />
-        {[['scene', 'cube', is3d ? 'Cena' : 'Mapa'], ['play', 'play', 'Testar'], ['code', 'code', 'Código']].filter(([k]) => k !== 'code' || mode === 'advanced').map(([k, icon, l]) => <button key={k} className={`btn sm ${view === k ? 'primary' : ''}`} onClick={() => { if (k === 'play' && saveState === 'alterado') save(); setView(k); }}><Icon name={icon} /> {l}</button>)}
+        {[['scene', 'cube', is3d ? 'Cena' : 'Mapa'], ['play', 'play', 'Testar'], ['code', 'code', 'Código']].filter(([k]) => k !== 'code' || mode === 'advanced').map(([k, icon, l]) => <button key={k} className={`btn sm ${view === k ? 'primary' : ''}`} onClick={() => { if (k === 'play' && saveState === 'alterado') save(); setView(k); setMpane('scene'); }}><Icon name={icon} /> {l}</button>)}
         {is3d && view === 'scene' && <span className="row" style={{ gap: 4 }}>{[['translate', 'move', 'G'], ['rotate', 'rotate', 'R'], ['scale', 'scale', 'S']].map(([m, ic, key]) => <button key={m} title={`${m} (${key})`} className={`btn sm ${gizmo === m ? 'primary' : ''}`} onClick={() => setGizmo(m)}><Icon name={ic} /></button>)}</span>}
         <span style={{ marginLeft: 'auto' }} />
-        <select className="input" style={{ width: 'auto', padding: '6px 8px' }} value={mode} onChange={async (e) => { setMode(e.target.value); await api.patch(`/projects/${project.id}`, { mode: e.target.value }); }}><option value="easy">Modo fácil</option><option value="advanced">Modo avançado</option></select>
+        <select className="input hide-narrow" style={{ width: 'auto', padding: '6px 8px' }} value={mode} onChange={async (e) => { setMode(e.target.value); await api.patch(`/projects/${project.id}`, { mode: e.target.value }); }}><option value="easy">Modo fácil</option><option value="advanced">Modo avançado</option></select>
         <span className={`pill ${validation.errors.length ? 'red' : validation.warnings.length ? 'gold' : 'green'}`} style={{ cursor: 'pointer' }} onClick={() => setModal('validation')}>{validation.errors.length} erros · {validation.warnings.length} avisos</span>
         <button className="btn sm" onClick={() => setModal('versions')}><Icon name="history" /> Versões</button>
-        {project.role === 'owner' && <button className="btn sm" onClick={() => setModal('share')}><Icon name="users" /> Compartilhar</button>}
-        <a className="btn sm" href={`/api/projects/${project.id}/export`}><Icon name="download" /> Backup</a>
+        {project.role === 'owner' && !STANDALONE && <button className="btn sm" onClick={() => setModal('share')}><Icon name="users" /> Compartilhar</button>}
+        {STANDALONE
+          ? <button className="btn sm" title="Baixa o projeto (.json) para levar à plataforma completa" onClick={async () => { const d = await api.get(`/projects/${project.id}/export`); const filename = `${project.name.replace(/[^\w.-]+/g, '_')}.nexplay.json`; const data = JSON.stringify(d); const dl = await window.claude?.use?.('downloads').catch(() => null); if (dl) { try { await dl.save({ filename, data }); } catch { toast('Download cancelado.', 'error'); } return; } const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' })); a.download = filename; a.click(); }}><Icon name="download" /> Backup</button>
+          : <a className="btn sm" href={`/api/projects/${project.id}/export`}><Icon name="download" /> Backup</a>}
         <ActionButton className="btn sm primary" ok="Versão salva" onClick={async () => { await save('manual', `Salvo em ${new Date().toLocaleString('pt-BR')}`); if (vp.current) await api.patch(`/projects/${project.id}`, { thumbnail: vp.current.snapshot() }); }}><Icon name="save" /> Salvar versão</ActionButton>
         {!readOnly && <button className="btn sm primary" onClick={() => setModal('publish')} title="Publicar no NEXPLAY Arcade (com teste automático)"><Icon name="upload" /> Publicar jogo</button>}
       </div>
 
+      <nav className="studio-mtabs" aria-label="Partes do editor">
+        {[['scene', 'cube', view === 'play' ? 'Jogo' : 'Cena'], ['add', 'plus', 'Adicionar'], ['ai', 'sparkles', 'NEXPLAY AI'], ['props', 'settings', 'Propriedades']].map(([k, ic, l]) => (
+          <button key={k} className={mpane === k ? 'active' : ''} onClick={() => { setMpane(k); if (k === 'ai') setRight('ai'); if (k === 'props') setRight('inspector'); }}><Icon name={ic} />{l}</button>
+        ))}
+      </nav>
+
       <div className="studio-panel">
-        <div className="tabs" style={{ marginBottom: 8 }}>{[['add', 'Criar'], ['forge', 'FORGE'], ['tree', 'Cena'], ['world', 'Mundo'], ['missions', 'Missões'], ['assets', 'Assets']].map(([k, l]) => <button key={k} className={`tab ${left === k ? 'active' : ''}`} style={{ padding: '6px 8px', fontSize: 12 }} onClick={() => setLeft(k)}>{l}</button>)}</div>
-        {left === 'add' && <Palette onAdd={addEntity} dimension={doc.meta.dimension} />}
+        <div className="tabs" style={{ marginBottom: 8 }}>{[['add', 'Criar'], ...(STANDALONE ? [] : [['forge', 'FORGE']]), ['tree', 'Cena'], ['world', 'Mundo'], ['missions', 'Missões'], ['assets', 'Assets']].map(([k, l]) => <button key={k} className={`tab ${left === k ? 'active' : ''}`} style={{ padding: '6px 8px', fontSize: 12 }} onClick={() => setLeft(k)}>{l}</button>)}</div>
+        {left === 'add' && <Palette onAdd={(...a) => { addEntity(...a); setMpane('scene'); }} dimension={doc.meta.dimension} />}
         {left === 'forge' && <ForgePanel project={project} doc={doc} apply={apply} jobs={jobs} reloadJobs={reloadJobs} dropPoint={() => vp.current?.dropPoint()} />}
         {left === 'tree' && <Hierarchy doc={doc} selectedId={selectedId} onSelect={setSelectedId} onFocus={(eid) => vp.current?.focus(eid)} onDuplicate={duplicate} onDelete={(eid) => { apply([{ op: 'remove_entity', id: eid }]); setSelectedId(null); }} />}
         {left === 'world' && <EnvironmentPanel doc={doc} setSettings={(patch) => apply([{ op: 'set_settings', patch }], null, { coalesce: `env:${Object.keys(patch).join()}` })} setPlayer={(patch) => apply([{ op: 'set_player', patch }])} />}
@@ -241,7 +252,7 @@ function Editor({ initial, reload }) {
           {view === 'scene' && (is3d ? <div ref={vpBox} style={{ position: 'absolute', inset: 0 }} /> : <Editor2D doc={doc} apply={apply} assetUrl={assetUrl} />)}
           {view === 'play' && <Preview key={revision} doc={doc} projectId={project.id} onLog={log} onEvent={(n, d) => log('event', `${n} ${d ? JSON.stringify(d) : ''}`)} />}
           {view === 'code' && <CodeEditor doc={doc} apply={apply} validation={validation} />}
-          {!readOnly && <ForgeTester project={project} jobs={jobs} onTested={() => { reloadJobs(); if (saveStateRef.current === 'salvo') reloadFromServer(); }} />}
+          {!readOnly && !STANDALONE && <ForgeTester project={project} jobs={jobs} onTested={() => { reloadJobs(); if (saveStateRef.current === 'salvo') reloadFromServer(); }} />}
           {aiBusy && <div className="pill cyan" style={{ position: 'absolute', top: 10, right: 10 }}>A IA está trabalhando no projeto…</div>}
         </div>
         {(view === 'play' || logs.some((l) => l.kind === 'error')) && (

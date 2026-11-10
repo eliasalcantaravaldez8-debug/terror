@@ -2,6 +2,9 @@
 // sem acesso à conta do usuário. O documento e os assets são enviados por postMessage.
 import { useEffect, useRef, useState } from 'react';
 import { api, sandboxPerms, postTarget } from '../api.js';
+import { STANDALONE } from '../standalone.js';
+import { Game } from '../engine/game.js';
+import { Game2D } from '../engine/game2d.js';
 
 let sandboxCache = null;
 /** { origin, url }: origin 'null' = modo de origem única (iframe opaco servido pelo próprio host). */
@@ -10,7 +13,42 @@ export async function sandboxInfo() {
   return sandboxCache;
 }
 
-export default function Preview({ doc, projectId, onLog, onEvent, test = null, onTestResult }) {
+/**
+ * Versão sem servidor: não há origem isolada nem conta para proteger (os dados são do próprio aparelho),
+ * então o motor roda direto na página.
+ */
+function LocalPreview({ doc, onLog, onEvent, test, onTestResult }) {
+  const box = useRef(null);
+  useEffect(() => {
+    let game = null; let dead = false;
+    const el = document.createElement('div'); el.style.cssText = 'width:100%;height:100%';
+    box.current.appendChild(el);
+    const d = structuredClone(doc);
+    try { const q = localStorage.getItem('nx_quality'); if (q && d.settings?.rendering && !test) d.settings.rendering.quality = q; } catch { /* sem armazenamento */ }
+    const opts = { onEvent: (n, x) => onEvent?.(n, x), onLog: (k, m) => onLog?.(k, String(m).slice(0, 500)) };
+    (async () => {
+      try {
+        game = d.meta.dimension === '2d' ? new Game2D(el, d, opts) : new Game(el, d, opts);
+        if (test) game.testMode = true;
+        await game.init();
+        if (dead) return;
+        onLog?.('info', 'Pré-visualização iniciada.');
+        if (test?.full) onTestResult?.(await game.runGameTest().catch((e) => ({ ok: false, frames: 0, errors: [e.message] })));
+      } catch (e) {
+        onLog?.('error', `Não foi possível iniciar: ${e.message}`);
+        if (test?.full) onTestResult?.({ ok: false, frames: 0, errors: [`Falha ao iniciar: ${e.message}`] });
+      }
+    })();
+    return () => { dead = true; try { game?.dispose(); } catch { /* já liberado */ } el.remove(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return <div ref={box} style={{ width: '100%', height: '100%', position: 'relative', background: '#000' }} />;
+}
+
+export default function Preview(props) {
+  return STANDALONE ? <LocalPreview {...props} /> : <SandboxPreview {...props} />;
+}
+
+function SandboxPreview({ doc, projectId, onLog, onEvent, test = null, onTestResult }) {
   const frame = useRef(null);
   const [sb, setSb] = useState(null);
   const origin = sb?.origin;

@@ -52,6 +52,12 @@ SINGLE_ORIGIN=1 NODE_ENV=production npm start   # tudo em http://localhost:3000
 
 No modo `SINGLE_ORIGIN=1` os jogos são servidos pelo mesmo endereço, mas rodam em iframe de origem opaca (sem acesso à conta). Para o Blender na FORGE, defina também `NEXPLAY_BPY_PYTHON` (Python com `pip install bpy`) ou `BLENDER_PATH`.
 
+### Versão sem servidor (celular)
+
+```bash
+npm run build:standalone   # dist/standalone/nexplay.html — Studio + NEXPLAY AI no navegador, projetos salvos no aparelho
+```
+
 ## Testes
 
 ```bash

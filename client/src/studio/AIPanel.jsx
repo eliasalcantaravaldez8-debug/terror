@@ -63,7 +63,7 @@ export default function AIPanel({ project, onChanged, busy, setBusy }) {
           <b className="gradient-text">NEXPLAY AI</b>
           <span className="tiny muted">{st.quota.dailyLimit == null ? 'Comandos ilimitados' : `${st.quota.remaining}/${st.quota.dailyLimit} hoje`} · {st.quota.plan.toUpperCase()}</span>
         </div>
-        {!st.configured && <div className="warn-box small">A IA ainda não está configurada neste servidor (falta a chave ANTHROPIC_API_KEY). As ferramentas visuais e de código funcionam normalmente.</div>}
+        {!st.configured && <div className="warn-box small">{st.note || 'A IA ainda não está configurada neste servidor (falta a chave ANTHROPIC_API_KEY). As ferramentas visuais e de código funcionam normalmente.'}</div>}
         <div className="tabs" style={{ marginBottom: 8 }}><button className={`tab ${tab === 'chat' ? 'active' : ''}`} onClick={() => setTab('chat')}>Comandos</button><button className={`tab ${tab === 'autopilot' ? 'active' : ''}`} onClick={() => setTab('autopilot')}>AUTOPILOT</button></div>
         {tab === 'chat' ? (
           <>
@@ -89,7 +89,8 @@ export default function AIPanel({ project, onChanged, busy, setBusy }) {
             </div>
           </>
         ) : (
-          has('autopilot') ? <Autopilot project={project} onChanged={onChanged} configured={st.configured} />
+          st.quota.plan === 'local' ? <div className="info-box small">O <b>AUTOPILOT</b> (planejamento em etapas, testes e correções automáticas) roda no servidor da NEXPLAY. Nesta versão para celular, use a aba <b>Comandos</b>: cada pedido é feito pelo especialista escolhido e vira uma versão que você pode desfazer.</div>
+          : has('autopilot') ? <Autopilot project={project} onChanged={onChanged} configured={st.configured} />
             : <div className="info-box small">O <b>NEXPLAY AI AUTOPILOT</b> divide pedidos complexos em etapas, executa cada especialista, testa, corrige e pede aprovação para mudanças importantes. Exclusivo do plano DELUXE. <Link to="/planos">Ver planos</Link>{!user && ''}</div>
         )}
       </div>

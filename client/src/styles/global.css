@@ -245,7 +245,24 @@ textarea.input { min-height: 110px; resize: vertical; }
 .palette-grid button { padding: 8px 4px; font-size: 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .palette-grid button:hover { border-color: var(--cyan); }
 .console { font: 12px ui-monospace, monospace; max-height: 140px; overflow-y: auto; background: #05040c; border-top: 1px solid var(--line); padding: 6px 10px; }
-@media (max-width: 1100px) { .studio { grid-template-columns: 1fr; grid-template-rows: auto 55vh auto auto; height: auto; } .studio-panel { border: 0; border-top: 1px solid var(--line); max-height: none; } }
+/* Abas do Studio no celular/tablet: Cena · Adicionar · NEXPLAY AI · Propriedades */
+.studio-mtabs { display: none; }
+@media (max-width: 1100px) {
+  .studio { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; height: calc(100dvh - 71px - 64px - env(safe-area-inset-bottom)); }
+  .studio-toolbar { flex-wrap: wrap; overflow-x: visible; }
+  .studio-toolbar .hide-narrow { display: none; }
+  .studio-mtabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 6px 8px; background: var(--bg-2); border-bottom: 1px solid var(--line); }
+  .studio-mtabs button { display: flex; flex-direction: column; align-items: center; gap: 2px; font: 600 11px var(--body, inherit); color: var(--muted); background: none; border: 1px solid transparent; border-radius: 10px; padding: 6px 2px; cursor: pointer; }
+  .studio-mtabs button svg { width: 20px; height: 20px; }
+  .studio-mtabs button.active { color: #fff; background: linear-gradient(90deg, rgba(139, 92, 246, .35), rgba(6, 182, 212, .2)); border-color: rgba(139, 92, 246, .55); }
+  .studio-panel { border: 0; max-height: none; min-height: 0; }
+  .studio > .studio-panel { display: none; }
+  .studio > .viewport { display: none !important; } /* o JSX define display:flex inline */
+  .studio.m-scene > .viewport { display: flex !important; }
+  .studio.m-add > .studio-panel:not(.right), .studio.m-ai > .studio-panel.right, .studio.m-props > .studio-panel.right { display: flex; flex-direction: column; min-height: 0; }
+  .studio.m-add > .studio-panel:not(.right), .studio.m-ai > .studio-panel.right, .studio.m-props > .studio-panel.right { display: block; overflow-y: auto; }
+  .studio.m-ai .studio-panel.right > .tabs, .studio.m-props .studio-panel.right > .tabs { display: none; }
+}
 .progress { height: 8px; border-radius: 99px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
 .progress > i { display: block; height: 100%; background: var(--grad); border-radius: 99px; transition: width 0.4s; }
 .kpi { font: 700 28px 'Space Grotesk'; }
@@ -283,4 +300,11 @@ textarea.input { min-height: 110px; resize: vertical; }
   .arcade-tab { width: auto; white-space: nowrap; padding: 8px 12px; flex: 0 0 auto; }
   .arcade-filters { grid-template-columns: 1fr 1fr; }
   .arcade-filters input { grid-column: 1 / -1; }
+}
+
+/* Lista de projetos do Studio: no celular, um projeto por linha com os botões à vista */
+@media (max-width: 640px) {
+  .project-grid { grid-template-columns: 1fr; }
+  .project-grid .game-card { display: grid; grid-template-columns: 110px 1fr; }
+  .project-grid .game-cover { aspect-ratio: auto; height: 100%; min-height: 120px; }
 }

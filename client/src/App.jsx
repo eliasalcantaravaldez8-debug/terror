@@ -4,6 +4,7 @@ import { useAuth } from './auth.jsx';
 import { Icon } from './components/icons.jsx';
 import { Avatar, PlanBadge } from './components/ui.jsx';
 import { nc } from './api.js';
+import { STANDALONE } from './standalone.js';
 import Home from './pages/Home.jsx';
 import Explore from './pages/Explore.jsx';
 import GameDetail from './pages/GameDetail.jsx';
@@ -135,6 +136,19 @@ export function RequireAuth({ children }) {
   return children;
 }
 
+// Versão sem servidor: só o que roda no aparelho (Início, Arcade, Studio com editor e NEXPLAY AI).
+const LOCAL_OK = /^\/($|arcade$|studio($|\/)|termos$)/;
+function ServerOnly() {
+  return (
+    <div className="empty fade-in">
+      <Icon name="cloud" />
+      <h3>Esta área precisa do servidor da NEXPLAY</h3>
+      <div className="muted" style={{ maxWidth: 560 }}>Você está na versão para celular, sem servidor. Aqui funcionam o <b>NEXPLAY Studio</b> (criar, editar, testar e salvar projetos neste aparelho) e a <b>NEXPLAY AI</b>. Contas, comunidade, Arcade com jogos publicados, publicação e envio de jogos prontos funcionam na plataforma completa.</div>
+      <div className="row mt" style={{ justifyContent: 'center' }}><Link className="btn primary" to="/studio">Abrir o NEXPLAY Studio</Link><Link className="btn" to="/studio/novo">Criar jogo</Link></div>
+    </div>
+  );
+}
+
 export default function App() {
   const [open, setOpen] = useState(false);
   const loc = useLocation();
@@ -146,7 +160,9 @@ export default function App() {
       <div className="main">
         <Topbar onMenu={() => setOpen(true)} />
         <main className={fullBleed ? '' : 'content'}>
+          {STANDALONE && !fullBleed && <div className="tiny muted" style={{ marginBottom: 12, padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 10 }}>Versão para celular, sem servidor: seus projetos ficam salvos <b>neste aparelho</b>. Publicar no Arcade e enviar jogos prontos só na plataforma completa.</div>}
           <Suspense fallback={<div className="spinner" />}>
+            {STANDALONE && !LOCAL_OK.test(loc.pathname) ? <ServerOnly /> : (
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/arcade" element={<Arcade />} />
@@ -187,6 +203,7 @@ export default function App() {
               <Route path="/verificar-email" element={<VerifyEmail />} />
               <Route path="*" element={<div className="empty"><h2>Página não encontrada</h2><Link className="btn primary" to="/">Voltar ao início</Link></div>} />
             </Routes>
+            )}
           </Suspense>
         </main>
       </div>

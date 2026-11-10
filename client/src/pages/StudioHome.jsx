@@ -6,6 +6,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { api, GENRE_LABEL, ago } from '../api.js';
 import { useLoad, Loader, Modal, Field, ActionButton, Empty, useToast } from '../components/ui.jsx';
 import { Icon } from '../components/icons.jsx';
+import { STANDALONE } from '../standalone.js';
 
 const GENRES = ['acao', 'aventura', 'terror', 'sobrevivencia', 'corrida', 'plataforma', 'mundo_aberto', 'futebol', 'esportes', 'rpg', 'estrategia', 'puzzle', 'simulacao', 'tiro', 'luta', 'casual', 'musical', 'educativo', 'outro'];
 // Gêneros que têm um modelo com conteúdo de exemplo (opcional).
@@ -26,9 +27,9 @@ export default function StudioHome() {
   return (
     <div>
       <div className="row between">
-        <div><h1>NEXPLAY STUDIO</h1><p className="muted">Crie jogos 2D e 3D com ferramentas visuais, código e a NEXPLAY AI. Cada projeto é salvo separadamente na NEXPLAY CLOUD.</p></div>
+        <div><h1>NEXPLAY STUDIO</h1><p className="muted">Crie jogos 2D e 3D com ferramentas visuais, código e a NEXPLAY AI. Cada projeto é salvo separadamente {STANDALONE ? 'neste aparelho' : 'na NEXPLAY CLOUD'}. Para modificar um jogo, toque em <b>Abrir</b>; a <b>NEXPLAY AI</b> fica dentro do editor.</p></div>
         <div className="row">
-          <Link className="btn" to="/enviar-jogo"><Icon name="upload" /> Enviar jogo pronto</Link>
+          {!STANDALONE && <Link className="btn" to="/enviar-jogo"><Icon name="upload" /> Enviar jogo pronto</Link>}
           <label className="btn"><Icon name="download" /> Importar backup<input type="file" accept=".json" hidden onChange={async (e) => { const f = e.target.files[0]; if (!f) return; try { const d = await api.post('/projects/import', JSON.parse(await f.text())); nav(`/studio/${d.project.id}`); } catch (x) { toast(x.message, 'error'); } }} /></label>
           <button className="btn primary" onClick={() => setCreating(true)}><Icon name="plus" /> Criar jogo</button>
         </div>
@@ -36,13 +37,13 @@ export default function StudioHome() {
       <Loader state={s}>{(d) => (
         <>
           <div className="card mb">
-            <div className="row between small"><span><Icon name="cloud" size={16} /> NEXPLAY CLOUD — plano {d.limits.plan.toUpperCase()}</span><span>{fmtBytes(d.storage.usedBytes)} de {fmtBytes(d.storage.limitBytes)} · {d.projects.length}/{d.limits.maxProjects} projetos · histórico de {d.limits.versionHistory} versões</span></div>
+            <div className="row between small"><span><Icon name="cloud" size={16} /> {STANDALONE ? 'Armazenamento deste aparelho' : `NEXPLAY CLOUD — plano ${d.limits.plan.toUpperCase()}`}</span><span>{fmtBytes(d.storage.usedBytes)} de {fmtBytes(d.storage.limitBytes)} · {d.projects.length}/{d.limits.maxProjects} projetos · histórico de {d.limits.versionHistory} versões</span></div>
             <div className="progress mt"><i style={{ width: `${Math.min(100, (d.storage.usedBytes / d.storage.limitBytes) * 100)}%` }} /></div>
           </div>
           {d.projects.length || d.shared.length ? (
             <>
               <h3>Meus projetos</h3>
-              <div className="games-grid">
+              <div className="games-grid project-grid">
                 {[...d.projects, ...d.shared].map((p) => (
                   <div key={p.id} className="game-card">
                     <Link to={`/studio/${p.id}`} className="game-cover">{p.thumbnail ? <img src={p.thumbnail} alt="" /> : <div style={{ display: 'grid', placeItems: 'center', height: '100%' }}><Icon name="cube" size={40} style={{ opacity: 0.4 }} /></div>}<div className="tags"><span className="pill">{p.dimension.toUpperCase()}</span>{p.role !== 'owner' && <span className="pill cyan">Compartilhado</span>}</div></Link>
@@ -51,7 +52,7 @@ export default function StudioHome() {
                       <div className="game-meta"><span>{GENRE_LABEL[p.genre] || 'Sem gênero'}{p.blank ? '' : ' · modelo'}</span><span>rev. {p.revision} · {ago(p.updatedAt)}</span></div>
                       <div className="tiny muted">Projeto nº {p.id}</div>
                       <div className="row" style={{ gap: 6, marginTop: 8 }}>
-                        <Link className="btn sm primary" to={`/studio/${p.id}`}><Icon name="settings" /> Abrir</Link>
+                        <Link className="btn sm primary" to={`/studio/${p.id}`}><Icon name="settings" /> Abrir e editar</Link>
                         {p.role === 'owner' && <button className="btn sm" onClick={() => setRenaming(p)}>Renomear</button>}
                         {p.role === 'owner' && <button className="btn sm danger" onClick={() => remove(p)} aria-label={`Excluir ${p.name}`}>Excluir</button>}
                       </div>

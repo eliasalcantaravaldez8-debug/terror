@@ -7,6 +7,7 @@ import { api, GENRE_LABEL, MODE_LABEL } from '../api.js';
 import { Modal, Field, useToast, ActionButton } from '../components/ui.jsx';
 import { Icon } from '../components/icons.jsx';
 import Preview from './Preview.jsx';
+import { STANDALONE } from '../standalone.js';
 
 const GENRE_FROM_TEMPLATE = { futebol: 'futebol', terror: 'terror', corrida: 'corrida', aventura: 'aventura', plataforma: 'plataforma', mundo_aberto: 'mundo_aberto', sobrevivencia: 'sobrevivencia' };
 
@@ -28,7 +29,20 @@ function readImage(file, max = 1600) {
 }
 const bump = (v) => { const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(v || ''); return m ? `${m[1]}.${m[2]}.${Number(m[3]) + 1}` : '1.0.0'; };
 
-export default function PublishModal({ project, doc, save, onClose, sceneSnapshot }) {
+export default function PublishModal(props) {
+  if (STANDALONE) {
+    return (
+      <Modal title="Publicar jogo" onClose={props.onClose}>
+        <p>Publicar no NEXPLAY Arcade precisa do <b>servidor da NEXPLAY</b> (banco de dados, página do jogo e jogadores). Esta é a versão para celular, sem servidor: o projeto fica salvo só neste aparelho.</p>
+        <p className="small muted">Você pode baixar o projeto pelo botão <b>Backup</b> e importá-lo no NEXPLAY Studio da plataforma completa para publicar.</p>
+        <button className="btn primary" onClick={props.onClose}>Entendi</button>
+      </Modal>
+    );
+  }
+  return <PublishModalServer {...props} />;
+}
+
+function PublishModalServer({ project, doc, save, onClose, sceneSnapshot }) {
   const toast = useToast();
   const [existing, setExisting] = useState(undefined);
   const [payments, setPayments] = useState(false);

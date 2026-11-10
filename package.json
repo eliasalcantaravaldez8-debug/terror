@@ -15,7 +15,8 @@
     "start": "NODE_ENV=production node server/index.js",
     "seed:admin": "node scripts/create-admin.js",
     "test": "node --test tests/*.test.js",
-    "build:demo": "vite build --config client/vite.demo.config.js && node scripts/build-demo.js"
+    "build:demo": "vite build --config client/vite.demo.config.js && node scripts/build-demo.js",
+    "build:standalone": "vite build --config client/vite.standalone.config.js && node scripts/build-standalone.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.7.0",
