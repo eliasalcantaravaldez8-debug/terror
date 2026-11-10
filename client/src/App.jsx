@@ -34,6 +34,7 @@ const StudioHome = lazy(() => import('./pages/StudioHome.jsx'));
 const SubmitGame = lazy(() => import('./pages/SubmitGame.jsx'));
 const AIChat = lazy(() => import('./pages/AIChat.jsx'));
 const LocalGames = lazy(() => import('./pages/LocalGames.jsx'));
+const BundledGame = import.meta.env.VITE_STANDALONE === '1' ? lazy(() => import('./pages/BundledGame.jsx')) : null;
 const StudioEditor = lazy(() => import('./studio/StudioEditor.jsx'));
 const DeluxeLab = lazy(() => import('./pages/DeluxeLab.jsx'));
 const Admin = lazy(() => import('./pages/admin/Admin.jsx'));
@@ -139,7 +140,7 @@ export function RequireAuth({ children }) {
 }
 
 // Versão sem servidor: só o que roda no aparelho (Início, Arcade, Studio com editor e NEXPLAY AI).
-const LOCAL_OK = /^\/($|arcade$|studio($|\/)|criar-com-ia($|\/)|enviar-jogo$|termos$)/;
+const LOCAL_OK = /^\/($|arcade$|studio($|\/)|criar-com-ia($|\/)|enviar-jogo$|jogo\/[^/]+$|termos$)/;
 function ServerOnly() {
   return (
     <div className="empty fade-in">
@@ -169,7 +170,7 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/arcade" element={<Arcade />} />
               <Route path="/explorar" element={<Explore />} />
-              <Route path="/jogo/:slug" element={<GameDetail />} />
+              <Route path="/jogo/:slug" element={STANDALONE ? <BundledGame /> : <GameDetail />} />
               <Route path="/jogo/:slug/jogar" element={<RequireAuth><Play /></RequireAuth>} />
               <Route path="/multiplayer" element={<Multiplayer />} />
               <Route path="/lancamentos" element={<Launches />} />

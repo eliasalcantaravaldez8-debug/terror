@@ -108,7 +108,7 @@ parent.postMessage({type:'nx-boot'},'*');
 })();
 <\/script>`;
 
-function LocalPlayer({ game, onClose }) {
+export function LocalPlayer({ game, onClose, loadFiles }) {
   const frame = useRef(null);
   const [state, setState] = useState('loading');
   useEffect(() => {
@@ -116,7 +116,7 @@ function LocalPlayer({ game, onClose }) {
     const onMsg = async (ev) => {
       if (ev.source !== frame.current?.contentWindow) return;
       if (ev.data?.type === 'nx-boot') {
-        if (!files) files = (await localStore.get('gamefiles', game.id))?.files;
+        if (!files) files = loadFiles ? await loadFiles().catch(() => null) : (await localStore.get('gamefiles', game.id))?.files;
         if (!files) { setState('missing'); return; }
         frame.current.contentWindow.postMessage({ type: 'nx-load', files, entry: game.entry }, '*');
       }

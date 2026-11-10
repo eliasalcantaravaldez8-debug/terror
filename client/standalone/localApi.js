@@ -17,6 +17,7 @@ const TOOL_PRIORITY = ['get_project_overview', 'add_entities', 'update_entities'
   'read_script', 'remove_mission', 'delete_script'];
 
 import { localStore as store, storageMode } from '../src/localdb.js';
+import { bundledGames } from '../src/bundledGames.js';
 
 // ───────── Claude da página (capacidade "sample" do Artifact) ─────────
 let samplePromise = null;
@@ -114,6 +115,17 @@ async function aiCommand(projectId, { prompt, specialist }, onEvent) {
   onEvent({ type: 'result', changes: state.changes, limitations: state.limitations, versionId });
 }
 
+// ───────── Jogos publicados dentro deste link (arquivos publicados junto com a página) ─────────
+function bundledCard(g, i) {
+  return {
+    id: 100000 + i, slug: g.slug, title: g.title, shortDescription: g.shortDescription || '', coverUrl: g.cover ? `nexplay-games/${g.slug}/${g.cover}` : null,
+    genre: g.genre || 'outro', tags: [], ageRating: g.ageRating || 'L', platforms: g.platforms || 'both', modes: g.multiplayer ? ['local'] : ['solo'], maxPlayers: g.maxPlayers || 1,
+    priceCents: 0, status: 'published', releaseStage: 'released', rating: { avg: null, count: 0 }, views: 0, publishedAt: g.publishedAt || null,
+    creator: { username: g.creator || 'criador', displayName: g.creator || 'Criador' }, studio: null, buildKind: 'html5', sourceEngine: g.engine || 'html5',
+    stats: null, bundled: true,
+  };
+}
+
 // ───────── Roteador ─────────
 const EMPTY_HOME = { gameOfDay: null, featured: [], totalPublished: 0, nexplayChoice: [], weekly: [], recommended: [], popular: [], recent: [], upcoming: [] };
 
@@ -132,8 +144,20 @@ async function handle(method, url, body) {
   if (path.startsWith('/auth/')) throw new ApiError(503, 'Contas precisam do servidor. Nesta versão você usa um perfil local, só neste aparelho.');
 
   // Catálogo/Arcade: sem servidor não há jogos publicados (não inventamos nenhum).
-  if (path === '/games/home') return EMPTY_HOME;
-  if (path === '/games/arcade') return { totalPublished: 0, tab: q.get('tab') || 'new', note: null, games: [], standalone: true };
+  if (path === '/games/home') {
+    const games = (await bundledGames()).map(bundledCard);
+    return { ...EMPTY_HOME, totalPublished: games.length, recent: games };
+  }
+  if (path === '/games/arcade') {
+    // Jogos publicados DENTRO deste link (enviados pelo criador). Sem servidor não há estatísticas de jogadores,
+    // então as abas de ranking ficam vazias em vez de inventar números.
+    const all = (await bundledGames()).map(bundledCard);
+    const tab = q.get('tab') || 'new';
+    const term = (q.get('q') || '').toLowerCase();
+    let games = ['month', 'week', 'trending'].includes(tab) ? [] : all;
+    if (tab === 'search') games = all.filter((g) => (!term || `${g.title} ${g.shortDescription}`.toLowerCase().includes(term)) && (!q.get('genre') || g.genre === q.get('genre')));
+    return { totalPublished: all.length, tab, note: ['month', 'week', 'trending'].includes(tab) ? 'Rankings precisam do servidor (contagem real de jogadores).' : null, games, standalone: true };
+  }
   if (path === '/games/meta') return { genres: GAME_GENRES, modes: ['solo'] };
   if (path === '/games' && method === 'GET') return { games: [], total: 0 };
   if ((x = m(/^\/games\/by-project\/\d+$/))) return { game: null };

@@ -57,6 +57,8 @@ No modo `SINGLE_ORIGIN=1` os jogos são servidos pelo mesmo endereço, mas rodam
 
 ```bash
 npm run build:standalone   # dist/standalone/nexplay.html — Studio + NEXPLAY AI no navegador, projetos salvos no aparelho
+# publicar um jogo pronto DENTRO do link (aparece no Arcade para quem tiver o link):
+node scripts/add-link-game.js jogo.zip --title "Nome" --genre futebol --creator "Autor"   # gera dist/link-games/nexplay-games/
 ```
 
 ## Testes

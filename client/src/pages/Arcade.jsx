@@ -85,7 +85,7 @@ export default function Arcade() {
                     <div key={g.id} className="arcade-item">
                       {(tab === 'month' || tab === 'week' || tab === 'trending') && <span className="arcade-rank">#{i + 1}</span>}
                       <GameCard game={g} />
-                      <div className="tiny muted" style={{ padding: '4px 2px' }}>{originLabel(g)} · {g.stats.playersTotal} {g.stats.playersTotal === 1 ? 'jogador' : 'jogadores'}</div>
+                      <div className="tiny muted" style={{ padding: '4px 2px' }}>{originLabel(g)}{g.stats ? ` · ${g.stats.playersTotal} ${g.stats.playersTotal === 1 ? 'jogador' : 'jogadores'}` : ''}</div>
                     </div>
                   ))}
                 </div>
