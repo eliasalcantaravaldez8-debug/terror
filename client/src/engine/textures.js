@@ -15,8 +15,9 @@ const PRESETS = {
     height: (u, v, n) => clamp(0.5 + tileableFbm(n.a, u, v, 24, 4) * 1.4 + tileableFbm(n.b, u, v, 96, 2) * 0.6),
     color: (h, u, v, n) => {
       const patch = clamp(0.5 + tileableFbm(n.c, u, v, 6, 3) * 1.6);
-      const base = mix3(hex('#3d6b22'), hex('#6f8f2f'), patch);
-      return mix3(mix3(base, hex('#2b4a17'), 1 - h), hex('#8a8a45'), clamp((h - 0.85) * 3));
+      // Albedo de grama mais claro (grama real reflete ~20%): cenas com pouca luz continuam legíveis.
+      const base = mix3(hex('#4f8a2c'), hex('#8aab3e'), patch);
+      return mix3(mix3(base, hex('#3d6522'), (1 - h) * 0.8), hex('#a3a25a'), clamp((h - 0.85) * 3));
     },
     rough: () => 0.92, metal: 0, normal: 1.2,
   },
@@ -31,7 +32,7 @@ const PRESETS = {
   },
   dirt: {
     height: (u, v, n) => clamp(0.5 + tileableFbm(n.a, u, v, 10, 5) * 1.5 + tileableFbm(n.b, u, v, 60, 2) * 0.4),
-    color: (h, u, v, n) => mix3(mix3(hex('#3b2a1c'), hex('#6b4f35'), h), hex('#4a3b2a'), clamp(tileableFbm(n.c, u, v, 4, 3) + 0.5)),
+    color: (h, u, v, n) => mix3(mix3(hex('#56402c'), hex('#8a6a48'), h), hex('#66523c'), clamp(tileableFbm(n.c, u, v, 4, 3) + 0.5)),
     rough: (h) => 0.85 + h * 0.1, metal: 0, normal: 1.5,
   },
   sand: {

@@ -148,10 +148,16 @@ export class Game {
         }
       }
     }
+    // Luz de preenchimento suave vinda da câmera (truque comum em jogos): o que o jogador olha nunca fica preto,
+    // mesmo contra o sol ou com pouca luz ambiente. Sem sombra, para não custar desempenho.
+    const fill = new THREE.DirectionalLight('#ffffff', 0.9 * (this.world.brightness || 1));
+    fill.position.set(0, 2, 2); fill.target.position.set(0, -1.2, -6);
+    this.camera.add(fill); this.camera.add(fill.target);
+    this.fillLight = fill;
     const t = this.doc.settings.environment?.timeOfDay ?? 14;
     const hasCamLight = [...this.world.entities.values()].some((r) => r.attachToCamera);
     if ((t < 6.5 || t > 18.5 || this.doc.settings.environment?.dayNightCycle?.enabled) && !hasCamLight && this.doc.player.controller !== 'vehicle') {
-      const lamp = new THREE.SpotLight('#fff3d6', 200, 60, 0.6, 0.55, 1.2);
+      const lamp = new THREE.SpotLight('#fff3d6', 120, 60, 0.65, 0.7, 1.2);
       lamp.position.set(0.25, -0.2, 0); lamp.target.position.set(0, -0.6, -6);
       this.camera.add(lamp); this.camera.add(lamp.target);
       this.autoLamp = lamp;
