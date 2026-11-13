@@ -4,6 +4,7 @@ import { clamp, lerp, damp } from '../utils/math.js';
 const STAND_H = 1.8, CROUCH_H = 1.15, STAND_EYE = 1.66, CROUCH_EYE = 1.04, RADIUS = 0.36;
 const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _wish = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
+const _mountP = new THREE.Vector3(), _mountQ = new THREE.Quaternion();
 
 /**
  * First-person player: movement (walk/sprint/crouch/jump), collision,
@@ -130,8 +131,9 @@ export class Player {
   update(dt, input, sensitivity, invertY) {
     this.time += dt;
     // regen
-    if (this.alive && this.time - this.lastDamageTime > 4.2 && this.health < this.maxHealth) {
-      this.health = Math.min(this.maxHealth, this.health + 32 * dt);
+    const diff = this.game.difficulty || {};
+    if (this.alive && this.time - this.lastDamageTime > (diff.regenDelay ?? 4.2) && this.health < this.maxHealth) {
+      this.health = Math.min(this.maxHealth, this.health + (diff.regenRate ?? 32) * dt);
     }
     // look
     const m = input.consumeMouse();
@@ -233,12 +235,12 @@ export class Player {
     if (this.mount) {
       const obj = this.mount.object;
       obj.updateWorldMatrix(true, false);
-      const p = this.mount.offset.clone();
+      const p = _mountP.copy(this.mount.offset);
       obj.localToWorld(p);
       obj.getWorldQuaternion(_q);
       // vehicles face +Z locally while the camera looks down -Z: rotate by PI
       _e.set(this.mountPitch + sy, Math.PI + this.mountYaw + sx, sr, 'YXZ');
-      const local = new THREE.Quaternion().setFromEuler(_e);
+      const local = _mountQ.setFromEuler(_e);
       camera.position.copy(p);
       camera.quaternion.copy(_q).multiply(local);
       this.inside = true;

@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview --port 4173",
     "test": "node --test \"tests/unit/*.test.js\"",
-    "test:e2e": "node tests/e2e/playthrough.mjs && node tests/e2e/mission2.mjs"
+    "test:e2e": "node tests/e2e/playthrough.mjs && node tests/e2e/mission2.mjs && node tests/e2e/mission3.mjs"
   },
   "dependencies": {
     "three": "0.169.0"

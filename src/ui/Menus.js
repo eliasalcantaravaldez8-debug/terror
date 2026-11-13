@@ -95,7 +95,8 @@ export class Menus {
         <label>Volume da música <input id="s-mus" type="range" min="0" max="1" step="0.05" value="${s.get('musicVolume')}"></label>
         <label class="chk"><input id="s-inv" type="checkbox" ${s.get('invertY') ? 'checked' : ''}> Inverter eixo Y</label>
         <label class="chk"><input id="s-subs" type="checkbox" ${s.get('subtitles') ? 'checked' : ''}> Legendas</label>
-        <label class="chk"><input id="s-voices" type="checkbox" ${s.get('voices') ? 'checked' : ''}> Vozes sintetizadas (provisório)</label>
+        <label class="chk"><input id="s-voices" type="checkbox" ${s.get('voices') ? 'checked' : ''}> Vozes dos personagens</label>
+        <p class="note">Vozes mais realistas: use o Microsoft Edge (vozes “Natural” em português) ou o Google Chrome. O jogo escolhe automaticamente a voz mais natural instalada.</p>
         <label class="chk"><input id="s-fps" type="checkbox" ${s.get('showFps') ? 'checked' : ''}> Mostrar FPS</label>
         <label class="chk"><input id="s-dyn" type="checkbox" ${s.get('dynamicRes') ? 'checked' : ''}> Resolução dinâmica (mantém o jogo fluido)</label>
       </div>

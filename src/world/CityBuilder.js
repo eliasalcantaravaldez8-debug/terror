@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GeometryBatcher } from './GeometryBatcher.js';
 import { TextureFactory } from '../render/TextureFactory.js';
+import { buildPort } from './PortBuilder.js';
 import { mulberry32, randRange } from '../utils/math.js';
 import {
   BUILDINGS, STYLES, SHOPS, HALDEN, PROPS, BOUNDS, MISSION_RECT, ROAD,
@@ -27,8 +28,8 @@ export class CityBuilder {
     this.root = new THREE.Group();
     this.root.name = 'city';
     scene.add(this.root);
-    this.near = new GeometryBatcher();
-    this.far = new GeometryBatcher();
+    this.near = new GeometryBatcher(48);
+    this.far = new GeometryBatcher(140);
     this.coverBoxes = [];
     this.interactables = [];
     this.namedProps = {};
@@ -42,6 +43,7 @@ export class CityBuilder {
     this.buildHalden();
     this.buildProps(PROPS);
     this.buildStation();
+    buildPort(this);
     this.buildStreetFurniture();
     this.buildBoundaries();
     this.buildBackgroundCity();
@@ -55,11 +57,13 @@ export class CityBuilder {
   buildGround() {
     const m = this.mats;
     // Huge asphalt ground
-    const G = 7000;
-    const ground = new THREE.PlaneGeometry(G, G);
+    // the ground stops at x=885: the port of Vareny (Mission 3) and its sea lie beyond
+    const GW = 4385, GH = 7000;
+    const ground = new THREE.PlaneGeometry(GW, GH);
     ground.rotateX(-Math.PI / 2);
+    ground.translate(-1307.5, 0, 0);
     const uv = ground.attributes.uv;
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * G / 7, uv.getY(i) * G / 7);
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * GW / 7, uv.getY(i) * GH / 7);
     const gm = new THREE.Mesh(ground, m.asphalt());
     gm.receiveShadow = true;
     gm.matrixAutoUpdate = false;
@@ -340,9 +344,11 @@ export class CityBuilder {
     this.terminalScreen = screen;
 
     // ---- interior lighting (constant light count)
-    const l1 = new THREE.PointLight(0xffe2b8, 9, 26, 1.6); l1.position.set(0, 5.4, -176); this.root.add(l1);
-    const l2 = new THREE.PointLight(0x7fb4ff, 7, 22, 1.6); l2.position.set(0, 4.0, -200); this.root.add(l2);
-    this.interiorLights = [l1, l2];
+    // real lights come from the shared light pool (see Effects.requestLight)
+    this.lightDefs = [
+      { pos: new THREE.Vector3(0, 5.4, -176), color: 0xffe2b8, intensity: 9, distance: 26, decay: 1.6, permanent: true },
+      { pos: new THREE.Vector3(0, 4.0, -200), color: 0x7fb4ff, intensity: 7, distance: 22, decay: 1.6, permanent: true },
+    ];
     for (const [x, z] of [[-8, -172], [8, -172], [-8, -180], [8, -180], [0, -191], [-10, -200], [10, -200]]) {
       const panel = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.3), m.emissive(z < -186 ? 0xa8c8ff : 0xfff0d8, z === -180 ? 0.15 : 1.6));
       panel.rotation.x = Math.PI / 2; panel.position.set(x, (z < -196 ? 4.5 : z < -186 ? 3.4 : 6) - 0.02, z);

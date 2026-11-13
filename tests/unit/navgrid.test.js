@@ -29,3 +29,14 @@ test('low obstacles (curbs) are walkable, unreachable returns null', () => {
   const nav2 = new NavGrid(w2, { minX: -20, minZ: -20, maxX: 20, maxZ: 20 });
   assert.equal(nav2.findPath(0, -5, 0, 5), null);
 });
+
+test('elevated grid (ship deck): deck surface walkable, deck cargo blocks', () => {
+  const w = new CollisionWorld();
+  w.addBox(-20, -4, -10, 20, 7, 10); // hull, deck top at y=7
+  w.addBox(-2, 7, -10, 2, 9.6, 6); // container on deck, gap at z>6
+  const nav = new NavGrid(w, { minX: -20, minZ: -10, maxX: 20, maxZ: 10, cell: 0.5, baseY: 7 });
+  assert.ok(nav.isWalkable(-10, 0));
+  assert.equal(nav.isWalkable(0, 0), false);
+  const path = nav.findPath(-10, 0, 10, 0);
+  assert.ok(path && path.some((p) => p.z > 6));
+});

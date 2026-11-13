@@ -61,7 +61,7 @@ const WAVES = [
       { id: 'sniper', x: -14, y: 25.5, z: -22.45, kind: 'sniper', static: true, face: [0, 1] },
       { x: 16, y: 10.5, z: 4.55, static: true, face: [0, 1] },
       { x: -4, z: -31.4 }, { x: 2, z: -45 }, { x: 6.5, z: -38.8 }, { x: -6, z: -40.3 },
-      { x: 25, z: -25, delay: 1.0, rush: false }, { x: 27, z: -26, delay: 4.5 },
+      { x: 25, z: -25, delay: 1.0, rush: false }, { x: 27, z: -26, delay: 4.5 }, { x: 26, z: -24, delay: 9, kind: 'smg' },
     ],
   },
   {
@@ -69,7 +69,7 @@ const WAVES = [
     enemies: [
       { id: 'rpg', x: 11.5, y: 13.5, z: -73, static: true, face: [-1, 0] },
       { x: -1, z: -83 }, { x: 2.5, z: -83.2, kind: 'smg' }, { x: 7.6, z: -86 }, { x: 3, z: -74, kind: 'smg' }, { x: -6.3, z: -90.5 },
-      { x: -60, z: -62, delay: 2 }, { x: 60, z: -61, delay: 3.5 },
+      { x: -60, z: -62, delay: 2 }, { x: 60, z: -61, delay: 3.5 }, { x: -58, z: -63, delay: 12, kind: 'shotgun' },
       { balcony: { x: -11, z: -80 } },
     ],
   },
@@ -79,7 +79,7 @@ const WAVES = [
       { x: 0, z: -153.7, kind: 'mg' },
       { x: -3.5, z: -113.4, kind: 'smg' }, { x: -6.2, z: -124.9 }, { x: 4.5, z: -138.7, kind: 'shotgun' }, { x: -4, z: -147.4 }, { x: 6.5, z: -151.2 },
       { x: -6, y: 15, z: -168.6, static: true, face: [0, 1] }, { x: 11.4, y: 13.5, z: -150, static: true, face: [-1, 0] },
-      { x: -6, z: -164, delay: 6 }, { x: 6, z: -164, delay: 9 },
+      { x: -6, z: -164, delay: 6 }, { x: 6, z: -164, delay: 9 }, { x: 0, z: -164, delay: 14, kind: 'smg' },
     ],
   },
   {
@@ -87,7 +87,7 @@ const WAVES = [
     id: 'w4', zone: { x0: -23, x1: 23, z0: -186, z1: -169 },
     enemies: [
       { x: -2, y: 0.4, z: -179.3, kind: 'shotgun' }, { x: 2.2, y: 0.4, z: -179.3, kind: 'smg' }, { x: -7, y: 0.4, z: -183.1 }, { x: 7, y: 0.4, z: -183.1 },
-      { x: -12, y: 0.4, z: -177.2, kind: 'smg' }, { x: 12, y: 0.4, z: -177.3, kind: 'shotgun' }, { x: 6, y: 0.4, z: -184.2 }, { x: -18.4, y: 0.4, z: -181.4 },
+      { x: -12, y: 0.4, z: -177.2, kind: 'smg' }, { x: 12, y: 0.4, z: -177.3, kind: 'shotgun' }, { x: 6, y: 0.4, z: -184.2 }, { x: -18.4, y: 0.4, z: -181.4 }, { x: 18.5, y: 0.4, z: -172.6, kind: 'smg' },
     ],
   },
   {
@@ -124,9 +124,11 @@ export class Mission01 extends MissionBase {
       this.heliParts.body.add(m.root);
       this.pilots.push(m);
     }
-    this.cabinLight = new THREE.PointLight(0xff3020, 0.0, 4, 2);
-    this.cabinLight.position.set(0, 2.0, -0.2);
-    this.heliParts.body.add(this.cabinLight);
+    // red cabin light: an anchor in the cabin + a pooled light request that follows it
+    this.cabinLightAnchor = new THREE.Object3D();
+    this.cabinLightAnchor.position.set(0, 2.0, -0.2);
+    this.heliParts.body.add(this.cabinLightAnchor);
+    this.cabinLight = game.effects.requestLight({ pos: new THREE.Vector3(), color: 0xff3020, intensity: 0, distance: 4, decay: 2, permanent: true });
     // persistent atmosphere
     for (const f of FIRES) { const e = game.effects.addFire(f, f.size, true); e.permanent = true; }
     for (const s of SMOKE_COLUMNS) { const e = game.effects.addSmokeColumn(s, 1.2); e.permanent = true; }
@@ -142,6 +144,7 @@ export class Mission01 extends MissionBase {
     this.heli.removeColliders(this.game.world);
     this.heliParts.root.visible = false;
     this.wingParts.root.visible = false;
+    this.cabinLight.intensity = 0;
     this.heliAudio?.stop();
     this.heliAudio = null;
     if (this.lzSmoke) { this.game.effects.removeEmitter(this.lzSmoke); this.lzSmoke = null; }
@@ -151,6 +154,7 @@ export class Mission01 extends MissionBase {
   start(checkpoint = 'start') {
     const g = this.game;
     this.resetWorld();
+    g.setRegion('teresk');
     g.effects.rainIntensity = g.pipeline.setTimeOfDay('morning').rain;
     g.mats.setNightLights(0);
     this.setEastGate(true, false);
@@ -159,6 +163,7 @@ export class Mission01 extends MissionBase {
     this.heli.removeColliders(g.world);
     this.heliParts.root.visible = false;
     this.wingParts.root.visible = false;
+    this.cabinLight.intensity = 0;
     this.heliAudio?.stop();
     this.heliAudio = null;
     if (this.lzSmoke) { g.effects.removeEmitter(this.lzSmoke); this.lzSmoke = null; }
@@ -631,6 +636,7 @@ export class Mission01 extends MissionBase {
       for (const m of this.pilots) m.update(dt, { seated: 1, aim: 0, crouch: 0, speed: 0, lookYaw: Math.sin(this.t * 0.4 + m.root.position.x) * 0.4 });
       if (this.departing && this.heli.done) { this.heliParts.root.visible = false; this.departing = false; this.heliAudio?.stop(); }
       this.cabinLight.intensity = p.mount ? 1.6 : 0.4;
+      this.cabinLightAnchor.getWorldPosition(this.cabinLight.pos);
     }
     if (this.wingParts.root.visible) {
       this.wing.update(dt, this.t + 1.3);

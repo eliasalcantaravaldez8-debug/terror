@@ -82,6 +82,11 @@ export class HUD {
     this.el('scope').classList.toggle('visible', on);
   }
 
+  /** Only touch the DOM when a value actually changes (avoids style/layout work every frame). */
+  _txt(el, v) { if (el._v !== v) { el._v = v; el.textContent = v; } }
+  _sty(el, prop, v) { const k = '_s_' + prop; if (el[k] !== v) { el[k] = v; el.style[prop] = v; } }
+  _cls(el, c, on) { const k = '_c_' + c; if (el[k] !== on) { el[k] = on; el.classList.toggle(c, on); } }
+
   show(v) { this.visible = v; this.root.style.display = v ? 'block' : 'none'; }
   setCombatHud(v) { this.combatHud = v; this.root.classList.toggle('combat', v); }
 
@@ -149,36 +154,37 @@ export class HUD {
     // FPS
     this.fpsAcc += dt; this.fpsFrames++;
     if (this.fpsAcc > 0.5) {
-      this.fpsEl.textContent = g.settings.get('showFps') ? `${Math.round(this.fpsFrames / this.fpsAcc)} FPS` : '';
+      this._txt(this.fpsEl, g.settings.get('showFps') ? `${Math.round(this.fpsFrames / this.fpsAcc)} FPS · ${Math.round(g.pipeline.resolutionScale * 100)}%` : '');
       this.fpsAcc = 0; this.fpsFrames = 0;
     }
     // ammo
     const cur = w.current;
-    this.el('weapon-name').textContent = cur.def.name;
-    this.el('ammo-mag').textContent = cur.mag;
-    this.el('ammo-mag').classList.toggle('low', cur.mag <= cur.def.magSize * 0.2);
-    this.el('ammo-res').textContent = cur.reserve;
-    this.el('grenades').innerHTML = '<span class="gr"></span>'.repeat(w.grenades);
-    this.el('reload-hint').classList.toggle('visible', cur.mag <= cur.def.magSize * 0.2 && cur.reloading <= 0 && cur.reserve > 0);
-    this.el('ammo').classList.toggle('hidden', w.wantLowered);
+    this._txt(this.el('weapon-name'), cur.def.name);
+    this._txt(this.el('ammo-mag'), String(cur.mag));
+    this._cls(this.el('ammo-mag'), 'low', cur.mag <= cur.def.magSize * 0.2);
+    this._txt(this.el('ammo-res'), String(cur.reserve));
+    if (this._gr !== w.grenades) { this._gr = w.grenades; this.el('grenades').innerHTML = '<span class="gr"></span>'.repeat(w.grenades); }
+    this._cls(this.el('reload-hint'), 'visible', cur.mag <= cur.def.magSize * 0.2 && cur.reloading <= 0 && cur.reserve > 0);
+    this._cls(this.el('ammo'), 'hidden', w.wantLowered);
     // health
     const hp = p.health / p.maxHealth;
-    this.el('health-fill').style.width = `${hp * 100}%`;
-    this.el('health').classList.toggle('low', hp < 0.35);
+    this._sty(this.el('health-fill'), 'width', `${Math.round(hp * 100)}%`);
+    this._cls(this.el('health'), 'low', hp < 0.35);
     const dmgAmt = clamp(1 - hp, 0, 1);
-    this.vignette.style.opacity = (dmgAmt * dmgAmt * 1.2).toFixed(3);
+    this._sty(this.vignette, 'opacity', (dmgAmt * dmgAmt * 1.2).toFixed(2));
     // crosshair
     const showCross = !w.scoped && !w.wantLowered && w.adsT < 0.6 && !p.sprinting && w.state !== 'reload';
-    this.cross.style.opacity = showCross ? (1 - w.adsT) : 0;
+    this._sty(this.cross, 'opacity', showCross ? (1 - w.adsT).toFixed(2) : '0');
     const gap = 6 + w.spreadNow * 7;
-    this.cross.style.setProperty('--gap', gap + 'px');
+    const gapS = gap.toFixed(1) + 'px';
+    if (this._gap !== gapS) { this._gap = gapS; this.cross.style.setProperty('--gap', gapS); }
     // hitmarker
     this.hitT = Math.max(0, this.hitT - dt * 4);
-    this.hit.style.opacity = this.hitT;
+    this._sty(this.hit, 'opacity', this.hitT.toFixed(2));
     // compass (yaw 0 = facing -Z = north)
     const f = p.forward;
     const heading = ((Math.atan2(f.x, -f.z) * 180 / Math.PI) % 360 + 360) % 360;
-    this.compassStrip.style.transform = `translateX(${-(heading / 45) * 60 - 480 + 150}px)`;
+    this._sty(this.compassStrip, 'transform', `translateX(${(-(heading / 45) * 60 - 480 + 150).toFixed(1)}px)`);
     // damage indicators
     for (let i = this.indicators.length - 1; i >= 0; i--) {
       const ind = this.indicators[i];
@@ -210,7 +216,7 @@ export class HUD {
       const d = _v.distanceTo(cam.position);
       _v.project(cam);
       const vis = s.alive && _v.z < 1 && d < 40 && d > 2 && !p.mount;
-      tag.style.display = vis ? 'block' : 'none';
+      this._sty(tag, 'display', vis ? 'block' : 'none');
       if (vis) tag.style.transform = `translate(${(_v.x * 0.5 + 0.5) * window.innerWidth}px, ${(-_v.y * 0.5 + 0.5) * window.innerHeight}px) translate(-50%,-100%)`;
     }
     for (const [s, tag] of this.tags) if (!g.squad.members.includes(s)) { tag.remove(); this.tags.delete(s); }

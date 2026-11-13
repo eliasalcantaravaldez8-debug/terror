@@ -692,6 +692,53 @@ export const TextureFactory = {
     });
   },
 
+  /** Corrugated shipping container side with rust, stencils and a fictional line logo. */
+  container(color = '#7a3a28', seed = 501, logo = '') {
+    return this.get('cont' + color + seed + logo, () => {
+      const W = 512, H = 128;
+      const c = canvas(W, H), ctx = c.getContext('2d');
+      const field = noiseFill(ctx, W, H, color, { seed, period: 16, amount: 0.12, large: 0.4 });
+      const [hc, hx] = grayCanvas(W, H, 128);
+      for (let x = 0; x < W; x += 10) {
+        const g = hx.createLinearGradient(x, 0, x + 10, 0);
+        g.addColorStop(0, gray(0.35)); g.addColorStop(0.5, gray(0.7)); g.addColorStop(1, gray(0.35));
+        hx.fillStyle = g; hx.fillRect(x, 0, 10, H);
+        ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(x, 0, 2, H);
+      }
+      const rnd = mulberry32(seed);
+      for (let i = 0; i < 26; i++) {
+        const x = rnd() * W, y = rnd() < 0.5 ? H - rnd() * 30 : rnd() * H, w = 6 + rnd() * 40, h = 4 + rnd() * 30;
+        ctx.fillStyle = `rgba(${110 + rnd() * 50},${55 + rnd() * 20},${25},${0.25 + rnd() * 0.3})`;
+        ctx.fillRect(x, y, w, h);
+      }
+      const g = ctx.createLinearGradient(0, H * 0.7, 0, H);
+      g.addColorStop(0, 'rgba(60,40,20,0)'); g.addColorStop(1, 'rgba(60,40,20,0.4)');
+      ctx.fillStyle = g; ctx.fillRect(0, H * 0.7, W, H * 0.3);
+      if (logo) { ctx.fillStyle = 'rgba(235,230,215,0.85)'; ctx.font = 'bold 30px Arial'; ctx.textAlign = 'center'; ctx.fillText(logo, W / 2, H * 0.45); }
+      ctx.fillStyle = 'rgba(235,230,215,0.7)'; ctx.font = '12px monospace'; ctx.fillText(`VRNU ${Math.floor(rnd() * 900000 + 100000)} 4`, 20, 20);
+      const n = normalFromHeight(hx, W, H, 3, field, 0.5);
+      return { map: tex(c), normalMap: tex(n, false) };
+    });
+  },
+
+  /** Tileable wave normal map for the sea. */
+  waterNormal() {
+    return this.get('waterN', () => {
+      const W = 256;
+      const n = new TileNoise(77);
+      const [hc, hx] = grayCanvas(W, W, 128);
+      const img = hx.createImageData(W, W);
+      for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+        const f = n.fbm(x / W * 6, y / W * 6, 6, 5) * 0.7 + 0.3 * Math.sin((x / W) * Math.PI * 8 + n.fbm(x / W * 2, y / W * 2, 2, 3) * 6) * 0.5 + 0.15;
+        const i = (y * W + x) * 4;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = clamp(f, 0, 1) * 255; img.data[i + 3] = 255;
+      }
+      hx.putImageData(img, 0, 0);
+      const t = tex(normalFromHeight(hx, W, W, 3.5), false);
+      return t;
+    });
+  },
+
   // ------------------------------------------------------------- particles / decals
   smokeSprite() {
     return this.get('smokeSprite', () => {

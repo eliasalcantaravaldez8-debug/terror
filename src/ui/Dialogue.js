@@ -6,16 +6,24 @@
  * utterance is cancelled, nothing piles up in the browser's speech queue) and the
  * subtitle stays on screen until that utterance has finished.
  */
+/**
+ * Character voices. With neural ("Natural"/"Online"/Google) voices the pitch is left
+ * almost untouched — pitch-shifting is what makes synthetic speech sound robotic.
+ * gender picks a matching voice; slot spreads characters over the available voices.
+ */
 const VOICES = {
-  KANE: { pitch: 0.7, rate: 1.0, slot: 0 },
-  RUIZ: { pitch: 1.25, rate: 1.08, slot: 1 },
-  BRIGGS: { pitch: 1.1, rate: 1.12, slot: 2 },
-  OKAFOR: { pitch: 0.85, rate: 0.98, slot: 3 },
-  'FALCON 2-1': { pitch: 0.95, rate: 1.1, slot: 2 },
-  'BASTIÃO': { pitch: 0.8, rate: 1.0, slot: 3 },
-  'VOZ DESCONHECIDA': { pitch: 0.55, rate: 0.9, slot: 0 },
-  MERCER: { pitch: 0.8, rate: 1.0, slot: 0 },
+  KANE: { gender: 'm', slot: 0, pitch: 0.92, rate: 1.0 },
+  RUIZ: { gender: 'f', slot: 0, pitch: 1.0, rate: 1.06 },
+  BRIGGS: { gender: 'm', slot: 1, pitch: 1.04, rate: 1.1 },
+  OKAFOR: { gender: 'm', slot: 2, pitch: 0.95, rate: 0.98 },
+  'FALCON 2-1': { gender: 'm', slot: 1, pitch: 1.0, rate: 1.12 },
+  'BASTIÃO': { gender: 'm', slot: 2, pitch: 0.96, rate: 1.02 },
+  'VOZ DESCONHECIDA': { gender: 'm', slot: 3, pitch: 0.85, rate: 0.92 },
+  SERRAT: { gender: 'm', slot: 3, pitch: 0.85, rate: 0.92 },
+  MERCER: { gender: 'm', slot: 0, pitch: 0.95, rate: 1.0 },
 };
+const FEMALE = /francisca|thalita|maria|luciana|leila|manuela|yara|giovanna|brenda|elza|let[ií]cia|fernanda|vit[oó]ria|raquel|camila|joana|in[eê]s|helia|female|feminin|mulher|raquel/i;
+const MALE = /ant[oó]nio|daniel|donato|f[aá]bio|humberto|j[uú]lio|nicolau|val[eé]rio|duarte|cristiano|felipe|ricardo|male|masculin/i;
 const CHARS_PER_SECOND = 13; // typical pt-BR synthesized speech
 const MAX_WAIT_FOR_VOICE = 6; // never hold a line forever if the voice engine stalls
 
@@ -31,9 +39,16 @@ export class Dialogue {
     this.utterance = null; // the one utterance currently owned by the dialogue system
     if (typeof speechSynthesis !== 'undefined') {
       const load = () => {
-        const all = speechSynthesis.getVoices();
-        // prefer Brazilian voices, then any Portuguese
-        this.voiceList = [...all.filter((v) => /pt[-_]BR/i.test(v.lang)), ...all.filter((v) => /^pt/i.test(v.lang) && !/pt[-_]BR/i.test(v.lang))];
+        const all = speechSynthesis.getVoices().filter((v) => /^pt/i.test(v.lang));
+        // rank: neural/online voices sound close to a real person; then Google; then pt-BR
+        const score = (v) => (/natural|neural|online/i.test(v.name) ? 20 : 0) + (/google/i.test(v.name) ? 8 : 0) + (/pt[-_]BR/i.test(v.lang) ? 5 : 0) + (v.localService ? 0 : 2);
+        all.sort((a, b) => score(b) - score(a));
+        this.voiceList = all;
+        this.voicesBy = {
+          m: all.filter((v) => MALE.test(v.name) && !FEMALE.test(v.name)),
+          f: all.filter((v) => FEMALE.test(v.name)),
+        };
+        this.neural = all.some((v) => /natural|neural|online/i.test(v.name));
       };
       load();
       speechSynthesis.onvoiceschanged = load;
@@ -107,10 +122,15 @@ export class Dialogue {
       this._stopVoice(); // never let utterances queue up behind each other
       const u = new SpeechSynthesisUtterance(text.replace(/[—–]/g, ', ').replace(/\.\.\./g, '…'));
       u.lang = 'pt-BR';
-      const v = VOICES[speaker] || { pitch: 1, rate: 1, slot: 0 };
-      u.pitch = v.pitch; u.rate = v.rate * 1.05;
+      const v = VOICES[speaker] || { gender: 'm', slot: 0, pitch: 1, rate: 1 };
+      const pool = (this.voicesBy?.[v.gender]?.length ? this.voicesBy[v.gender] : this.voiceList) || [];
+      const voice = pool.length ? pool[v.slot % pool.length] : null;
+      const natural = voice && /natural|neural|online|google/i.test(voice.name);
+      // natural voices keep their own pitch; small character tweaks only on basic voices
+      u.pitch = natural ? 1 + (v.pitch - 1) * 0.4 : v.pitch;
+      u.rate = v.rate;
       u.volume = volume * this.game.settings.get('masterVolume');
-      if (this.voiceList.length) u.voice = this.voiceList[v.slot % this.voiceList.length];
+      if (voice) u.voice = voice;
       if (line) {
         const done = () => { if (this.utterance === u) line._voiceDone = true; };
         u.onend = done; u.onerror = done;

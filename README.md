@@ -4,7 +4,12 @@ FPS militar single-player em 3D — guerra moderna fictícia, 2029.
 O Capitão **Daniel Mercer** e a Força-Tarefa Iron investigam a organização
 **VÉRTICE**, responsável por ataques coordenados pelo mundo.
 
-> **Estado atual: v0.3 — Missões 1 e 2 jogáveis do início ao fim.**
+> **Estado atual: v0.4 — Missões 1, 2 e 3 jogáveis do início ao fim.**
+>
+> **Missão 3 — "Porto de Vareny"** (amanhecer): portão, pátio de contêineres com
+> atirador no guindaste, tiroteio no cais, abordagem do cargueiro Kestrel Star pela
+> prancha, combate no convés, a revelação de quem está por trás do VÉRTICE e a fuga
+> antes do navio explodir.
 >
 > **Missão 2 — "Sinal Morto"** (entardecer): sem rádio, a equipe sai do Halden,
 > enfrenta uma patrulha na avenida, rompe um bloqueio na rua transversal, toma
@@ -86,7 +91,7 @@ volumes, inverter Y, legendas, vozes provisórias, contador de FPS.
 
 ```bash
 npm test          # unitários: colisão, navegação A*, armas, saves
-npm run test:e2e  # jogatina automatizada das missões 1 e 2 no Chromium + capturas
+npm run test:e2e  # jogatina automatizada das missões 1, 2 e 3 no Chromium + capturas
 ```
 
 ## Documentação

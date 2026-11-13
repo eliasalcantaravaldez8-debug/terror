@@ -13,6 +13,9 @@ import { clamp, lerp, damp, easeInOut } from '../utils/math.js';
  */
 const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
 const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+const Q_LOW = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.55, -0.35, 0.1));
+const Q_AIM = new THREE.Quaternion();
+const Q_SEAT = new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.25, 0.2, 0));
 
 function capsule(r, len, mat, y) {
   const g = new THREE.CapsuleGeometry(r, len, 4, 10);
@@ -383,17 +386,12 @@ export class SoldierModel {
     const aimPos = _v1.set(-0.07, 0.22, 0.42);
     // low ready
     const lowPos = _v2.set(-0.05, 0.02, 0.3);
-    const pos = new THREE.Vector3().lerpVectors(lowPos, aimPos, P.aim);
+    const pos = m.position.lerpVectors(lowPos, aimPos, P.aim);
     // seated: vertical between knees
-    const seatPos = _v3.set(0.0, -0.42, 0.42);
-    pos.lerp(seatPos, P.seated);
+    pos.lerp(_v3.set(0.0, -0.42, 0.42), P.seated);
     pos.z -= this.fireKick * 0.04;
-    m.position.copy(pos);
-    const qLow = _q1.setFromEuler(new THREE.Euler(0.55, -0.35, 0.1));
-    const qAim = new THREE.Quaternion();
-    const qSeat = new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.25, 0.2, 0));
-    const q = qLow.clone().slerp(qAim, P.aim).slerp(qSeat, P.seated);
-    m.quaternion.copy(q);
+    // allocation-free blend between the three held-weapon poses
+    m.quaternion.copy(Q_LOW).slerp(Q_AIM, P.aim).slerp(Q_SEAT, P.seated);
   }
 
   _updateHitSpheres() {

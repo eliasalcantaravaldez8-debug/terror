@@ -27,11 +27,12 @@ import { WEAPONS } from '../weapons/WeaponData.js';
 import { makeWeaponModel, makeGrenade } from '../weapons/WeaponModels.js';
 import { mergeStatic } from '../render/mergeUtil.js';
 import { Mission02 } from '../missions/Mission02.js';
+import { Mission03 } from '../missions/Mission03.js';
 
-export const MISSION_ORDER = ['m01', 'm02'];
+export const MISSION_ORDER = ['m01', 'm02', 'm03'];
 
 export const DIFFICULTY = {
-  normal: { playerDamage: 1, enemyDamage: 1, enemyAccuracy: 1, allyAccuracy: 1, tokens: 2 },
+  normal: { playerDamage: 1, enemyDamage: 1.12, enemyAccuracy: 1.18, allyAccuracy: 1, tokens: 2, regenDelay: 5.0, regenRate: 26 },
 };
 
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
@@ -72,15 +73,22 @@ export class Game {
     this.city = new CityBuilder(this.scene, this.world, this.mats).build();
     onProgress(0.6, 'Construindo navegação e coberturas');
     await nextFrame();
-    this.nav = new NavGrid(this.world, { minX: -75, minZ: -212, maxX: 138, maxZ: 78, cell: 0.75, agentRadius: 0.42 });
-    this.cover = new CoverSystem(this.world, this.nav);
-    this.cover.build();
+    // one navigation grid + cover set per map region
+    this.regions = {};
+    for (const [name, b] of Object.entries({ teresk: { minX: -75, minZ: -212, maxX: 138, maxZ: 78 }, port: { minX: 925, minZ: -96, maxX: 1175, maxZ: 155 } })) {
+      const nav = new NavGrid(this.world, { ...b, cell: 0.75, agentRadius: 0.42 });
+      const cover = new CoverSystem(this.world, nav);
+      cover.build();
+      this.regions[name] = { nav, cover };
+    }
+    this.setRegion('teresk');
     this.ai = { tokens: new AttackTokens(this.difficulty.tokens) };
     onProgress(0.7, 'Efeitos e áudio');
     await nextFrame();
     this.effects = new Effects(this.scene, this.pipeline, this.pipeline.quality);
     this.effects.onCasingLand = (p) => this.audio.playCasing(p);
     this.effects.indoorRects = this.city.indoorRects;
+    for (const d of this.city.lightDefs || []) this.effects.requestLight(d);
     this.player = new Player(this);
     this.actors.push(this.player);
     this.combat = new Combat(this);
@@ -93,11 +101,11 @@ export class Game {
     this.fade = new Fade(document.getElementById('fade'));
     onProgress(0.85, 'Preparando a missão');
     await nextFrame();
-    this.missions = { m01: new Mission01(this), m02: new Mission02(this) };
+    this.missions = { m01: new Mission01(this), m02: new Mission02(this), m03: new Mission03(this) };
     this.mission = this.missions.m01;
     this.interactables = this.city.interactables;
 
-    this.events.on('playerDied', () => this.onPlayerDied());
+    this.events.on('playerDied', (info) => this.onPlayerDied(info));
     this.events.on('soldierKilled', ({ soldier, info }) => {
       if (soldier.team !== 'enemy') return;
       const killer = info?.shooter;
@@ -166,6 +174,14 @@ export class Game {
       this.pipeline.renderer.compile(this.pipeline.vmScene, this.pipeline.vmCamera);
     }
     this.scene.remove(warm);
+  }
+
+  /** Switch the active map region (navigation grid + cover points used by the AI). */
+  setRegion(name) {
+    const r = this.regions[name];
+    this.region = name;
+    this.nav = r.nav;
+    this.cover = r.cover;
   }
 
   /** Dynamic resolution: trade a little sharpness for a steady frame rate. */
@@ -249,13 +265,13 @@ export class Game {
     this.showMainMenu();
   }
 
-  onPlayerDied() {
+  onPlayerDied(info = {}) {
     this.state = 'dead';
     this.stats.deaths = (this.stats.deaths || 0) + 1;
     this.dialogue.clear();
     this.audio.concussion(3, 1);
     this.fade.to(0.75, 1.5);
-    setTimeout(() => { this.input.exitLock(); this.menus.death(); }, this.testMode ? 10 : 1600);
+    setTimeout(() => { this.input.exitLock(); this.menus.death(info?.cause); }, this.testMode ? 10 : 1600);
   }
 
   completeMission() {

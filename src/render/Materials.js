@@ -157,5 +157,15 @@ export class Materials {
   emissive(color, intensity = 2) {
     return this.get('emi' + color + intensity, () => new THREE.MeshStandardMaterial({ color: 0x000000, emissive: color, emissiveIntensity: intensity }));
   }
+  container(color, seed = 501, logo = '') {
+    return this.get('cont' + color + seed + logo, () => new THREE.MeshStandardMaterial({ ...TF.container(color, seed, logo), roughness: 0.65, metalness: 0.35 }));
+  }
+  water() {
+    return this.get('water', () => {
+      const n = TF.waterNormal();
+      n.repeat.set(220, 220);
+      return new THREE.MeshStandardMaterial({ color: 0x1b2d33, roughness: 0.08, metalness: 0.2, normalMap: n, normalScale: new THREE.Vector2(0.6, 0.6), envMapIntensity: 1.3 });
+    });
+  }
   tiled(base, rx, ry) { return withRepeat(base, rx, ry); }
 }

@@ -17,6 +17,7 @@ export const QUALITY_PRESETS = {
 /** Lighting presets per time of day. */
 export const TIME_OF_DAY = {
   morning: { elevation: 9, azimuth: 120, turbidity: 9, rayleigh: 1.6, mie: 0.012, sun: 0xffd2a1, sunI: 2.4, sky: 0xb9c6d2, ground: 0x4a4136, hemiI: 0.75, fog: 0x9ea4a6, fogD: 0.0062, exposure: 1.0, rain: 0.6 },
+  dawn: { elevation: 4, azimuth: 95, turbidity: 8, rayleigh: 2.6, mie: 0.02, sun: 0xffb07a, sunI: 1.9, sky: 0x9cadc4, ground: 0x3a3a3c, hemiI: 0.62, fog: 0xa3abb4, fogD: 0.0082, exposure: 0.95, rain: 0.2 },
   dusk: { elevation: 2.5, azimuth: 255, turbidity: 13, rayleigh: 3.4, mie: 0.022, sun: 0xff8040, sunI: 1.6, sky: 0x76829a, ground: 0x2c2622, hemiI: 0.55, fog: 0x6e6870, fogD: 0.0075, exposure: 0.92, rain: 0.85 },
 };
 
@@ -219,7 +220,7 @@ export class RenderPipeline {
       const ao = new GTAOPass(this.scene, this.camera, size.x, size.y);
       ao.output = GTAOPass.OUTPUT.Default;
       ao.blendIntensity = 0.9;
-      ao.updateGtaoMaterial({ radius: 0.6, distanceExponent: 1.5, thickness: 1.2, scale: 1.0, samples: 12 });
+      ao.updateGtaoMaterial({ radius: 0.6, distanceExponent: 1.5, thickness: 1.2, scale: 1.0, samples: 8 });
       composer.addPass(ao);
       this.ao = ao;
     }
@@ -272,6 +273,11 @@ export class RenderPipeline {
 
   render(dt, fx = {}) {
     const r = this.renderer;
+    // the shadow map (whole nearby city) is refreshed every other frame: halves its cost,
+    // moving shadows still update at half the frame rate which is not noticeable
+    r.shadowMap.autoUpdate = false;
+    this._frame = (this._frame || 0) + 1;
+    if (this._frame % 2 === 0 || this.forceShadowUpdate) { r.shadowMap.needsUpdate = true; this.forceShadowUpdate = false; }
     this.vmCamera.position.set(0, 0, 0);
     this.vmCamera.quaternion.identity();
     if (this.composer) {

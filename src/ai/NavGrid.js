@@ -3,7 +3,9 @@
  * with line-of-sight path smoothing. Used by allied and hostile AI.
  */
 export class NavGrid {
-  constructor(world, { minX, minZ, maxX, maxZ, cell = 1, agentRadius = 0.45, maxStep = 0.45 }) {
+  /** baseY: floor height of this grid (0 = ground; e.g. 7 for a ship's deck). */
+  constructor(world, { minX, minZ, maxX, maxZ, cell = 1, agentRadius = 0.45, maxStep = 0.45, baseY = 0 }) {
+    this.baseY = baseY;
     this.world = world;
     this.minX = minX; this.minZ = minZ;
     this.cell = cell;
@@ -21,7 +23,7 @@ export class NavGrid {
   }
 
   rasterize(b, value) {
-    if (!b.enabled || b.max.y <= this.maxStep || b.min.y > 1.7) return;
+    if (!b.enabled || b.max.y <= this.baseY + this.maxStep || b.min.y > this.baseY + 1.7) return;
     const r = this.agentRadius;
     const x0 = Math.max(0, Math.floor((b.min.x - r - this.minX) / this.cell));
     const x1 = Math.min(this.w - 1, Math.floor((b.max.x + r - this.minX) / this.cell));

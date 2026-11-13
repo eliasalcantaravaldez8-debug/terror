@@ -6,17 +6,20 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
  * Keeps draw calls low for the whole city.
  */
 export class GeometryBatcher {
-  constructor() { this.buckets = new Map(); }
+  /** chunk: size in metres of the spatial chunks (enables frustum culling of the city). */
+  constructor(chunk = 64) { this.buckets = new Map(); this.chunk = chunk; }
 
-  _bucket(mat) {
-    let b = this.buckets.get(mat);
-    if (!b) { b = { pos: [], nrm: [], uv: [], geoms: [] }; this.buckets.set(mat, b); }
+  _bucket(mat, x = 0, z = 0) {
+    const cx = Math.floor(x / this.chunk), cz = Math.floor(z / this.chunk);
+    const key = mat.uuid + '|' + cx + '|' + cz;
+    let b = this.buckets.get(key);
+    if (!b) { b = { mat, pos: [], nrm: [], uv: [], geoms: [] }; this.buckets.set(key, b); }
     return b;
   }
 
   /** Quad from 4 corners (counter-clockwise seen from the front). */
   quad(mat, p0, p1, p2, p3, n, uv0, uv1, uv2, uv3) {
-    const b = this._bucket(mat);
+    const b = this._bucket(mat, (p0[0] + p2[0]) * 0.5, (p0[2] + p2[2]) * 0.5);
     const P = [p0, p1, p2, p0, p2, p3], U = [uv0, uv1, uv2, uv0, uv2, uv3];
     for (let i = 0; i < 6; i++) {
       b.pos.push(P[i][0], P[i][1], P[i][2]);
@@ -57,12 +60,15 @@ export class GeometryBatcher {
     const g = geom.index ? geom.toNonIndexed() : geom;
     for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k);
     if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
-    this._bucket(mat).geoms.push(g);
+    g.computeBoundingBox();
+    const c = g.boundingBox.getCenter(new THREE.Vector3());
+    this._bucket(mat, c.x, c.z).geoms.push(g);
   }
 
   build(parent, { castShadow = true, receiveShadow = true } = {}) {
     const meshes = [];
-    for (const [mat, b] of this.buckets) {
+    for (const b of this.buckets.values()) {
+      const mat = b.mat;
       const parts = [...b.geoms];
       if (b.pos.length) {
         const g = new THREE.BufferGeometry();

@@ -5,6 +5,7 @@ import { TextureFactory as TF } from '../render/TextureFactory.js';
 const _v = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const Z = new THREE.Vector3(0, 0, 1);
+const _qr = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _m = new THREE.Matrix4();
 
 /**
  * High-level visual effects: muzzle flashes, impacts, decals, tracers,
@@ -24,30 +25,32 @@ export class Effects {
     this.flashes = new ParticleSystem(scene, { max: 64, texture: TF.flash(), additive: true, renderOrder: 15 });
     this.blood = new ParticleSystem(scene, { max: 300, texture: TF.smokeSprite(), fog, renderOrder: 12 });
 
-    // pooled lights (constant count -> no shader recompiles)
+    // pooled lights (constant count -> no shader recompiles). Every point light costs
+    // per-pixel work on every lit material, so the whole game uses only 3 flash + 4 area lights.
     this.lights = [];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       const l = new THREE.PointLight(0xffa860, 0, 14, 2);
       l.userData.decay = 0;
       scene.add(l);
       this.lights.push(l);
     }
     this.lightIdx = 0;
-    this.fireLights = [];
-    // spare fire lights allocated up-front so runtime fires don't change the light count
-    this.spareFireLights = [];
-    for (let i = 0; i < 2; i++) {
-      const l = new THREE.PointLight(0xff8a3a, 0, 12, 2);
+    // area lights (fires, interiors, cabin): many requests share 4 real lights,
+    // assigned each frame to the most relevant requests near the camera
+    this.areaLights = [];
+    for (let i = 0; i < 4; i++) {
+      const l = new THREE.PointLight(0xffffff, 0, 10, 2);
       scene.add(l);
-      this.spareFireLights.push(l);
+      this.areaLights.push(l);
     }
+    this.areaRequests = [];
 
     // decals
     this.decalGeo = new THREE.PlaneGeometry(1, 1);
     this.holeMat = new THREE.MeshStandardMaterial({ map: TF.bulletHole(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, roughness: 1 });
     this.scorchMat = new THREE.MeshStandardMaterial({ map: TF.scorch(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, roughness: 1 });
-    this.decals = [];
-    this.maxDecals = 160;
+    // decals: one instanced mesh per material (a single draw call for all bullet holes)
+    this.decalSets = new Map();
 
     // tracers
     this.tracerMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -137,24 +140,33 @@ export class Effects {
     if (surface !== 'flesh') this.decal(point, n, 0.09 + Math.random() * 0.05, this.holeMat);
   }
 
-  decal(point, normal, size, mat) {
-    let d;
-    if (this.decals.length < this.maxDecals) {
-      d = new THREE.Mesh(this.decalGeo, mat);
-      d.receiveShadow = true;
-      this.scene.add(d);
-      this.decals.push(d);
-    } else {
-      d = this.decals.shift();
-      d.material = mat;
-      this.decals.push(d);
+  _decalSet(mat) {
+    let set = this.decalSets.get(mat);
+    if (!set) {
+      const cap = mat === this.scorchMat ? 24 : 220;
+      const mesh = new THREE.InstancedMesh(this.decalGeo, mat, cap);
+      mesh.count = 0; mesh.frustumCulled = false; mesh.receiveShadow = true;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      this.scene.add(mesh);
+      set = { mesh, cap, next: 0 };
+      this.decalSets.set(mat, set);
     }
+    return set;
+  }
+
+  decal(point, normal, size, mat) {
+    const set = this._decalSet(mat);
     _v.set(normal.x, normal.y, normal.z);
     _q.setFromUnitVectors(Z, _v);
-    d.quaternion.copy(_q);
-    d.rotateZ(Math.random() * 6.28);
-    d.position.set(point.x + normal.x * 0.01, point.y + normal.y * 0.01, point.z + normal.z * 0.01);
-    d.scale.setScalar(size);
+    _qr.setFromAxisAngle(Z, Math.random() * 6.28);
+    _q.multiply(_qr);
+    _p.set(point.x + normal.x * 0.01, point.y + normal.y * 0.01, point.z + normal.z * 0.01);
+    _s.setScalar(size);
+    _m.compose(_p, _q, _s);
+    set.mesh.setMatrixAt(set.next, _m);
+    set.next = (set.next + 1) % set.cap;
+    set.mesh.count = Math.min(set.cap, set.mesh.count + 1);
+    set.mesh.instanceMatrix.needsUpdate = true;
   }
 
   bloodHit(point, dir) {
@@ -213,16 +225,35 @@ export class Effects {
   }
 
   // ----------------------------------------------------------- persistent emitters
+  /** Ask for a point light; returns a mutable request {pos, color, intensity, distance, decay}. */
+  requestLight({ pos, color = 0xffffff, intensity = 1, distance = 10, decay = 2, permanent = false }) {
+    const r = { pos: pos.clone ? pos.clone() : new THREE.Vector3(pos.x, pos.y, pos.z), color: new THREE.Color(color), intensity, distance, decay, permanent };
+    this.areaRequests.push(r);
+    return r;
+  }
+  removeLight(r) { const i = this.areaRequests.indexOf(r); if (i >= 0) this.areaRequests.splice(i, 1); }
+
+  _assignAreaLights(cam) {
+    const best = [];
+    for (const r of this.areaRequests) {
+      if (r.intensity <= 0) continue;
+      const d2 = cam ? r.pos.distanceToSquared(cam) : 0;
+      const reach = r.distance * 2.5 + 20;
+      if (d2 > reach * reach) continue;
+      r._score = r.intensity * r.distance / (1 + d2 * 0.01);
+      best.push(r);
+    }
+    best.sort((a, b) => b._score - a._score);
+    for (let i = 0; i < this.areaLights.length; i++) {
+      const l = this.areaLights[i], r = best[i];
+      if (!r) { l.intensity = 0; continue; }
+      l.position.copy(r.pos); l.color.copy(r.color); l.intensity = r.intensity; l.distance = r.distance; l.decay = r.decay;
+    }
+  }
+
   addFire(pos, size = 1, withLight = true) {
     const e = { type: 'fire', pos: new THREE.Vector3(pos.x, pos.y, pos.z), size, acc: 0, light: null };
-    if (withLight) {
-      let l = this.spareFireLights.pop();
-      if (!l) { l = new THREE.PointLight(0xff8a3a, 0, 12, 2); this.scene.add(l); }
-      l.distance = 12 * size;
-      l.position.copy(e.pos).add(new THREE.Vector3(0, 0.8, 0));
-      e.light = l;
-      this.fireLights.push(l);
-    }
+    if (withLight) e.light = this.requestLight({ pos: e.pos.clone().add(new THREE.Vector3(0, 0.8, 0)), color: 0xff8a3a, intensity: 3 * size, distance: 12 * size });
     this.emitters.push(e);
     return e;
   }
@@ -239,7 +270,7 @@ export class Effects {
   removeEmitter(e) {
     const i = this.emitters.indexOf(e);
     if (i >= 0) this.emitters.splice(i, 1);
-    if (e.light) { e.light.intensity = 0; this.spareFireLights.push(e.light); e.light = null; }
+    if (e.light) { this.removeLight(e.light); e.light = null; }
   }
 
   /** Rotor downwash: ring of dust around a point on the ground. strength 0..1 */
@@ -306,6 +337,7 @@ export class Effects {
   // ----------------------------------------------------------- update
   update(dt, camPos, camVel, colWorld) {
     this.time += dt;
+    this._assignAreaLights(camPos);
     for (const l of this.lights) {
       if (l.intensity > 0) l.intensity = Math.max(0, l.intensity - l.userData.decay * dt * Math.max(1, l.intensity * 0.3));
     }
@@ -374,11 +406,10 @@ export class Effects {
 
   reset() {
     for (const s of [this.smoke, this.dust, this.fire, this.sparks, this.flashes, this.blood]) s.clear();
-    for (const d of this.decals) this.scene.remove(d);
-    this.decals.length = 0;
+    for (const set of this.decalSets.values()) { set.mesh.count = 0; set.next = 0; }
     for (const t of this.tracers) { t.active = false; t.mesh.visible = false; }
     for (const c of this.casings) { c.active = false; c.mesh.visible = false; }
-    for (const e of [...this.emitters]) if (e.type !== 'column' && !e.permanent) this.removeEmitter(e);
+    for (const e of [...this.emitters]) if (!e.permanent) this.removeEmitter(e);
     for (const l of this.lights) l.intensity = 0;
   }
 }

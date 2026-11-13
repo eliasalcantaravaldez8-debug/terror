@@ -24,7 +24,7 @@ const WAVES = [
     id: 'p1', zone: { x0: -11, x1: 11, z0: -150, z1: -100 }, faceYaw: PI,
     enemies: [
       { x: -3.5, z: -113.4 }, { x: 3.5, z: -128, kind: 'smg' }, { x: -6.2, z: -125 }, { x: 4.5, z: -138.7 },
-      { x: 0, z: -105, delay: 5, kind: 'shotgun' }, { x: 6, z: -103, delay: 8 },
+      { x: 0, z: -105, delay: 5, kind: 'shotgun' }, { x: 6, z: -103, delay: 8 }, { x: -6, z: -102, delay: 12, kind: 'smg' },
     ],
   },
   {
@@ -34,7 +34,7 @@ const WAVES = [
       { x: 30, z: -59, kind: 'smg' }, { x: 41, z: -66 }, { x: 52, z: -58 }, { x: 62, z: -64, kind: 'mg' },
       { x: 76, z: -60 }, { x: 85, z: -66, kind: 'shotgun' },
       { x: 80, y: 13.5, z: -68.45, static: true, face: [0, 1] },
-      { x: 88, z: -59, delay: 7 }, { x: 90, z: -64, delay: 10, kind: 'smg' },
+      { x: 88, z: -59, delay: 7 }, { x: 90, z: -64, delay: 10, kind: 'smg' }, { x: 89, z: -61, delay: 15, kind: 'shotgun' },
     ],
   },
   {
@@ -43,7 +43,7 @@ const WAVES = [
     enemies: [
       { id: 'tower', x: 101, y: 5, z: -40, static: true, kind: 'sniper', face: [-1, 0] },
       { x: 105, z: -62 }, { x: 108, z: -71, kind: 'smg' }, { x: 112.5, z: -57.2 }, { x: 107, z: -47.2, kind: 'shotgun' },
-      { x: 120, z: -62 }, { x: 125, z: -70, kind: 'mg' }, { x: 129, z: -56 },
+      { x: 120, z: -62 }, { x: 125, z: -70, kind: 'mg' }, { x: 129, z: -56 }, { x: 127, z: -44, kind: 'smg' },
     ],
   },
   {
@@ -64,13 +64,14 @@ export class Mission02 extends MissionBase {
     this.number = 2;
     this.completeText = {
       top: 'MISSÃO 2 CONCLUÍDA', main: 'SINAL MORTO',
-      body: 'O transmissor foi religado — e quem respondeu não era a coalizão.<br>Uma voz desconhecida sabe o nome de Mercer e promete o fim da Força-Tarefa Iron ao amanhecer.<br><b>Continua na Missão 3 — Porto de Vareny.</b>',
+      body: 'O transmissor foi religado — e quem respondeu não era a coalizão.<br>Uma voz desconhecida sabe o nome de Mercer e promete o fim da Força-Tarefa Iron ao amanhecer.<br><b>A seguir: Missão 3 — Porto de Vareny.</b>',
     };
   }
 
   start(checkpoint = 'start') {
     const g = this.game, p = g.player;
     this.resetWorld();
+    g.setRegion('teresk');
     this.checkpoint = checkpoint;
     this.transmit = null;
     this.ended = false;
