@@ -1854,7 +1854,7 @@ function step(dt) {
     const lm = G.city.landmarks;
     const nearGas = lm.find((l) => l.kind === 'gas' && Math.hypot(l.x - car.x, l.z - car.z) < 14);
     const nearShop = lm.find((l) => l.kind === 'oficina' && Math.hypot(l.x - car.x, l.z - car.z) < 12);
-    prompt = Math.abs(car.speed) > 4 ? '' : '[E] Sair do carro';
+    prompt = Math.abs(car.speed) > 4 ? '' : (car.T.moto ? '[E] Descer da moto' : '[E] Sair do carro');
     if (Math.abs(car.speed) < 1 && !G.mission && nearGas) prompt += '   [G] Abastecer';
     if (Math.abs(car.speed) < 1 && !G.mission && nearShop) prompt += '   [G] Entrar na Los Valles Custom';
     if (G.custom.open) prompt = '';

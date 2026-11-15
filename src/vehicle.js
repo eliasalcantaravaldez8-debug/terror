@@ -200,12 +200,13 @@ function buildGeo(T, m, color) {
   const fth = T.shape === 'wedge' ? 0.06 : 0.1; // espessura mínima acima da caixa de roda (esportivo: chanfro menor)
   const fender = (p) => { for (const q of p) { if (q.arc) continue; for (const az of [wb, -wb]) { const dz = Math.abs(q[0] - az); if (q[1] > wy + 0.1 && dz < ar + 0.3) q[1] = Math.max(q[1], wy + ar + fth - Math.max(0, dz - wr) * 0.35); } } return p; };
   const shp = { hl, W: Wb, belt, roof: T.roof, bottom, taper: T.shape === 'wedge' ? 0.06 : 0.12, taperLen: T.shape === 'besouro' ? 1.0 : 0.75, tumble: T.shape === 'wedge' ? 0.22 : 0.15, crown: T.shape === 'besouro' ? 0.0 : 0.035 };
-  let glass, lowProfile = null;
+  let glass, lowProfile = null, lowBodyFn = null;
   if (T.shape === 'besouro') {
     const p = [[-hl + 0.1, bottom + 0.1], [-wb - ar, bottom], { arc: [-wb, wy, ar] }, [wb - ar, bottom], { arc: [wb, wy, ar] }, [hl - 0.1, bottom + 0.05],
       [hl, bottom + 0.22], [hl - 0.04, 0.6], [hl - 0.25, 0.76], [hl - 0.6, 0.84], [T.ws[0] + 0.1, belt],
       [T.rw[1] - 0.05, belt], [-hl + 0.55, 0.82], [-hl + 0.22, 0.68], [-hl + 0.05, 0.5]];
     fender(p); parts.push(cutTop(nonIdx(shapeCar(extrudeProfile(p, Wb - 0.1, 0.1, 3), shp), color), T.rw[1] + 0.1, T.ws[0] - 0.03, belt - 0.15, (Wb - 0.1) / 2 - 0.1)); lowProfile = [p, Wb - 0.1];
+    lowBodyFn = () => cutTop(nonIdx(shapeCar(extrudeProfile(p, Wb - 0.1, 0.1, 1), shp), color), T.rw[1] + 0.1, T.ws[0] - 0.03, belt - 0.15, (Wb - 0.1) / 2 - 0.1);
     glass = shapeCar(extrudeProfile([[T.ws[0], belt - 0.01], [0.45, 1.28], [0.12, 1.44], [-0.45, 1.46], [-0.82, 1.3], [T.rw[1], belt - 0.01]], Wb - 0.24, 0), { ...shp, glass: true });
     parts.push(nonIdx(new THREE.SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), color, M(0, 1.3, -0.18, 0, 0, 0, Wb / 2 - 0.2, 0.2, 0.62)));
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) { // para-lamas abaulados: casca aberta por baixo, larga o bastante para a roda esterçar dentro
@@ -224,11 +225,12 @@ function buildGeo(T, m, color) {
       else p.push([T.rw[1] - 0.05, belt], [-hl + 0.25, belt - 0.03], [-hl + 0.05, belt - 0.15], [-hl - 0.01, belt - 0.3], [-hl, bottom + 0.15]);
     }
     fender(p);
-    { let bodyG = nonIdx(shapeCar(extrudeProfile(p, Wb, T.shape === 'wedge' ? 0.06 : 0.1, 3), shp), color);
-      const rear = T.shape === 'wedge' ? T.rw[1] + 0.25 : T.bed ? T.rw[0] + 0.02 : T.rw[1] + 0.08;
-      bodyG = cutTop(bodyG, rear, T.ws[0] - 0.03, T.shape === 'wedge' ? 0.6 : belt - 0.15, Wb / 2 - 0.1);
-      if (T.bed) bodyG = cutTop(bodyG, -hl + 0.12, T.rw[0] - 0.12, belt - 0.15, Wb / 2 - 0.1); // caçamba aberta
-      parts.push(bodyG); } lowProfile = [p, Wb];
+    { const mk = (segs) => { let bodyG = nonIdx(shapeCar(extrudeProfile(p, Wb, T.shape === 'wedge' ? 0.06 : 0.1, segs), shp), color);
+        const rear = T.shape === 'wedge' ? T.rw[1] + 0.25 : T.bed ? T.rw[0] + 0.02 : T.rw[1] + 0.08;
+        bodyG = cutTop(bodyG, rear, T.ws[0] - 0.03, T.shape === 'wedge' ? 0.6 : belt - 0.15, Wb / 2 - 0.1);
+        if (T.bed) bodyG = cutTop(bodyG, -hl + 0.12, T.rw[0] - 0.12, belt - 0.15, Wb / 2 - 0.1); // caçamba aberta
+        return bodyG; };
+      parts.push(mk(3)); lowBodyFn = () => mk(1); } lowProfile = [p, Wb];
     const gp = T.shape === 'wedge' ? [[T.ws[0], belt - 0.01], [T.ws[1], T.roof], [T.rw[0], T.roof - 0.02], [T.rw[1] + 0.2, 0.86]] : [[T.ws[0], belt - 0.01], [T.ws[1], T.roof], [T.rw[0], T.roof], [T.rw[1], belt - 0.01]];
     glass = shapeCar(extrudeProfile(gp, Wb - (T.shape === 'wedge' ? 0.42 : 0.16), 0.0), { ...shp, glass: true });
     // teto (acompanha o estreitamento da cabine) e colunas inclinadas
@@ -290,6 +292,7 @@ function buildGeo(T, m, color) {
     parts.push(nonIdx(new THREE.BoxGeometry(gw - 0.05, 0.035, 0.16), 0x0e0e0e, M(0, belt - 0.005, T.ws[0] + 0.02))); // grade do para-brisa (cowl)
     parts.push(nonIdx(new THREE.BoxGeometry(gw * (1 - shp.tumble) + 0.02, 0.025, 0.03), 0x0a0a0a, M(0, T.roof - 0.005, T.ws[1] + 0.01))); // borracha do topo do para-brisa
   }
+  const iStart = parts.length; // daqui até iEnd: interior (não entra na versão de longe)
   // interior: bancos ajustados ao motorista, painel completo, console, forros e tapetes
   const seatC = T.chrome || T.shape === 'wedge' ? 0x5a2a1e : T.police ? 0x1e2430 : 0x2a2a2e, dashC = T.shape === 'wedge' ? 0x141414 : 0x1e1e20;
   const steerPos = [0.38, belt + 0.05 + lift, T.ws[0] - 0.55];
@@ -322,6 +325,7 @@ function buildGeo(T, m, color) {
     parts.push(nonIdx(new THREE.BoxGeometry(rsw, 0.58, 0.12), seatC, M(0, seatCfg.cushTop - lift + 0.27, rz - 0.28, -0.2, 0, 0)));
     for (const k of [-0.42, 0, 0.42]) parts.push(nonIdx(new THREE.BoxGeometry(0.24, 0.15, 0.09), seatC, M(k, seatCfg.cushTop - lift + 0.62, rz - 0.36, -0.2, 0, 0)));
   }
+  const iEnd = parts.length;
   if (T.bed) {
     const bl = T.rw[0] + hl - 0.05;
     for (const s of [-1, 1]) parts.push(nonIdx(new THREE.BoxGeometry(0.06, 0.08, bl), color, M(s * (Wb / 2 - 0.05), belt + 0.02, -hl + bl / 2 + 0.05)));
@@ -377,11 +381,17 @@ function buildGeo(T, m, color) {
   // LOD: tudo numa malha só (carros distantes)
   const wheelPos = []; for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) wheelPos.push({ x: sx * (Wb / 2 - 0.14), z: sz * wb, sx });
   // versão de longe: carroceria sem chanfro, sem interior, rodas simples (poucos triângulos)
-  const lowBody = nonIdx(shapeCar(extrudeProfile(lowProfile[0], lowProfile[1], 0), { ...shp }), color);
-  const roofLow = T.shape === 'besouro' ? null : nonIdx(new THREE.BoxGeometry(Wb * (1 - shp.tumble) - 0.1, 0.06, T.ws[1] - T.rw[0] + 0.1), color, M(0, T.roof + 0.02, (T.ws[1] + T.rw[0]) / 2));
-  const wLow = mergeGeometries([nonIdx(new THREE.CylinderGeometry(wr, wr, 0.24, 10), 0x161616, M(0, 0, 0, 0, 0, Math.PI / 2)), nonIdx(new THREE.CylinderGeometry(wr * 0.62, wr * 0.62, 0.26, 8), (WHEELS[m.wheel] || WHEELS.padrao).rim, M(0, 0, 0, 0, 0, Math.PI / 2))]);
+  // versão de longe = a MESMA lataria de perto (chanfro mais simples), sem o interior: o carro não muda de cara com a distância
+  const big = (g) => { g.computeBoundingBox(); const b = g.boundingBox; return Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) > 0.3; }; // de longe, peças pequenas (maçanetas, frisos finos) não aparecem
+  const light = (g) => big(g) && g.attributes.position.count / 3 <= 100; // peças pesadas (molduras redondas) entram em versão simples
+  const extParts = [lowBodyFn(), ...parts.slice(1, iStart).filter(light), ...parts.slice(iEnd).filter(light)];
+  if (T.shape !== 'besouro') { const flareC = T.shape === 'wedge' || T.sound === 'heavy' || m.chassis === 'offroad' ? 0x151515 : darker;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) extParts.push(nonIdx(new THREE.TorusGeometry(ar + 0.04, 0.035, 3, 8, Math.PI), flareC, M(sx * (Wb / 2 * 0.975), wy, sz * wb, 0, Math.PI / 2, 0))); }
+  const lowBody = mergeGeometries(extParts.map((g) => { const c = g.clone(); for (const k of Object.keys(c.attributes)) if (!['position', 'normal', 'color'].includes(k)) c.deleteAttribute(k); return c; }));
+  const roofLow = null;
+  const WS = WHEELS[m.wheel] || WHEELS.padrao;
+  const wLow = mergeGeometries([nonIdx(new THREE.CylinderGeometry(wr, wr, 0.24, 12), 0x161616, M(0, 0, 0, 0, 0, Math.PI / 2)), nonIdx(new THREE.CylinderGeometry(wr * 0.62, wr * 0.62, 0.245, 10), WS.rim, M(0, 0, 0, 0, 0, Math.PI / 2)), nonIdx(new THREE.CylinderGeometry(wr * 0.2, wr * 0.2, 0.25, 6), 0x55585c, M(0, 0, 0, 0, 0, Math.PI / 2))]);
   const lp = [lowBody, nonIdx(head.clone(), 0xfff0c0), nonIdx(glass.clone(), 0x1c2630), nonIdx(tail.clone(), 0x7a1010)];
-  if (roofLow) lp.push(roofLow);
   for (const w of wheelPos) lp.push(wLow.clone().applyMatrix4(new THREE.Matrix4().makeTranslation(w.x, wr, w.z)));
   // a carroceria sobe/desce com a suspensão
   const up = new THREE.Matrix4().makeTranslation(0, lift, 0);
@@ -547,53 +557,150 @@ function buildService(T, m, color) {
 }
 // ---------- motos ----------
 function buildMoto(T, m, color) {
+  // MOTOS: modelo por peças de verdade (quadro, motor, tanque, banco, rabeta, suspensões, escapamento, farol, painel)
   const wb = T.wheelBase / 2, wr = T.wr, P = [];
   const susp = m.suspLevel ?? 1; const lift = (susp - 1) * 0.04;
-  const metal = 0x2a2c30, chromeC = 0xc8ccd2;
-  const tube = (a, b, r, c) => { const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b); const d = B.clone().sub(A); const len = d.length();
-    P.push(nonIdx(new THREE.CylinderGeometry(r, r, len, 8), c, new THREE.Matrix4().compose(A.clone().add(B).multiplyScalar(0.5), new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()), new THREE.Vector3(1, 1, 1)))); };
-  const chopper = T.style === 'custom', sport = T.style === 'esportiva', scooter = T.style === 'scooter';
+  const metal = 0x26282c, chromeC = 0xd4d8de, alu = 0x9aa0a8, black = 0x111111, rubber = 0x161616;
+  const dark = new THREE.Color(color).multiplyScalar(0.55).getHex();
+  const chopper = T.style === 'custom', sport = T.style === 'esportiva', scooter = T.style === 'scooter', urb = T.style === 'urbana';
   const head = [0, chopper ? 1.0 : 0.98, wb - (chopper ? 0.45 : 0.22)];
-  // garfo dianteiro e quadro
-  // garfo: peça separada que gira junto com a roda da frente (fica por fora do pneu)
-  const FK = []; const ftube = (a, b, r, c) => { const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b); const d = B.clone().sub(A); FK.push(nonIdx(new THREE.CylinderGeometry(r, r, d.length(), 8), c, new THREE.Matrix4().compose(A.clone().add(B).multiplyScalar(0.5), new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()), new THREE.Vector3(1, 1, 1)))); };
-  for (const s of [-1, 1]) { ftube([s * 0.105, head[1] + 0.05 - wr, head[2] - wb], [s * 0.105, 0, 0], 0.025, chromeC); FK.push(nonIdx(new THREE.CylinderGeometry(0.03, 0.03, 0.05, 8), metal, M(s * 0.105, 0, 0, 0, 0, Math.PI / 2))); }
-  FK.push(nonIdx(new THREE.BoxGeometry(0.24, 0.05, 0.06), metal, M(0, head[1] - 0.05 - wr, head[2] - wb))); // mesa do garfo
-  tube(head, [0, 0.5, -0.15], 0.04, metal); tube(head, [0, 0.82, -0.2], 0.035, metal);
-  for (const s of [-1, 1]) tube([s * 0.12, 0.45, -0.15], [s * 0.13, wr, -wb], 0.03, metal); // balança traseira com dois braços, por fora do pneu
-  P.push(nonIdx(new THREE.CylinderGeometry(0.02, 0.02, 0.28, 8), metal, M(0, wr, -wb, 0, 0, Math.PI / 2))); // eixo (passa pelo cubo da roda)
-  if (!scooter) P.push(nonIdx(new THREE.BoxGeometry(0.26, 0.3, 0.42), metal, M(0, 0.48, 0.02))); // motor
-  if (!scooter) for (let i = 0; i < 4; i++) P.push(nonIdx(new THREE.BoxGeometry(0.3, 0.015, 0.36), 0x555a60, M(0, 0.38 + i * 0.07, 0.03)));
-  // tanque, banco e rabeta
-  if (scooter) { P.push(nonIdx(toCreasedNormals(new THREE.BoxGeometry(0.34, 0.5, 0.62, 2, 2, 2), 0.6), color, M(0, 0.55, 0.0))); P.push(nonIdx(toCreasedNormals(new THREE.BoxGeometry(0.3, 0.28, 0.5, 2, 2, 2), 0.6), color, M(0, 0.73, -wb + 0.05))); P.push(nonIdx(new THREE.BoxGeometry(0.3, 0.55, 0.16), color, M(0, 0.72, 0.3, -0.25, 0, 0))); }
-  else P.push(nonIdx(new THREE.SphereGeometry(1, 14, 10), color, M(0, chopper ? 0.92 : 0.95, 0.22, chopper ? -0.15 : -0.12, 0, 0, 0.17, 0.13, 0.32)));
-  P.push(nonIdx(new THREE.CapsuleGeometry(0.11, 0.42, 2, 8), 0x161616, M(0, chopper ? 0.74 : 0.9, chopper ? -0.25 : -0.32, Math.PI / 2 - (sport ? 0.15 : 0), 0, 0, 1.25, 1, 0.55)));
-  if (!chopper && !scooter) { P.push(nonIdx(toCreasedNormals(new THREE.BoxGeometry(0.22, 0.14, 0.5, 2, 2, 2), 0.6), color, M(0, sport ? 0.88 : 0.84, -0.68, sport ? 0.18 : 0.05, 0, 0))); tube([0, 0.82, -0.2], [0, 0.82, -0.8], 0.03, metal); }
-  // carenagem esportiva
-  if (sport) { P.push(nonIdx(toCreasedNormals(new THREE.ConeGeometry(0.25, 0.5, 8, 1), 0.6), color, M(0, 0.98, 0.5, -Math.PI / 2 + 0.6, 0, 0, 1, 1, 0.75))); P.push(nonIdx(new THREE.BoxGeometry(0.36, 0.34, 0.5), color, M(0, 0.6, 0.08, 0.1, 0, 0))); }
-  // para-lamas
-  FK.push(nonIdx(new THREE.TorusGeometry(wr + 0.075, 0.035, 4, 12, Math.PI * 0.6), color, M(0, 0, 0, 0, Math.PI / 2, 0.4, 1, 1, 1.6))); // para-lama da frente (gira com a roda)
-  P.push(nonIdx(new THREE.TorusGeometry(wr + 0.085, 0.035, 4, 12, Math.PI * 0.5), color, M(0, wr, -wb, 0, Math.PI / 2, Math.PI * 0.45, 1, 1, 1.6)));
-  // escapamento
-  const ex = [0.16, 0.42, -wb - 0.1]; tube([0.12, 0.35, 0.15], [0.16, 0.36, -0.3], 0.035, chromeC);
-  P.push(nonIdx(new THREE.CylinderGeometry(0.06, 0.05, 0.5, 10), chromeC, M(0.16, 0.4, -wb + 0.15, Math.PI / 2 - 0.15, 0, 0)));
-  // pedaleiras
-  for (const s of [-1, 1]) P.push(nonIdx(new THREE.BoxGeometry(0.12, 0.03, 0.06), 0x111111, M(s * 0.18, 0.36, chopper ? 0.35 : -0.05)));
+  const Q = (d) => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize());
+  const seg = (arr, a, b, r, c, n = 8, r2 = r) => { const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b); const d = B.clone().sub(A);
+    arr.push(nonIdx(new THREE.CylinderGeometry(r2, r, d.length(), n), c, new THREE.Matrix4().compose(A.clone().add(B).multiplyScalar(0.5), Q(d), new THREE.Vector3(1, 1, 1)))); };
+  const tube = (a, b, r, c, n) => seg(P, a, b, r, c, n);
+  const blob = (c, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0, ws = 14, hs = 10) => P.push(nonIdx(new THREE.SphereGeometry(1, ws, hs), c, M(x, y, z, rx, ry, rz, sx, sy, sz)));
+  const shaped = (geo, c, mtx, crease = 0.7) => P.push(nonIdx(toCreasedNormals(geo, crease), c, mtx));
+  // para-lama: arco com espessura em volta da roda (eixo X). a0/len: ângulo a partir de trás (0 = atrás, PI/2 = topo, PI = frente)
+  const fenderG = (R, a0, len, wdt, c, mtx) => nonIdx(new THREE.TorusGeometry(R, 0.03, 5, 16, len).rotateZ(a0).rotateY(Math.PI / 2).scale(wdt / 0.06, 1, 1), c, mtx);
+  // ---- garfo (gira com a roda da frente): bengalas, protetores, mesa e para-lama colado no pneu
+  const FK = []; const fx = scooter ? 0.085 : 0.1;
+  const fTop = [head[1] + 0.03 - wr, head[2] - wb];
+  for (const s of [-1, 1]) {
+    seg(FK, [s * fx, fTop[0], fTop[1]], [s * fx, wr * 0.55, 0.035], sport ? 0.03 : 0.024, sport ? 0xc8a040 : chopper ? chromeC : alu, 10); // bengala (esportiva: invertida dourada)
+    seg(FK, [s * fx, wr * 0.6, 0.03], [s * fx, 0, 0], sport ? 0.032 : 0.03, sport ? black : metal, 10); // pé do garfo
+    FK.push(nonIdx(new THREE.CylinderGeometry(0.035, 0.035, 0.05, 10), metal, M(s * fx, 0, 0, 0, 0, Math.PI / 2)));
+    if (!scooter) FK.push(nonIdx(new THREE.CylinderGeometry(wr * 0.62, wr * 0.62, 0.012, 16), 0x5a5e64, M(s * 0.06, 0, 0, 0, 0, Math.PI / 2))); // disco de freio
+  }
+  FK.push(nonIdx(new THREE.BoxGeometry(0.06, 0.08, 0.1), black, M(0.1, -0.02, -0.08))); // pinça
+  FK.push(nonIdx(new THREE.BoxGeometry(fx * 2 + 0.08, 0.045, 0.08), metal, M(0, fTop[0] - 0.03, fTop[1])));
+  FK.push(fenderG(wr + 0.07, Math.PI / 2 - 0.35, sport ? 1.15 : 1.4, scooter ? 0.15 : 0.12, color, M(0, 0, 0))); // para-lama dianteiro
+  // ---- quadro
+  const piv = [0, 0.42, -0.12]; // pivô da balança
+  if (sport) { tube(head, [0, 0.62, -0.12], 0.035, alu); } // quadro escondido pela carenagem
+  else if (!scooter) { tube(head, [0, 0.86, -0.3], 0.03, metal); tube(head, [0, 0.36, 0.2], 0.03, metal); tube([0, 0.36, 0.2], [0, 0.32, -0.15], 0.028, metal); tube([0, 0.86, -0.3], piv, 0.028, metal); }
+  // ---- balança traseira, corrente e amortecedor(es)
+  for (const s of [-1, 1]) seg(P, [s * 0.11, piv[1], piv[2]], [s * 0.13, wr, -wb], sport ? 0.035 : 0.025, sport ? alu : metal, 8, sport ? 0.045 : 0.025);
+  P.push(nonIdx(new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8), metal, M(0, wr, -wb, 0, 0, Math.PI / 2)));
+  if (!scooter) { tube([-0.1, piv[1] + 0.02, piv[2] - 0.02], [-0.1, wr + 0.03, -wb + 0.02], 0.012, 0x3a3a3a, 6); P.push(nonIdx(new THREE.CylinderGeometry(0.075, 0.075, 0.015, 14), 0x4a4a4a, M(-0.1, wr, -wb, 0, 0, Math.PI / 2))); } // corrente e coroa
+  if (sport) { seg(P, [0, 0.62, -0.3], [0, 0.44, -0.42], 0.03, 0xc8a040, 8); seg(P, [0, 0.6, -0.31], [0, 0.48, -0.4], 0.045, 0xd04a1a, 10); } // mono-amortecedor com mola
+  else for (const s of [-1, 1]) { seg(P, [s * 0.14, chopper ? 0.62 : 0.78, -wb + 0.22], [s * 0.14, wr + 0.04, -wb + 0.06], 0.022, chromeC, 8); seg(P, [s * 0.14, chopper ? 0.58 : 0.72, -wb + 0.2], [s * 0.14, wr + 0.12, -wb + 0.09], 0.04, scooter ? black : chopper ? chromeC : 0xb03020, 10); }
+  // ---- motor
+  if (sport) { // 4 cilindros em linha: bloco, cabeçote inclinado, cárter e coletores
+    shaped(new THREE.BoxGeometry(0.28, 0.2, 0.34, 2, 2, 2), metal, M(0, 0.47, 0.08));
+    shaped(new THREE.BoxGeometry(0.36, 0.2, 0.22, 2, 2, 2), 0x3a3d42, M(0, 0.62, 0.2, -0.45, 0, 0));
+    shaped(new THREE.BoxGeometry(0.3, 0.06, 0.32), 0x5a5e64, M(0, 0.3, 0.08));
+    for (let i = 0; i < 4; i++) { const x = -0.12 + i * 0.08; seg(P, [x, 0.6, 0.32], [x, 0.36, 0.42], 0.018, 0x8a6a4a, 8); seg(P, [x, 0.36, 0.42], [x * 0.3, 0.26, 0.2], 0.018, 0x8a6a4a, 8); }
+  } else if (chopper) { // V2: dois cilindros em V com aletas, cárter e filtro de ar cromado
+    blob(metal, 0, 0.4, 0.02, 0.15, 0.13, 0.2);
+    for (const [a, z] of [[0.45, 0.12], [-0.45, -0.1]]) { const base = [0, 0.48, z], top = [0, 0.48 + Math.cos(a) * 0.3, z + Math.sin(a) * 0.3];
+      seg(P, base, top, 0.075, 0x6a6e74, 12); for (let k = 1; k <= 5; k++) { const t = k / 6; P.push(nonIdx(new THREE.CylinderGeometry(0.095, 0.095, 0.012, 12), alu, new THREE.Matrix4().compose(new THREE.Vector3(base[0], base[1] + (top[1] - base[1]) * t, base[2] + (top[2] - base[2]) * t), new THREE.Quaternion().setFromEuler(new THREE.Euler(a, 0, 0)), new THREE.Vector3(1, 1, 1)))); }
+      seg(P, top, [0, top[1] + Math.cos(a) * 0.06, top[2] + Math.sin(a) * 0.06], 0.085, chromeC, 12); }
+    P.push(nonIdx(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 16), chromeC, M(0.15, 0.62, 0.02, 0, 0, Math.PI / 2)));
+  } else if (urb) { // monocilíndrico com aletas, inclinado para a frente
+    blob(metal, 0, 0.38, 0.02, 0.14, 0.12, 0.18);
+    const base = [0, 0.44, 0.1], top = [0, 0.66, 0.26]; seg(P, base, top, 0.07, 0x6a6e74, 12);
+    for (let k = 1; k <= 5; k++) { const t = k / 6; P.push(nonIdx(new THREE.CylinderGeometry(0.1, 0.1, 0.012, 12), alu, new THREE.Matrix4().compose(new THREE.Vector3(0, base[1] + (top[1] - base[1]) * t, base[2] + (top[2] - base[2]) * t), new THREE.Quaternion().setFromEuler(new THREE.Euler(0.62, 0, 0)), new THREE.Vector3(1, 1, 1)))); }
+    P.push(nonIdx(new THREE.CylinderGeometry(0.06, 0.06, 0.04, 12), 0x8a8e94, M(-0.13, 0.4, 0.02, 0, 0, Math.PI / 2)));
+  }
+  // ---- carroceria por estilo
+  let seatY, seatZ;
+  if (scooter) {
+    // escudo frontal curvo, assoalho plano, cofre traseiro arredondado e banco longo
+    blob(color, 0, 0.66, wb - 0.3, 0.2, 0.36, 0.09, -0.28, 0, 0, 16, 12); // escudo das pernas
+    blob(color, 0, 0.4, wb - 0.24, 0.17, 0.14, 0.14, 0, 0, 0, 12, 8); // base do escudo, junta com o assoalho
+    shaped(new THREE.BoxGeometry(0.34, 0.07, 0.58), 0x2a2a2a, M(0, 0.3, 0.02));
+    blob(color, 0, 0.48, -0.42, 0.22, 0.26, 0.44); blob(dark, 0, 0.3, -0.36, 0.18, 0.12, 0.34);
+    seatY = 0.78; seatZ = -0.36;
+    P.push(nonIdx(new THREE.CapsuleGeometry(0.1, 0.42, 3, 10), 0x1a1a1a, M(0, seatY, seatZ, Math.PI / 2, 0, 0, 1.25, 1, 0.55)));
+    blob(color, 0, 0.62, -0.82, 0.16, 0.1, 0.12); // rabeta
+    P.push(nonIdx(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 14), 0x3a3a3a, M(0.17, 0.34, -wb + 0.1, 0, 0, Math.PI / 2))); // tampa do variador
+    P.push(fenderG(wr + 0.07, 0.5, 1.4, 0.15, dark, M(0, wr, -wb))); // para-lama traseiro
+  } else {
+    // tanque moldado (mais largo atrás, rebaixado nas laterais), com tampa
+    const tz = chopper ? 0.24 : sport ? 0.2 : 0.22, ty = chopper ? 0.9 : sport ? 0.9 : 0.88;
+    if (sport) blob(color, 0, ty, tz - 0.08, 0.19, 0.14, 0.28, -0.2, 0, 0, 16, 10);
+    else blob(color, 0, ty, tz, chopper ? 0.15 : 0.17, chopper ? 0.13 : 0.12, chopper ? 0.3 : 0.27, chopper ? -0.12 : -0.08);
+    blob(chopper ? chromeC : dark, 0, ty + (chopper ? 0.125 : 0.12), tz + 0.06, 0.04, 0.012, 0.04);
+    if (!sport) for (const sd of [-1, 1]) P.push(nonIdx(new THREE.BoxGeometry(0.005, 0.05, 0.16), chopper ? chromeC : 0xf0f0f0, M(sd * (chopper ? 0.148 : 0.168), ty, tz + 0.02))); // emblema/faixa do tanque
+    seatY = chopper ? 0.74 : 0.9; seatZ = chopper ? -0.25 : -0.32;
+    if (chopper) { // banco baixo em degrau com encosto do garupa
+      P.push(nonIdx(new THREE.CapsuleGeometry(0.12, 0.2, 3, 10), 0x1a1210, M(0, seatY, seatZ, Math.PI / 2, 0, 0, 1.3, 1, 0.5)));
+      P.push(nonIdx(new THREE.CapsuleGeometry(0.09, 0.18, 3, 10), 0x1a1210, M(0, seatY + 0.07, seatZ - 0.32, Math.PI / 2, 0, 0, 1.2, 1, 0.5)));
+      seg(P, [-0.12, seatY + 0.05, seatZ - 0.45], [-0.12, seatY + 0.42, seatZ - 0.52], 0.015, chromeC, 6); seg(P, [0.12, seatY + 0.05, seatZ - 0.45], [0.12, seatY + 0.42, seatZ - 0.52], 0.015, chromeC, 6); seg(P, [-0.12, seatY + 0.42, seatZ - 0.52], [0.12, seatY + 0.42, seatZ - 0.52], 0.015, chromeC, 6);
+      P.push(fenderG(wr + 0.08, 0.25, 1.75, 0.2, color, M(0, wr, -wb))); // para-lama traseiro largo
+    } else {
+      P.push(nonIdx(new THREE.CapsuleGeometry(0.1, sport ? 0.3 : 0.44, 3, 10), 0x161616, M(0, seatY, seatZ, Math.PI / 2 - (sport ? 0.12 : 0.02), 0, 0, 1.2, 1, 0.5)));
+      if (sport) P.push(nonIdx(new THREE.CapsuleGeometry(0.07, 0.14, 3, 8), 0x161616, M(0, seatY + 0.07, seatZ - 0.34, Math.PI / 2 - 0.2, 0, 0, 1.1, 1, 0.5)));
+      // rabeta: cone afinando para trás, com lanterna
+      const rz = sport ? -0.66 : -0.62, rl = sport ? 0.52 : 0.4;
+      if (sport) blob(color, 0, seatY + 0.04, rz - 0.04, 0.11, 0.08, 0.3, -0.28, 0, 0, 12, 8); else shaped(new THREE.CylinderGeometry(0.035, 0.13, rl, 8, 1), color, M(0, seatY - 0.04, rz, Math.PI / 2 + 0.05, 0, 0, 1.1, 1, 0.7), 0.6);
+      tube([0, 0.8, -0.3], [0, 0.82, -0.82], 0.022, metal, 6);
+      if (urb) P.push(fenderG(wr + 0.07, 0.7, 1.0, 0.12, black, M(0, wr, -wb)));
+    }
+    // suporte da placa e para-lama traseiro curto (esportiva / urbana)
+    if (!chopper) { tube([0, seatY - 0.1, sport ? -0.86 : -0.8], [0, 0.6, -wb - 0.05], 0.015, black, 6); P.push(nonIdx(new THREE.BoxGeometry(0.2, 0.13, 0.01), 0xf0f0f0, M(0, 0.58, -wb - 0.07, 0.3, 0, 0))); }
+    else P.push(nonIdx(new THREE.BoxGeometry(0.2, 0.13, 0.01), 0xf0f0f0, M(0, wr + 0.2, -wb - wr - 0.06, -0.4, 0, 0)));
+    // tampas laterais
+    if (urb) for (const sd of [-1, 1]) P.push(nonIdx(new THREE.BoxGeometry(0.02, 0.15, 0.22), color, M(sd * 0.12, 0.72, -0.2, 0, 0, sd * 0.1)));
+  }
+  // ---- carenagem esportiva: bico com dois faróis, laterais e carenagem baixa
+  let glass = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+  if (sport) {
+    blob(color, 0, 0.86, 0.48, 0.18, 0.18, 0.33, 0.38, 0, 0, 16, 12); // bico da carenagem (inclinado para baixo)
+    blob(color, 0, 0.66, 0.22, 0.2, 0.27, 0.4, 0.1, 0, 0, 16, 12); // carenagem lateral (cobre o motor)
+    blob(dark, 0, 0.36, 0.14, 0.15, 0.08, 0.3, 0.05, 0, 0, 12, 8); // carenagem baixa (bacia)
+    for (const sd of [-1, 1]) {
+      blob(black, sd * 0.17, 0.7, 0.36, 0.035, 0.07, 0.12, 0.12, 0, 0, 8, 6); // entrada de ar
+      P.push(nonIdx(new THREE.BoxGeometry(0.004, 0.03, 0.42), 0xf0f0f0, M(sd * 0.2, 0.58, 0.24, 0.12, sd * 0.06, 0))); // faixa
+    }
+    glass = new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(0.15, 0.2, 0.05).rotateX(-1.0).translate(0, 1.0, 0.56);
+  }
+  // ---- escapamento
+  let ex;
+  if (chopper) { for (const [dy, dz] of [[0, 0], [0.08, 0.02]]) { tube([0.12, 0.52 + dy, 0.18 + dz], [0.17, 0.32 + dy, -0.05], 0.03, chromeC); tube([0.17, 0.32 + dy, -0.05], [0.19, 0.34 + dy, -wb - 0.12], 0.035, chromeC, 10); } ex = [0.19, 0.38, -wb - 0.12]; }
+  else if (sport) { tube([0.06, 0.26, 0.15], [0.16, 0.44, -0.38], 0.04, 0x8a6a4a); P.push(nonIdx(new THREE.CylinderGeometry(0.07, 0.06, 0.42, 6), 0x2a2a2c, M(0.17, 0.52, -0.55, Math.PI / 2 - 0.42, 0, 0))); P.push(nonIdx(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 10), 0x8a8e94, M(0.17, 0.6, -0.75, Math.PI / 2 - 0.42, 0, 0))); ex = [0.17, 0.62, -0.78]; }
+  else if (scooter) { tube([0.06, 0.3, -0.1], [0.16, 0.26, -0.45], 0.03, metal); P.push(nonIdx(new THREE.CylinderGeometry(0.06, 0.055, 0.32, 10), 0x2a2a2c, M(0.17, 0.28, -0.62, Math.PI / 2 - 0.1, 0, 0))); ex = [0.17, 0.3, -0.8]; }
+  else { tube([0.04, 0.6, 0.3], [0.08, 0.28, 0.32], 0.028, chromeC); tube([0.08, 0.28, 0.32], [0.15, 0.3, -0.25], 0.028, chromeC); P.push(nonIdx(new THREE.CylinderGeometry(0.055, 0.05, 0.45, 12), chromeC, M(0.17, 0.36, -0.5, Math.PI / 2 - 0.12, 0, 0))); P.push(nonIdx(new THREE.BoxGeometry(0.015, 0.06, 0.22), black, M(0.21, 0.37, -0.45, -0.12, 0, 0))); ex = [0.17, 0.38, -0.74]; }
+  // ---- pedaleiras, manetes de câmbio e descanso lateral
+  for (const s of [-1, 1]) { const pz = chopper ? 0.38 : scooter ? 0.05 : -0.08, py = chopper ? 0.32 : scooter ? 0.33 : 0.38; if (!scooter) { P.push(nonIdx(new THREE.CapsuleGeometry(0.018, 0.09, 2, 6), black, M(s * 0.2, py, pz, 0, 0, Math.PI / 2))); P.push(nonIdx(new THREE.CapsuleGeometry(0.015, 0.07, 2, 6), black, M(s * 0.16, py + 0.02, pz - 0.3, 0, 0, Math.PI / 2))); } }
+  seg(P, [-0.12, 0.3, -0.05], [-0.22, 0.03, -0.12], 0.012, metal, 6); // descanso lateral
   const body = mergeGeometries(P);
-  // guidão (gira com a direção)
-  const bw = chopper ? 0.8 : sport ? 0.55 : 0.7, by = chopper ? 0.35 : sport ? 0.02 : 0.12;
-  const bars = mergeGeometries([nonIdx(new THREE.CylinderGeometry(0.018, 0.018, bw, 8), 0x1a1a1a, M(0, by, 0, 0, 0, Math.PI / 2)), ...[-1, 1].map((s) => nonIdx(new THREE.CylinderGeometry(0.028, 0.028, 0.12, 8), 0x111111, M(s * bw / 2, by, 0, 0, 0, Math.PI / 2))),
-    nonIdx(new THREE.CylinderGeometry(0.02, 0.02, Math.abs(by) + 0.05, 6), chromeC, M(0, by / 2, 0)), nonIdx(new THREE.SphereGeometry(0.08, 10, 8), 0x222222, M(0, -0.05, 0.14, 0, 0, 0, 1, 1, 0.7))]);
-  const glass = sport ? new THREE.BoxGeometry(0.3, 0.22, 0.02).rotateX(-0.6).translate(0, 1.12, 0.62) : new THREE.BoxGeometry(0.01, 0.01, 0.01);
-  const headG = nonIdx(new THREE.SphereGeometry(0.07, 10, 8).translate(0, head[1] - 0.05, head[2] + 0.18), 0xffffff);
-  const tail = nonIdx(new THREE.BoxGeometry(0.12, 0.05, 0.03).translate(0, sport ? 0.92 : 0.86, -0.94), 0xffffff);
+  // ---- guidão (gira com a direção): barra, manoplas, manetes, painel, farol e retrovisores
+  const bw = chopper ? 0.82 : sport ? 0.56 : scooter ? 0.62 : 0.72, by = chopper ? 0.32 : sport ? 0.0 : 0.1, bz = chopper ? -0.12 : sport ? -0.03 : 0;
+  const BP = [nonIdx(new THREE.CylinderGeometry(0.018, 0.018, bw, 8), sport ? black : chromeC, M(0, by, bz, 0, 0, Math.PI / 2)), nonIdx(new THREE.CylinderGeometry(0.02, 0.02, Math.abs(by) + 0.06, 6), chopper ? chromeC : metal, M(0, by / 2, bz / 2))];
+  for (const s of [-1, 1]) { BP.push(nonIdx(new THREE.CylinderGeometry(0.026, 0.026, 0.12, 8), 0x111111, M(s * (bw / 2 - 0.04), by, bz, 0, 0, Math.PI / 2))); BP.push(nonIdx(new THREE.BoxGeometry(0.15, 0.012, 0.025), alu, M(s * (bw / 2 - 0.1), by - 0.01, bz + 0.07, 0, s * 0.3, 0)));
+    if (!sport) { BP.push(nonIdx(new THREE.CylinderGeometry(0.006, 0.006, 0.22, 4), black, M(s * (bw / 2 - 0.14), by + 0.1, bz - 0.02, -0.15, 0, s * 0.25))); BP.push(nonIdx(new THREE.SphereGeometry(0.04, 8, 6), black, M(s * (bw / 2 - 0.08), by + 0.21, bz - 0.04, 0, 0, 0, 1, 0.6, 0.3))); } }
+  if (scooter) BP.push(nonIdx(toCreasedNormals(new THREE.BoxGeometry(bw - 0.12, 0.1, 0.16, 2, 1, 2), 0.6), color, M(0, by, bz)));
+  if (!sport) BP.push(nonIdx(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 12), 0x1a1a1a, M(0, by + 0.04, bz - 0.04, -0.6, 0, 0))); // painel
+  const bars = mergeGeometries(BP);
+  // farol: redondo (custom/urbana), integrado (scooter), duplo na carenagem (esportiva)
+  const hp = []; if (sport) for (const sd of [-1, 1]) hp.push(new THREE.BoxGeometry(0.08, 0.05, 0.03).rotateX(-0.5).translate(sd * 0.06, 0.94, 0.78));
+  else if (scooter) hp.push(new THREE.BoxGeometry(0.16, 0.07, 0.03).translate(0, head[1] - 0.02, head[2] + 0.13));
+  else { hp.push(new THREE.SphereGeometry(chopper ? 0.09 : 0.075, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2).translate(0, head[1] - 0.06, head[2] + 0.17)); }
+  const headG = mergeGeometries(hp.map((g) => nonIdx(g, 0xffffff)));
+  if (!sport && !scooter) { P.length = 0; blob(chromeC, 0, head[1] - 0.06, head[2] + 0.12, chopper ? 0.1 : 0.085, chopper ? 0.1 : 0.085, 0.07); } // carcaça do farol
+  const headShell = !sport && !scooter ? mergeGeometries(P) : null;
+  const tailZ = chopper ? -wb - wr - 0.02 : scooter ? -0.94 : sport ? -0.92 : -0.86, tailY = chopper ? wr + 0.3 : scooter ? 0.62 : seatY - 0.02 + (sport ? 0.1 : 0);
+  const tail = nonIdx(new THREE.BoxGeometry(0.13, 0.05, 0.03).translate(0, tailY, tailZ), 0xffffff);
+  const bodyAll = headShell ? mergeGeometries([body, headShell]) : body;
   const wheelPos = [{ x: 0, z: wb, sx: 1 }, { x: 0, z: -wb, sx: 1 }];
-  const wg = wheelGeo(wr, m.wheel, true);
-  const lp = [body.clone(), headG.clone(), tail.clone()];
-  for (const w of wheelPos) lp.push(wg.clone().applyMatrix4(new THREE.Matrix4().makeTranslation(0, wr, w.z)));
-  const up = new THREE.Matrix4().makeTranslation(0, lift, 0); for (const g of [body, glass, headG, tail]) g.applyMatrix4(up); for (let i = 0; i < 3; i++) lp[i].applyMatrix4(up);
-  return { fork: mergeGeometries(FK), body, glass, head: headG, tail, door: null, lod: mergeGeometries(lp), wheelPos, lift, exhausts: [[ex[0], ex[1] + lift, ex[2]]], bars,
-    seat: [0, (chopper ? 0.74 : 0.9) + lift - 0.86, chopper ? -0.28 : -0.34], steerPos: [0, head[1] + 0.08 + lift, head[2] - 0.05] };
+  // versão de longe: mesma moto, rodas simples (o garfo e o guidão entram parados)
+  const wl = mergeGeometries([nonIdx(new THREE.TorusGeometry(wr * 0.86, wr * 0.15, 5, 12), rubber, M(0, 0, 0, 0, Math.PI / 2, 0)), nonIdx(new THREE.CylinderGeometry(wr * 0.72, wr * 0.72, 0.04, 10), 0x6a6e74, M(0, 0, 0, 0, 0, Math.PI / 2))]);
+  const lp = [bodyAll.clone(), headG.clone(), tail.clone(), mergeGeometries(FK).clone().applyMatrix4(new THREE.Matrix4().makeTranslation(0, wr, wb)), bars.clone().applyMatrix4(new THREE.Matrix4().makeTranslation(0, head[1] + 0.08, head[2] - 0.05))];
+  for (const w of wheelPos) lp.push(wl.clone().applyMatrix4(new THREE.Matrix4().makeTranslation(0, wr, w.z)));
+  const up = new THREE.Matrix4().makeTranslation(0, lift, 0); for (const g of [bodyAll, glass, headG, tail]) g.applyMatrix4(up); for (let i = 0; i < 3; i++) lp[i].applyMatrix4(up); lp[4].applyMatrix4(up);
+  return { fork: mergeGeometries(FK), body: bodyAll, glass, head: headG, tail, door: null, lod: mergeGeometries(lp), wheelPos, lift, exhausts: [[ex[0], ex[1] + lift, ex[2]]], bars,
+    seat: [0, seatY + lift - 0.86, seatZ - 0.02], steerPos: [0, head[1] + 0.08 + lift, head[2] - 0.05] };
 }
 
 let carIdCounter = 0;
