@@ -216,6 +216,9 @@ document.addEventListener('wheel', (e) => { if (G.cam && started && !paused && !
 const overlayOpen = () => G.phone.open || G.docOpen || $('dialog-choices').children.length > 0 || $('slots').style.display === 'flex';
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === renderer.domElement;
+  // liberação do mouse pedida pelo próprio jogo (menu de loja, celular, documento): não é pausa,
+  // mesmo que o aviso chegue depois de o menu já ter fechado (escolha rápida pelo teclado)
+  if (!locked && G._selfUnlock) { G._selfUnlock = false; if (!overlayOpen() && G._relock && started && !paused) requestLock(); return; }
   if (!locked && started && !overlayOpen()) showPause(true);
 });
 renderer.domElement.addEventListener('click', () => { if (started && !paused && !overlayOpen()) requestLock(); if (G.story) G.story.advance = true; });
@@ -224,7 +227,7 @@ renderer.domElement.addEventListener('mousedown', (e) => { if (!locked) return; 
 window.addEventListener('mouseup', (e) => { if (e.button === 0) mouseFire = false; if (e.button === 2) mouseAim = false; });
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 function requestLock() { try { const p = renderer.domElement.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* ignore */ } }
-G.unlockPointer = () => { G._relock = locked; if (locked) document.exitPointerLock?.(); };
+G.unlockPointer = () => { G._relock = locked; if (locked) { G._selfUnlock = true; document.exitPointerLock?.(); } };
 G.relockPointer = () => { if (G._relock && started && !paused) requestLock(); };
 const down = (...c) => c.some((k) => keys.has(k));
 const hit = (...c) => c.some((k) => pressed.has(k));
@@ -1750,7 +1753,10 @@ function step(dt) {
   const startM = started ? updateStartMarkers() : null;
   if (p.mode === 'foot') {
     let npc = null, nd = 2.2;
-    for (const n of G.npcs) { if (!n.interactable || !n.alive || n.inCar || n.team === 'enemy') continue; const d = Math.hypot(n.x - p.x, n.z - p.z); if (d < nd) { nd = d; npc = n; } }
+    for (const n of G.npcs) { if (!n.interactable || !n.alive || n.inCar || n.team === 'enemy') continue; let d = Math.hypot(n.x - p.x, n.z - p.z);
+      // atendente atrás do balcão: alcance maior (o balcão deixa o jogador a ~2 m), só pela frente dele
+      if (n.role === 'shop' && d < 3.4 && ((p.x - n.x) * Math.sin(n.heading) + (p.z - n.z) * Math.cos(n.heading)) > 0.8 && Math.abs(p.y - n.y) < 1) d = Math.min(d, 2.0);
+      if (d < nd) { nd = d; npc = n; } }
     const car = G.carsLocked ? null : nearestCar();
     const H = G.city.ethanHouse; const lm = G.city.landmarks;
     const nearHosp = lm.find((l) => l.kind === 'hospital' && Math.hypot(l.x - p.x, l.z - p.z) < 5);

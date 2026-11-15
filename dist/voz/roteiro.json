@@ -33,7 +33,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:1229"
+   "main.js:1232"
   ],
   "telefone": false,
   "gravado": false
@@ -46,7 +46,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:1229"
+   "main.js:1232"
   ],
   "telefone": false,
   "gravado": false
@@ -657,7 +657,7 @@
   "tom": "enfático",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:884"
+   "main.js:887"
   ],
   "telefone": false,
   "gravado": false
@@ -670,7 +670,7 @@
   "tom": "enfático",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:989"
+   "main.js:992"
   ],
   "telefone": false,
   "gravado": false
@@ -683,7 +683,7 @@
   "tom": "enfático",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:989"
+   "main.js:992"
   ],
   "telefone": false,
   "gravado": false
@@ -1073,7 +1073,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:472"
+   "main.js:475"
   ],
   "telefone": false,
   "gravado": false
@@ -1086,7 +1086,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:472"
+   "main.js:475"
   ],
   "telefone": false,
   "gravado": false
