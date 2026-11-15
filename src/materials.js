@@ -14,7 +14,7 @@ export function macroVariation(mat, kind) {
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = (sh, r) => {
     if (prev) prev(sh, r);
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vMacroXZ;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n{ vec4 mw = modelMatrix * vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\n mw = modelMatrix * instanceMatrix * vec4(transformed, 1.0);\n#endif\n vMacroXZ = mw.xz; }');
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vMacroXZ; varying float vMacroY;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n{ vec4 mw = modelMatrix * vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\n mw = modelMatrix * instanceMatrix * vec4(transformed, 1.0);\n#endif\n vMacroXZ = mw.xz; vMacroY = mw.y; }');
     let f;
     if (kind === 'grass') f = `{ float a = mvNoise(vMacroXZ * 0.035), b = mvNoise(vMacroXZ * 0.13 + 7.3), c = mvNoise(vMacroXZ * 0.6);
       vec3 dry = diffuseColor.rgb * vec3(1.18, 1.08, 0.72); vec3 lush = diffuseColor.rgb * vec3(0.78, 0.92, 0.80);
@@ -22,8 +22,9 @@ export function macroVariation(mat, kind) {
       diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), diffuseColor.rgb, 0.82); }`;
     else if (kind === 'asphalt') f = `{ float a = mvNoise(vMacroXZ * 0.05), b = mvNoise(vMacroXZ * 0.21 + 3.1), c = mvNoise(vMacroXZ * 1.7);
       float patchK = smoothstep(0.62, 0.66, b) * 0.10; diffuseColor.rgb *= (0.9 + 0.16 * a) * (1.0 - patchK) * (0.97 + 0.06 * c); }`;
+    else if (kind === 'plaster') f = `{ float a = mvNoise(vMacroXZ * 1.3 + vMacroY * 1.1), b = mvNoise(vMacroXZ * 7.0 - vMacroY * 6.0); diffuseColor.rgb *= 0.95 + 0.06 * a + 0.04 * (b - 0.5); }`;
     else f = `{ float a = mvNoise(vMacroXZ * 0.07), b = mvNoise(vMacroXZ * 0.45 + 5.0); diffuseColor.rgb *= 0.9 + 0.12 * a + 0.05 * (b - 0.5); }`;
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vMacroXZ;' + MACRO_GLSL).replace('#include <map_fragment>', '#include <map_fragment>\n' + f);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vMacroXZ; varying float vMacroY;' + MACRO_GLSL).replace('#include <map_fragment>', '#include <map_fragment>\n' + f);
   };
   mat.customProgramCacheKey = () => 'macro-' + kind + (mat.polygonOffset ? 'po' : '');
   return mat;
@@ -96,8 +97,8 @@ export function mats() {
   nightMats.push({ mat: M.pool, opacity: true, base: 0, night: 1 });
   const swt = new THREE.CanvasTexture(shopWindowCanvas()); swt.colorSpace = THREE.SRGBColorSpace; swt.anisotropy = 4;
   M.shopWin = night(new THREE.MeshPhongMaterial({ map: swt, emissiveMap: swt, emissive: 0xffffff, emissiveIntensity: 0.08, color: 0xbbbbbb, specular: 0x888888, shininess: 90, envMap: envRT.texture, combine: THREE.MixOperation, reflectivity: 0.3 }), 0.08, 0.85);
-  M.interior = lam({ color: 0xe8e0d0, emissive: 0x2a2620 });
-  M.ceiling = lam({ color: 0xf2eee6, emissive: 0x9a968e }, { castShadow: false }); // forro (iluminado pelas luminárias)
+  M.interior = lam({ map: TX.plasterTex(), emissive: 0x3a352c });
+  M.ceiling = lam({ map: TX.ceilingTileTex(), color: 0xf6f2ea, emissive: 0x8a867e }, { castShadow: false }); // forro de placas (iluminado pelas luminárias)
   M.interiorFloor = new THREE.MeshPhongMaterial({ map: TX.tileFloorTex(), emissive: 0x1a1814, specular: 0x2a2826, shininess: 40 }); M.interiorFloor.userData.castShadow = false;
   M.interiorWood = lam({ map: TX.woodTex(), emissive: 0x1a140e }, { castShadow: false });
   M.ceilingLight = night(lam({ color: 0xffffff, emissive: 0xfff4e0, emissiveIntensity: 0.8 }, { castShadow: false }), 0.8, 1.2);
@@ -129,6 +130,7 @@ export function mats() {
   M.graffiti = lam({ map: GA.texture, transparent: true, alphaTest: 0.25, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }, { castShadow: false });
   M.graffitiRegions = GA.regions;
   M.flatIn = lam({ vertexColors: true, emissive: 0x2a2622 }); // tinta das paredes internas e móveis (levemente iluminados)
+  macroVariation(M.flatIn, 'plaster');
   M.glowVC = new THREE.MeshBasicMaterial({ vertexColors: true }); M.glowVC.userData.castShadow = false; // vitrais, telas (cor por vértice, sem luz)
   const HA = homeAtlas();
   M.home = night(lam({ map: HA.texture, emissiveMap: HA.texture, emissive: 0xffffff, emissiveIntensity: 0.12 }), 0.12, 0.3);

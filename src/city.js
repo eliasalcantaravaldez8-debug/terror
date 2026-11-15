@@ -1117,10 +1117,10 @@ export class City {
     for (let i = -1; i <= 1; i += 2) f.add(box(w * 0.5, 0.05, 0.4), M.ceilingLight, 0, y0 + H - 0.05, i * d / 4);
     // paredes (externa = textura de fachada, interna = clara)
     f.box(wallMat, 0, y0, -d / 2 + t / 2, w, H, t, true, 24, 25.6);
-    f.box(M.interior, 0, y0, -d / 2 + t + 0.01, w - 0.6, H - 0.1, 0.02, false);
+    f.box(M.interior, 0, y0, -d / 2 + t + 0.03, w - 0.6, H - 0.1, 0.02, false);
     for (const s of [-1, 1]) {
       f.box(wallMat, s * (w / 2 - t / 2), y0, 0, t, H, d, true, 24, 25.6);
-      f.box(M.interior, s * (w / 2 - t - 0.01), y0, 0, 0.02, H - 0.1, d - 0.6, false);
+      f.box(M.interior, s * (w / 2 - t - 0.03), y0, 0, 0.02, H - 0.1, d - 0.6, false);
     }
     // frente: vidros + porta aberta no centro
     const door = 1.8; const side = (w - door) / 2;

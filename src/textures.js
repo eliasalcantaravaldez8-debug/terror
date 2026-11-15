@@ -507,6 +507,26 @@ export function shopWindowTex() {
   });
 }
 
+// reboco pintado de parede interna: manchas suaves, rolo de pintura e pequenas imperfeições (2 m por repetição)
+export function plasterTex() {
+  return cached('plaster', () => {
+    const [c, g] = canvas(256, 256); g.fillStyle = '#f3ede0'; g.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 90; i++) { const x = rand() * 256, y = rand() * 256, r = rr(15, 60); const gr = g.createRadialGradient(x, y, 0, x, y, r); const d = rand() < 0.5; gr.addColorStop(0, d ? 'rgba(120,105,80,0.03)' : 'rgba(255,255,255,0.04)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+    speckle(g, 256, 256, 700, ['rgba(80,70,55,0.06)', 'rgba(255,255,255,0.12)'], 1.0);
+    noise(g, 256, 256, 3);
+    return toTex(c);
+  });
+}
+// forro de placas 62,5 cm com perfil metálico e textura acústica (4 m por repetição)
+export function ceilingTileTex() {
+  return cached('ceilingTile', () => {
+    const [c, g] = canvas(256, 256); g.fillStyle = '#ecebe6'; g.fillRect(0, 0, 256, 256);
+    speckle(g, 256, 256, 2600, ['rgba(110,105,95,0.25)', 'rgba(150,145,135,0.2)'], 1.1);
+    g.fillStyle = '#9c9c98'; const n = 6.4, st = 256 / n; for (let i = 0; i <= n; i++) { g.fillRect(i * st - 1.5, 0, 3, 256); g.fillRect(0, i * st - 1.5, 256, 3); }
+    for (let i = 0; i < 6; i++) { const x = Math.floor(rand() * n) * st, y = Math.floor(rand() * n) * st; g.fillStyle = 'rgba(160,140,100,0.08)'; g.fillRect(x + 2, y + 2, st - 4, st - 4); } // placas mais amareladas
+    return toTex(c);
+  });
+}
 export function tileFloorTex() {
   return cached('tilefloor', () => {
     // porcelanato 60x60 com rejunte, leve variação por peça e manchas de uso
