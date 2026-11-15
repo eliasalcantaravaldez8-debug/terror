@@ -6,19 +6,21 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
+import { Atmosphere, ShaftsShader } from './Atmosphere.js';
 
 export const QUALITY_PRESETS = {
-  low: { pixelRatio: 0.75, shadows: true, shadowSize: 1024, shadowRange: 30, post: false, bloom: false, msaa: 0, rain: 700, particles: 0.5, fogBoost: 1.25, farLights: false },
-  medium: { pixelRatio: 1.0, shadows: true, shadowSize: 2048, shadowRange: 45, post: true, bloom: true, ao: false, msaa: 2, rain: 1600, particles: 0.8, fogBoost: 1.0, farLights: true },
-  ultra: { pixelRatio: 2.0, shadows: true, shadowSize: 4096, shadowRange: 75, post: true, bloom: true, ao: true, msaa: 4, rain: 4200, particles: 1.25, fogBoost: 0.9, farLights: true },
-  high: { pixelRatio: 1.5, shadows: true, shadowSize: 4096, shadowRange: 60, post: true, bloom: true, ao: true, msaa: 4, rain: 3000, particles: 1.0, fogBoost: 1.0, farLights: true },
+  low: { clouds: false, flare: false, shafts: false, pixelRatio: 0.75, shadows: true, shadowSize: 1024, shadowRange: 30, post: false, bloom: false, msaa: 0, rain: 700, particles: 0.5, fogBoost: 1.25, farLights: false },
+  medium: { shafts: false, pixelRatio: 1.0, shadows: true, shadowSize: 2048, shadowRange: 45, post: true, bloom: true, ao: false, msaa: 2, rain: 1600, particles: 0.8, fogBoost: 1.0, farLights: true },
+  ultra: { shafts: true, pixelRatio: 2.0, shadows: true, shadowSize: 4096, shadowRange: 75, post: true, bloom: true, ao: true, msaa: 4, rain: 4200, particles: 1.25, fogBoost: 0.9, farLights: true },
+  high: { shafts: true, pixelRatio: 1.5, shadows: true, shadowSize: 4096, shadowRange: 60, post: true, bloom: true, ao: true, msaa: 4, rain: 3000, particles: 1.0, fogBoost: 1.0, farLights: true },
 };
 
 /** Lighting presets per time of day. */
 export const TIME_OF_DAY = {
-  morning: { elevation: 9, azimuth: 120, turbidity: 9, rayleigh: 1.6, mie: 0.012, sun: 0xffd2a1, sunI: 2.4, sky: 0xb9c6d2, ground: 0x4a4136, hemiI: 0.75, fog: 0x9ea4a6, fogD: 0.0062, exposure: 1.0, rain: 0.6 },
-  dawn: { elevation: 4, azimuth: 95, turbidity: 8, rayleigh: 2.6, mie: 0.02, sun: 0xffb07a, sunI: 1.9, sky: 0x9cadc4, ground: 0x3a3a3c, hemiI: 0.62, fog: 0xa3abb4, fogD: 0.0082, exposure: 0.95, rain: 0.2 },
-  dusk: { elevation: 2.5, azimuth: 255, turbidity: 13, rayleigh: 3.4, mie: 0.022, sun: 0xff8040, sunI: 1.6, sky: 0x76829a, ground: 0x2c2622, hemiI: 0.55, fog: 0x6e6870, fogD: 0.0075, exposure: 0.92, rain: 0.85 },
+  morning: { elevation: 9, azimuth: 120, turbidity: 9, rayleigh: 1.6, mie: 0.012, sun: 0xffd2a1, sunI: 2.4, sky: 0xb9c6d2, ground: 0x4a4136, hemiI: 0.75, fog: 0x9ea4a6, fogD: 0.0062, exposure: 1.0, rain: 0.6, cloudCover: 0.42, cloudDensity: 0.95, shafts: 0.55, tint: [1.03, 1.0, 0.95], lift: [0.0, 0.0, 0.01] },
+  dawn: { elevation: 4, azimuth: 95, turbidity: 8, rayleigh: 2.6, mie: 0.02, sun: 0xffb07a, sunI: 1.9, sky: 0x9cadc4, ground: 0x3a3a3c, hemiI: 0.62, fog: 0xa3abb4, fogD: 0.0082, exposure: 0.95, rain: 0.2, cloudCover: 0.5, cloudDensity: 0.8, shafts: 1.0, tint: [1.02, 0.98, 1.03], lift: [0.012, 0.008, 0.02] },
+  overcast: { elevation: 28, azimuth: 160, turbidity: 18, rayleigh: 0.9, mie: 0.03, sun: 0xd9dde2, sunI: 1.15, sky: 0xaab4c0, ground: 0x4a4a46, hemiI: 0.95, fog: 0x9aa2aa, fogD: 0.0042, exposure: 1.0, rain: 0, cloudCover: 0.22, cloudDensity: 1.0, shafts: 0.15, tint: [0.97, 1.0, 1.04], lift: [0.004, 0.008, 0.014] },
+  dusk: { elevation: 2.5, azimuth: 255, turbidity: 13, rayleigh: 3.4, mie: 0.022, sun: 0xff8040, sunI: 1.6, sky: 0x76829a, ground: 0x2c2622, hemiI: 0.55, fog: 0x6e6870, fogD: 0.0075, exposure: 0.92, rain: 0.85, cloudCover: 0.36, cloudDensity: 1.0, shafts: 1.1, tint: [1.08, 0.97, 0.9], lift: [0.0, 0.006, 0.018] },
 };
 
 /** Cinematic grade: vignette, contrast, subtle desaturation, film grain, damage tint. */
@@ -31,11 +33,13 @@ const GradeShader = {
     uSaturation: { value: 0.86 },
     uFlash: { value: 0 },
     uCA: { value: 0.0012 },
+    uTint: { value: new THREE.Vector3(1, 1, 1) },
+    uLift: { value: new THREE.Vector3(0, 0, 0) },
     uTexel: { value: new THREE.Vector2(1 / 1920, 1 / 1080) },
   },
   vertexShader: /* glsl */`varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
   fragmentShader: /* glsl */`
-    uniform sampler2D tDiffuse; uniform float uTime, uVignette, uDamage, uSaturation, uFlash, uCA; uniform vec2 uTexel; varying vec2 vUv;
+    uniform sampler2D tDiffuse; uniform float uTime, uVignette, uDamage, uSaturation, uFlash, uCA; uniform vec2 uTexel; uniform vec3 uTint, uLift; varying vec2 vUv;
     float rand(vec2 c){ return fract(sin(dot(c, vec2(12.9898,78.233))) * 43758.5453); }
     void main(){
       vec4 c = texture2D(tDiffuse, vUv);
@@ -48,7 +52,7 @@ const GradeShader = {
       col += (col - blur) * 0.35;
       float l = dot(col, vec3(0.299,0.587,0.114));
       col = mix(vec3(l), col, uSaturation - uDamage*0.5);
-      col = mix(col, col*vec3(1.04,1.0,0.94), 0.6);           // warm highlights
+      col = col * uTint + uLift * (1.0 - l);                  // per time-of-day grade (tint + shadow lift)
       col = (col - 0.5) * 1.06 + 0.5;                          // contrast
       vec2 d = vUv - 0.5;
       float v = smoothstep(0.85, 0.2, length(d) * (1.0 + uVignette));
@@ -83,6 +87,8 @@ export class RenderPipeline {
 
     this._setupEnvironment();
     this.timeOfDay = 'morning';
+    this.atmosphere = new Atmosphere(this);
+    this.atmosphere.configure(TIME_OF_DAY.morning);
     this.applyQuality(settings.get('quality'));
     window.addEventListener('resize', () => this.resize());
     this.resize();
@@ -178,6 +184,8 @@ export class RenderPipeline {
     this.scene.environment = this.envMap;
     this.vmScene.environment = this.envMap;
     old?.dispose();
+    this.atmosphere?.configure(t);
+    if (this.grade) { this.grade.uniforms.uTint.value.fromArray(t.tint || [1, 1, 1]); this.grade.uniforms.uLift.value.fromArray(t.lift || [0, 0, 0]); }
     return t;
   }
 
@@ -201,6 +209,7 @@ export class RenderPipeline {
     cam.updateProjectionMatrix();
     this.scene.fog.density = this.baseFogDensity * q.fogBoost;
     this._buildComposer();
+    this.atmosphere?.setQuality(q);
     this.scene.traverse((o) => { if (o.material) { const m = Array.isArray(o.material) ? o.material : [o.material]; m.forEach((mm) => (mm.needsUpdate = true)); } });
     this.resize();
   }
@@ -224,6 +233,8 @@ export class RenderPipeline {
       composer.addPass(ao);
       this.ao = ao;
     }
+    this.shafts = null;
+    if (q.shafts) { this.shafts = new ShaderPass(ShaftsShader); composer.addPass(this.shafts); }
     const vm = new RenderPass(this.vmScene, this.vmCamera);
     vm.clear = false;
     vm.clearDepth = true;
@@ -233,6 +244,9 @@ export class RenderPipeline {
       composer.addPass(this.bloom);
     }
     this.grade = new ShaderPass(GradeShader);
+    const tod = TIME_OF_DAY[this.timeOfDay] || TIME_OF_DAY.morning;
+    this.grade.uniforms.uTint.value.fromArray(tod.tint || [1, 1, 1]);
+    this.grade.uniforms.uLift.value.fromArray(tod.lift || [0, 0, 0]);
     composer.addPass(this.grade);
     composer.addPass(new OutputPass());
     this.composer = composer;
@@ -273,6 +287,7 @@ export class RenderPipeline {
 
   render(dt, fx = {}) {
     const r = this.renderer;
+    this.atmosphere?.update(dt, this.camera, this.shafts);
     // the shadow map (whole nearby city) is refreshed every other frame: halves its cost,
     // moving shadows still update at half the frame rate which is not noticeable
     r.shadowMap.autoUpdate = false;

@@ -29,6 +29,12 @@
       sombras a cada 2 quadros, HUD sem reescritas desnecessárias, menos alocações
 - [x] Vozes neurais/naturais com gênero certo por personagem; dificuldade um pouco maior
 
-## Etapa 5 — Campanha (≈10 missões, ≈5 h)
+## Etapa 5 — Missão 4 "Céu Cinzento" + atmosfera (FEITO)
+- [x] Nuvens volumétricas, raios de sol, reflexo de lente, gradação de cor por horário
+- [x] Terreno de montanha (vale de Kessel) com estrada, pinheiros e rochas
+- [x] Metralhadora de porta (giro, superaquecimento, acerto no terreno), baterias antiaéreas, comboio
+- [x] Base de radar com bunkers, hangar, cúpula, pista e o jato do Serrat
+
+## Etapa 6 — Campanha (≈10 missões, ≈5 h)
 1. Primeiro Contato (Teresk) · 2. Sinal Morto · 3. Porto de Vareny · 4. Céu Cinzento (helicóptero)
 5. Infiltração noturna · 6. Comboio · 7. Queda (traição) · 8. Montanha · 9. Cerco · 10. Iron Shadow

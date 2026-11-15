@@ -65,7 +65,7 @@ export class Mission03 extends MissionBase {
     this.number = 3;
     this.completeText = {
       top: 'MISSÃO 3 CONCLUÍDA', main: 'PORTO DE VARENY',
-      body: 'O homem por trás do VÉRTICE tem nome: General Aldo Serrat, vice-comandante da coalizão.<br>O Kestrel Star afundou com parte das provas — mas a equipe Iron saiu viva, e agora sabe quem caçar.<br><b>Continua na Missão 4 — Céu Cinzento.</b>',
+      body: 'O homem por trás do VÉRTICE tem nome: General Aldo Serrat, vice-comandante da coalizão.<br>O Kestrel Star afundou com parte das provas — mas a equipe Iron saiu viva, e agora sabe quem caçar.<br><b>A seguir: Missão 4 — Céu Cinzento.</b>',
     };
     this.explosions = [];
   }

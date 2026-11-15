@@ -28,8 +28,9 @@ import { makeWeaponModel, makeGrenade } from '../weapons/WeaponModels.js';
 import { mergeStatic } from '../render/mergeUtil.js';
 import { Mission02 } from '../missions/Mission02.js';
 import { Mission03 } from '../missions/Mission03.js';
+import { Mission04 } from '../missions/Mission04.js';
 
-export const MISSION_ORDER = ['m01', 'm02', 'm03'];
+export const MISSION_ORDER = ['m01', 'm02', 'm03', 'm04'];
 
 export const DIFFICULTY = {
   normal: { playerDamage: 1, enemyDamage: 1.12, enemyAccuracy: 1.18, allyAccuracy: 1, tokens: 2, regenDelay: 5.0, regenRate: 26 },
@@ -75,7 +76,7 @@ export class Game {
     await nextFrame();
     // one navigation grid + cover set per map region
     this.regions = {};
-    for (const [name, b] of Object.entries({ teresk: { minX: -75, minZ: -212, maxX: 138, maxZ: 78 }, port: { minX: 925, minZ: -96, maxX: 1175, maxZ: 155 } })) {
+    for (const [name, b] of Object.entries({ teresk: { minX: -75, minZ: -212, maxX: 138, maxZ: 78 }, port: { minX: 925, minZ: -96, maxX: 1175, maxZ: 155 }, base: { minX: -1885, minZ: -80, maxX: -1715, maxZ: 80 } })) {
       const nav = new NavGrid(this.world, { ...b, cell: 0.75, agentRadius: 0.42 });
       const cover = new CoverSystem(this.world, nav);
       cover.build();
@@ -101,7 +102,7 @@ export class Game {
     this.fade = new Fade(document.getElementById('fade'));
     onProgress(0.85, 'Preparando a missão');
     await nextFrame();
-    this.missions = { m01: new Mission01(this), m02: new Mission02(this), m03: new Mission03(this) };
+    this.missions = { m01: new Mission01(this), m02: new Mission02(this), m03: new Mission03(this), m04: new Mission04(this) };
     this.mission = this.missions.m01;
     this.interactables = this.city.interactables;
 

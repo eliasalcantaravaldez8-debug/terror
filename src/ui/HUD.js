@@ -10,6 +10,7 @@ export class HUD {
     const root = document.getElementById('hud');
     this.root = root;
     root.innerHTML = `
+      <div id="gunner"><div class="g-ring"></div><div class="g-dot"></div><div id="gun-heat"><div id="gun-heat-fill"></div></div><div id="gun-label">M-6 VENTANIA</div></div>
       <div id="scope"><div class="scope-ring"></div><div class="scope-h"></div><div class="scope-v"></div><div class="scope-dot"></div></div>
       <div id="vignette-damage"></div>
       <div id="dmg-indicators"></div>
@@ -74,6 +75,15 @@ export class HUD {
       }
     }
     this.compassStrip.innerHTML = html;
+  }
+
+  /** Door-gun reticle + heat bar (visible only while manning a mounted gun). */
+  setGunHeat(heat, over) {
+    const el = this.el('gunner');
+    this._cls(el, 'visible', true);
+    this._sty(this.el('gun-heat-fill'), 'width', `${Math.round(heat * 100)}%`);
+    this._cls(this.el('gun-heat'), 'over', !!over);
+    this._gunSeen = 2;
   }
 
   setScope(on) {
@@ -149,6 +159,7 @@ export class HUD {
 
   update(dt) {
     if (!this.visible) return;
+    if (this._gunSeen > 0 && --this._gunSeen === 0) this._cls(this.el('gunner'), 'visible', false);
     const g = this.game, p = g.player, w = g.weapons;
     const cam = g.pipeline.camera;
     // FPS

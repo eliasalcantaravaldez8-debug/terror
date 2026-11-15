@@ -4,7 +4,11 @@ FPS militar single-player em 3D — guerra moderna fictícia, 2029.
 O Capitão **Daniel Mercer** e a Força-Tarefa Iron investigam a organização
 **VÉRTICE**, responsável por ataques coordenados pelo mundo.
 
-> **Estado atual: v0.4 — Missões 1, 2 e 3 jogáveis do início ao fim.**
+> **Estado atual: v0.5 — Missões 1 a 4 jogáveis do início ao fim.**
+>
+> **Missão 4 — "Céu Cinzento"** (céu nublado): na metralhadora da porta do helicóptero
+> Falcon 2-1, destrua três baterias antiaéreas e um comboio ao longo do vale de Kessel;
+> depois, pouso e assalto à base de radar do VÉRTICE — e o Serrat foge de jato.
 >
 > **Missão 3 — "Porto de Vareny"** (amanhecer): portão, pátio de contêineres com
 > atirador no guindaste, tiroteio no cais, abordagem do cargueiro Kestrel Star pela
@@ -63,6 +67,8 @@ volumes, inverter Y, legendas, vozes provisórias, contador de FPS.
   granadas com quique e explosão.
 - **Personagens** com rosto esculpido, membros com volume, colete com
   carregadores, capacete com trilhos e jugular; inimigos com balaclava ou máscara de gás.
+- **Céu e atmosfera**: nuvens volumétricas animadas, raios de sol (Alto/Ultra), reflexo de lente,
+  correção de cor própria para manhã, nublado, entardecer e amanhecer.
 - **Gráficos**: níveis Baixo/Médio/Alto/Ultra, oclusão de ambiente (GTAO), bloom,
   aberração cromática e nitidez, janelas acesas à noite; **resolução dinâmica** mantém o FPS estável.
 - **Desempenho**: soldados como malha única com esqueleto (skinning na GPU), animação reduzida para
@@ -91,7 +97,7 @@ volumes, inverter Y, legendas, vozes provisórias, contador de FPS.
 
 ```bash
 npm test          # unitários: colisão, navegação A*, armas, saves
-npm run test:e2e  # jogatina automatizada das missões 1, 2 e 3 no Chromium + capturas
+npm run test:e2e  # jogatina automatizada das missões 1 a 4 no Chromium + capturas
 ```
 
 ## Documentação

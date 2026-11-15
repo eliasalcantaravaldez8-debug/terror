@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GeometryBatcher } from './GeometryBatcher.js';
 import { TextureFactory } from '../render/TextureFactory.js';
 import { buildPort } from './PortBuilder.js';
+import { buildValley } from './ValleyBuilder.js';
 import { mulberry32, randRange } from '../utils/math.js';
 import {
   BUILDINGS, STYLES, SHOPS, HALDEN, PROPS, BOUNDS, MISSION_RECT, ROAD,
@@ -44,6 +45,7 @@ export class CityBuilder {
     this.buildProps(PROPS);
     this.buildStation();
     buildPort(this);
+    buildValley(this);
     this.buildStreetFurniture();
     this.buildBoundaries();
     this.buildBackgroundCity();

@@ -71,8 +71,9 @@ export class Player {
   get isCrouched() { return this.crouched; }
   get moving() { return Math.hypot(this.vel.x, this.vel.z) > 0.5; }
 
-  setMount(object, offset, { yawLimit = 2.6, pitchLimit = 1.2 } = {}) {
-    this.mount = { object, offset: offset.clone(), yawLimit, pitchLimit };
+  /** baseYaw: look direction relative to the vehicle's nose (e.g. -PI/2 = out of the left door). */
+  setMount(object, offset, { yawLimit = 2.6, pitchLimit = 1.2, baseYaw = 0, pitchMin = null } = {}) {
+    this.mount = { object, offset: offset.clone(), yawLimit, pitchLimit, baseYaw, pitchMin: pitchMin ?? -pitchLimit };
     this.mountYaw = 0; this.mountPitch = -0.05;
   }
 
@@ -83,7 +84,7 @@ export class Player {
     obj.updateWorldMatrix(true, false);
     obj.getWorldQuaternion(_q);
     _e.setFromQuaternion(_q, 'YXZ');
-    this.yaw = _e.y + Math.PI + this.mountYaw;
+    this.yaw = _e.y + Math.PI + this.mount.baseYaw + this.mountYaw;
     this.pitch = this.mountPitch;
     this.mount = null;
     this.pos.copy(standPos);
@@ -142,7 +143,7 @@ export class Player {
     const dy = (invertY ? -m.y : m.y) * sens;
     if (this.mount) {
       this.mountYaw = clamp(this.mountYaw - m.x * sens, -this.mount.yawLimit, this.mount.yawLimit);
-      this.mountPitch = clamp(this.mountPitch - dy, -this.mount.pitchLimit, this.mount.pitchLimit);
+      this.mountPitch = clamp(this.mountPitch - dy, this.mount.pitchMin, this.mount.pitchLimit);
     } else {
       this.yaw -= m.x * sens;
       this.pitch = clamp(this.pitch - dy, -1.5, 1.5);
@@ -239,7 +240,7 @@ export class Player {
       obj.localToWorld(p);
       obj.getWorldQuaternion(_q);
       // vehicles face +Z locally while the camera looks down -Z: rotate by PI
-      _e.set(this.mountPitch + sy, Math.PI + this.mountYaw + sx, sr, 'YXZ');
+      _e.set(this.mountPitch + sy, Math.PI + this.mount.baseYaw + this.mountYaw + sx, sr, 'YXZ');
       const local = _mountQ.setFromEuler(_e);
       camera.position.copy(p);
       camera.quaternion.copy(_q).multiply(local);
