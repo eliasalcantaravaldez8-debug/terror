@@ -60,6 +60,13 @@ Missões com marcador azul começam quando você chega nele e aperta **E**. Miss
 - **História inicial**: fale com Ryan Cole → vá até a delegacia → fale com o delegado. As falas ficam em `src/characters.js` e são fáceis de editar.
 - **Minimapa** que gira com a câmera e mostra o objetivo (amarelo) e o seu carro (azul).
 
+## Atualização: personagens, texturas, roupas e chuva
+
+- **Personagens**: cotovelos, joelhos, ombros e quadril dobram de forma contínua (sem "encaixe de boneco"); mãos com dedos; sapatos com bico, salto e sola; jaqueta com zíper, lapelas e bolsos; trama de tecido nas roupas.
+- **Texturas**: paredes internas com reboco, forro de placas nas lojas e paredes internas sem a fachada aparecendo por dentro.
+- **Lojas de roupas, sapatarias e barbearias funcionando**: compre jaquetas, camisas, calças, bonés/capuz, calçados, corte de cabelo e barba. O visual muda na hora e fica salvo (opção grátis de voltar ao original).
+- **Clima com chuva**: começa e para sozinha (ou use os códigos CHUVA e SOL no celular). Ruas molhadas e brilhantes, céu fechado, luz difusa, neblina e som de chuva; dentro dos prédios as gotas somem e o som fica abafado.
+
 ## Atualização: lojas, veículos, motos, árvores e capítulo 17
 
 - **Lojas de comida**: o atendente agora atende de qualquer ponto do balcão (antes o [E] sumia com um passo de lado).

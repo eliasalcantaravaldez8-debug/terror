@@ -33,7 +33,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:1261"
+   "main.js:1262"
   ],
   "telefone": false,
   "gravado": false
@@ -46,7 +46,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:1261"
+   "main.js:1262"
   ],
   "telefone": false,
   "gravado": false
@@ -254,7 +254,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:146"
+   "main.js:147"
   ],
   "telefone": false,
   "gravado": false
@@ -267,7 +267,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:146"
+   "main.js:147"
   ],
   "telefone": false,
   "gravado": false
@@ -774,7 +774,7 @@
   "tom": "enfático",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:1008"
+   "main.js:1009"
   ],
   "telefone": false,
   "gravado": false
@@ -787,7 +787,7 @@
   "tom": "enfático",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:1008"
+   "main.js:1009"
   ],
   "telefone": false,
   "gravado": false
@@ -800,7 +800,7 @@
   "tom": "enfático",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:903"
+   "main.js:904"
   ],
   "telefone": false,
   "gravado": false
@@ -1047,7 +1047,7 @@
   "tom": "pergunta",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:147"
+   "main.js:148"
   ],
   "telefone": false,
   "gravado": false
@@ -1060,7 +1060,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:147"
+   "main.js:148"
   ],
   "telefone": false,
   "gravado": false
@@ -1073,7 +1073,7 @@
   "tom": "enfático",
   "contexto": "fala aleatória ao conversar",
   "onde": [
-   "main.js:151"
+   "main.js:152"
   ],
   "telefone": false,
   "gravado": false
@@ -1086,7 +1086,7 @@
   "tom": "hesitante / pensativo",
   "contexto": "fala aleatória ao conversar",
   "onde": [
-   "main.js:151"
+   "main.js:152"
   ],
   "telefone": false,
   "gravado": false
@@ -1099,7 +1099,7 @@
   "tom": "neutro",
   "contexto": "fala aleatória ao conversar",
   "onde": [
-   "main.js:151"
+   "main.js:152"
   ],
   "telefone": false,
   "gravado": false
@@ -1112,7 +1112,7 @@
   "tom": "neutro",
   "contexto": "fala aleatória ao conversar",
   "onde": [
-   "main.js:151"
+   "main.js:152"
   ],
   "telefone": false,
   "gravado": false
@@ -1125,7 +1125,7 @@
   "tom": "pergunta",
   "contexto": "fala aleatória ao conversar",
   "onde": [
-   "main.js:151"
+   "main.js:152"
   ],
   "telefone": false,
   "gravado": false
@@ -1138,7 +1138,7 @@
   "tom": "neutro",
   "contexto": "fala aleatória ao conversar",
   "onde": [
-   "main.js:151"
+   "main.js:152"
   ],
   "telefone": false,
   "gravado": false
@@ -1190,7 +1190,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:490"
+   "main.js:491"
   ],
   "telefone": false,
   "gravado": false
@@ -1203,7 +1203,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:490"
+   "main.js:491"
   ],
   "telefone": false,
   "gravado": false
@@ -1450,7 +1450,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:169"
+   "main.js:170"
   ],
   "telefone": false,
   "gravado": false
@@ -1476,7 +1476,7 @@
   "tom": "hesitante, pergunta",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:165"
+   "main.js:166"
   ],
   "telefone": false,
   "gravado": false
@@ -1489,7 +1489,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:165"
+   "main.js:166"
   ],
   "telefone": false,
   "gravado": false
@@ -1502,7 +1502,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:165"
+   "main.js:166"
   ],
   "telefone": false,
   "gravado": false
@@ -1515,7 +1515,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:165"
+   "main.js:166"
   ],
   "telefone": false,
   "gravado": false
@@ -1567,7 +1567,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:166"
+   "main.js:167"
   ],
   "telefone": false,
   "gravado": false
@@ -1580,7 +1580,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:166"
+   "main.js:167"
   ],
   "telefone": false,
   "gravado": false
@@ -1593,7 +1593,7 @@
   "tom": "hesitante / pensativo",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:166"
+   "main.js:167"
   ],
   "telefone": false,
   "gravado": false

@@ -38,6 +38,7 @@ import { EngineAudio, crowdAmbience } from './audio.js';
 import { Stadium, ST, TROPHIES } from './stadium.js';
 import { Praca } from './praca.js';
 import { Voice } from './voice.js';
+import { Weather } from './weather.js';
 import { Match, AWAYS } from './football.js';
 import { Fx } from './fx.js';
 import { Pet, BREEDS, DOG_NAMES, CAT_NAMES, warmBreeds, breedReady } from './animals.js';
@@ -187,7 +188,7 @@ function build() {
   fx = new Fx(scene); G.fx = fx;
   Object.assign(G, { plane, grass, blackwood, westhaven, world, sky, city, zones, cars, drivers, player, npcs, lights, cam, ethanCar, headlight, settings, Q, renderer, scene, camera, lampLights, glow, blobs });
   G.aiDrivers = []; G.police = [];
-  G.audio = new EngineAudio(); G.voice = new Voice(G);
+  G.audio = new EngineAudio(); G.voice = new Voice(G); G.weather = new Weather(G, scene, Q.peds > 60 ? 4500 : 2500);
   G.state = SAVE.newState();
   G.story = new Story(G);
   G.phone = new Phone(G);
@@ -1518,6 +1519,8 @@ G.cheat = (code) => {
   if (k === 'SEMFOME') { C.needs.fome = 100; return { msg: 'Fome cheia (continua descendo normalmente).' }; }
   if (k === 'VIDACHEIA') { G.player.hp = 100; C.needs.dor = 0; return { msg: 'Vida cheia.' }; }
   if (k === 'SEMPOLICIA') { G.wanted.stars = 0; return { msg: 'Procurado zerado.' }; }
+  if (k === 'CHUVA') { G.weather.start(1, 300); return { msg: 'Vai chover forte nos próximos minutos.' }; }
+  if (k === 'SOL') { G.weather.stop(); return { msg: 'O tempo vai abrir.' }; }
   if (k === 'MOEDAINFINITA') { G.addMoney(20000); C.flags.moedaInfinita = true; SAVE.writeSlot('auto', snapshot()); return { msg: 'R$ 20.000 adicionados! A partir de agora cada missão concluída dá +R$ 50.' }; }
   return { msg: 'Código inválido.' };
 };
@@ -1822,7 +1825,7 @@ function step(dt) {
   if (active && !locked2 && hit('KeyF')) playerPunch();
   punchCd -= dt; pulsoCd -= dt;
   updateEat(dt);
-  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers(); updateWrecks(dt); updatePets(dt); updateWesthaven(dt); updateBlackwoodTraffic(dt); updateStadium(dt); if (G.praca) G.praca.update(dt, G); if (G.voice) G.voice.update(dt); if (G.spawnMark) { G.spawnMark.t -= dt; if (G.spawnMark.t <= 0 || (G.car && Math.hypot(G.car.x - G.spawnMark.x, G.car.z - G.spawnMark.z) < 4)) G.spawnMark = null; }
+  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers(); updateWrecks(dt); updatePets(dt); updateWesthaven(dt); updateBlackwoodTraffic(dt); updateStadium(dt); if (G.praca) G.praca.update(dt, G); if (G.voice) G.voice.update(dt); if (G.weather && started) G.weather.update(dt); if (G.spawnMark) { G.spawnMark.t -= dt; if (G.spawnMark.t <= 0 || (G.car && Math.hypot(G.car.x - G.spawnMark.x, G.car.z - G.spawnMark.z) < 4)) G.spawnMark = null; }
   // interiores das casas: só desenha os que estão perto (o jogador ou a câmera)
   if ((interiorT -= dt) <= 0) { interiorT = 0.25; const cx = G.camera.position.x, cz = G.camera.position.z; for (const it of G.city.interiors) { const dx = it.x - p.x, dz = it.z - p.z, ex = it.x - cx, ez = it.z - cz; const R = (it.r || 40) * LODM; it.group.visible = dx * dx + dz * dz < R * R || ex * ex + ez * ez < R * R * 0.56; } }
   if (active && !locked2 && hit('KeyQ') && G.campaign().tools.pulso) {

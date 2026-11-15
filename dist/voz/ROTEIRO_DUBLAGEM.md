@@ -59,8 +59,8 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 
 | Arquivo | Fala | Tom sugerido | Onde / contexto | Status |
 |---|---|---|---|---|
-| `f92f0a810.ogg` | Ingresso para o jogo de hoje: R$ 200. | neutro | NPC (conversa ao apertar E) — main.js:1261 | **falta** |
-| `fc6b9b0ac.ogg` | Os portões abrem uma hora antes da partida. | neutro | NPC (conversa ao apertar E) — main.js:1261 | **falta** |
+| `f92f0a810.ogg` | Ingresso para o jogo de hoje: R$ 200. | neutro | NPC (conversa ao apertar E) — main.js:1262 | **falta** |
+| `fc6b9b0ac.ogg` | Os portões abrem uma hora antes da partida. | neutro | NPC (conversa ao apertar E) — main.js:1262 | **falta** |
 
 ## Blake Morrison
 
@@ -106,8 +106,8 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 
 | Arquivo | Fala | Tom sugerido | Onde / contexto | Status |
 |---|---|---|---|---|
-| `f59df2893.ogg` | Bem-vindo ao Hospital Los Valles. | neutro | NPC (conversa ao apertar E) — main.js:146 | **falta** |
-| `f917424a4.ogg` | Atendimento médico custa R$ 150. | neutro | NPC (conversa ao apertar E) — main.js:146 | **falta** |
+| `f59df2893.ogg` | Bem-vindo ao Hospital Los Valles. | neutro | NPC (conversa ao apertar E) — main.js:147 | **falta** |
+| `f917424a4.ogg` | Atendimento médico custa R$ 150. | neutro | NPC (conversa ao apertar E) — main.js:147 | **falta** |
 
 ## Ethan
 
@@ -181,9 +181,9 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 
 | Arquivo | Fala | Tom sugerido | Onde / contexto | Status |
 |---|---|---|---|---|
-| `fb9ec9289.ogg` | Socorro! Roubaram meu carro! | enfático | NPC (conversa ao apertar E) — main.js:1008 | **falta** |
-| `f2e5bc33d.ogg` | Ladrão! | enfático | NPC (conversa ao apertar E) — main.js:1008 | **falta** |
-| `f4ea31cca.ogg` | Meu carro! | enfático | NPC (conversa ao apertar E) — main.js:903 | **falta** |
+| `fb9ec9289.ogg` | Socorro! Roubaram meu carro! | enfático | NPC (conversa ao apertar E) — main.js:1009 | **falta** |
+| `f2e5bc33d.ogg` | Ladrão! | enfático | NPC (conversa ao apertar E) — main.js:1009 | **falta** |
+| `f4ea31cca.ogg` | Meu carro! | enfático | NPC (conversa ao apertar E) — main.js:904 | **falta** |
 | `fd6543cbb.ogg` | Cole me mandou te buscar. | neutro | Sete Anos Depois — missions_ethan.js:173 | **falta** |
 
 ## Número privado
@@ -227,19 +227,19 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 |---|---|---|---|---|
 | `ffea82d1e.ogg` | Delegacia de Blackwood. Em que posso ajudar? | pergunta | NPC (conversa ao apertar E) — blackwood.js:156 | **falta** |
 | `fb415cd94.ogg` | Boletim de ocorrência é ali no balcão. | neutro | NPC (conversa ao apertar E) — blackwood.js:156 | **falta** |
-| `fb22edcc5.ogg` | Delegacia de Los Valles. Em que posso ajudar? | pergunta | NPC (conversa ao apertar E) — main.js:147 | **falta** |
-| `f523a7b0e.ogg` | Se for fazer boletim, pegue uma senha. | neutro | NPC (conversa ao apertar E) — main.js:147 | **falta** |
+| `fb22edcc5.ogg` | Delegacia de Los Valles. Em que posso ajudar? | pergunta | NPC (conversa ao apertar E) — main.js:148 | **falta** |
+| `f523a7b0e.ogg` | Se for fazer boletim, pegue uma senha. | neutro | NPC (conversa ao apertar E) — main.js:148 | **falta** |
 
 ## Preso (voz genérica)
 
 | Arquivo | Fala | Tom sugerido | Onde / contexto | Status |
 |---|---|---|---|---|
-| `f87416b93.ogg` | Ei, você aí! Me tira daqui! | enfático | fala aleatória ao conversar — main.js:151 | **falta** |
-| `f399a9ab7.ogg` | Sete anos... e ainda contando. | hesitante / pensativo | fala aleatória ao conversar — main.js:151 | **falta** |
-| `f310b212d.ogg` | Não olha pra mim. | neutro | fala aleatória ao conversar — main.js:151 | **falta** |
-| `f0a2feffb.ogg` | Aqui dentro o tempo não passa. | neutro | fala aleatória ao conversar — main.js:151 | **falta** |
-| `f35726f39.ogg` | Tem cigarro? | pergunta | fala aleatória ao conversar — main.js:151 | **falta** |
-| `fe6208c95.ogg` | Eu sou inocente, juro. | neutro | fala aleatória ao conversar — main.js:151 | **falta** |
+| `f87416b93.ogg` | Ei, você aí! Me tira daqui! | enfático | fala aleatória ao conversar — main.js:152 | **falta** |
+| `f399a9ab7.ogg` | Sete anos... e ainda contando. | hesitante / pensativo | fala aleatória ao conversar — main.js:152 | **falta** |
+| `f310b212d.ogg` | Não olha pra mim. | neutro | fala aleatória ao conversar — main.js:152 | **falta** |
+| `f0a2feffb.ogg` | Aqui dentro o tempo não passa. | neutro | fala aleatória ao conversar — main.js:152 | **falta** |
+| `f35726f39.ogg` | Tem cigarro? | pergunta | fala aleatória ao conversar — main.js:152 | **falta** |
+| `fe6208c95.ogg` | Eu sou inocente, juro. | neutro | fala aleatória ao conversar — main.js:152 | **falta** |
 
 ## Professor(a)
 
@@ -253,8 +253,8 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 
 | Arquivo | Fala | Tom sugerido | Onde / contexto | Status |
 |---|---|---|---|---|
-| `f2ebddd44.ogg` | Quando estiver pronto, a gente continua. | neutro | NPC (conversa ao apertar E) — main.js:490 | **falta** |
-| `fb35bfaf3.ogg` | Cuidado lá fora, Ethan. | neutro | NPC (conversa ao apertar E) — main.js:490 | **falta** |
+| `f2ebddd44.ogg` | Quando estiver pronto, a gente continua. | neutro | NPC (conversa ao apertar E) — main.js:491 | **falta** |
+| `fb35bfaf3.ogg` | Cuidado lá fora, Ethan. | neutro | NPC (conversa ao apertar E) — main.js:491 | **falta** |
 | `ff1b8f3df.ogg` | Ethan. Sete anos... | hesitante / pensativo | Sete Anos Depois — missions_ethan.js:190 | **falta** |
 | `fbecde2a3.ogg` | O nosso antigo esconderijo já era. O grupo rival destruiu tudo. | neutro | Sete Anos Depois — missions_ethan.js:191 | **falta** |
 | `f774eee94.ogg` | Pelo que eu sei, só sobramos nós dois. | neutro | Sete Anos Depois — missions_ethan.js:192 | **falta** |
@@ -278,7 +278,7 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 
 | Arquivo | Fala | Tom sugerido | Onde / contexto | Status |
 |---|---|---|---|---|
-| `f955e6e8e.ogg` | Bom dia. Fila à esquerda, por favor. | neutro | NPC (conversa ao apertar E) — main.js:169 | **falta** |
+| `f955e6e8e.ogg` | Bom dia. Fila à esquerda, por favor. | neutro | NPC (conversa ao apertar E) — main.js:170 | **falta** |
 
 ## Torcedor
 
@@ -290,10 +290,10 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 
 | Arquivo | Fala | Tom sugerido | Onde / contexto | Status |
 |---|---|---|---|---|
-| `f82a797d6.ogg` | Psiu... tá procurando o quê? | hesitante, pergunta | NPC (conversa ao apertar E) — main.js:165 | **falta** |
-| `fec5b0b1d.ogg` | Aqui é ponto, parceiro. Se não vai comprar, vaza. | neutro | NPC (conversa ao apertar E) — main.js:165 | **falta** |
-| `f8e29f004.ogg` | Tá com cara de polícia, hein. | neutro | NPC (conversa ao apertar E) — main.js:165 | **falta** |
-| `f0550fcc9.ogg` | Fala baixo. Tem olho em todo canto. | neutro | NPC (conversa ao apertar E) — main.js:165 | **falta** |
+| `f82a797d6.ogg` | Psiu... tá procurando o quê? | hesitante, pergunta | NPC (conversa ao apertar E) — main.js:166 | **falta** |
+| `fec5b0b1d.ogg` | Aqui é ponto, parceiro. Se não vai comprar, vaza. | neutro | NPC (conversa ao apertar E) — main.js:166 | **falta** |
+| `f8e29f004.ogg` | Tá com cara de polícia, hein. | neutro | NPC (conversa ao apertar E) — main.js:166 | **falta** |
+| `f0550fcc9.ogg` | Fala baixo. Tem olho em todo canto. | neutro | NPC (conversa ao apertar E) — main.js:166 | **falta** |
 
 ## V
 
@@ -312,6 +312,6 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 
 | Arquivo | Fala | Tom sugerido | Onde / contexto | Status |
 |---|---|---|---|---|
-| `f9a38d525.ogg` | Circulando, circulando. | neutro | NPC (conversa ao apertar E) — main.js:166 | **falta** |
-| `f57b8cb0c.ogg` | Não vi nada, não sei de nada. | neutro | NPC (conversa ao apertar E) — main.js:166 | **falta** |
-| `f151a860a.ogg` | Olha a viatura, hein... | hesitante / pensativo | NPC (conversa ao apertar E) — main.js:166 | **falta** |
+| `f9a38d525.ogg` | Circulando, circulando. | neutro | NPC (conversa ao apertar E) — main.js:167 | **falta** |
+| `f57b8cb0c.ogg` | Não vi nada, não sei de nada. | neutro | NPC (conversa ao apertar E) — main.js:167 | **falta** |
+| `f151a860a.ogg` | Olha a viatura, hein... | hesitante / pensativo | NPC (conversa ao apertar E) — main.js:167 | **falta** |

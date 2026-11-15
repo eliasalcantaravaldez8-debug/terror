@@ -96,7 +96,7 @@ export class Sky {
     const night = ln('night');
     this.uniforms.sunCol.value.copy(lc('sunColor')).multiplyScalar(night > 0.9 ? 0.6 : 1);
     this.uniforms.cloudCol.value.copy(lc('cloud')); this.uniforms.cloudShade.value.copy(lc('cloudShade')); this.uniforms.cover.value = ln('cover') + (this.rain || 0) * 0.4;
-    this.sun.color.copy(lc('sunColor')); this.sun.intensity = ln('sunI') * (1 - (this.rain || 0) * 0.5);
+    this.sun.color.copy(lc('sunColor')); this.sun.intensity = ln('sunI') * (1 - (this.rain || 0) * 0.72);
     this.hemi.color.copy(lc('hemiSky')); this.hemi.groundColor.copy(lc('hemiGround')); this.hemi.intensity = ln('hemiI');
     this.scene.fog.color.copy(lc('fog')); this.baseFogD = ln('fogD') * (1 + (this.rain || 0) * 0.8); this.scene.fog.density = this.baseFogD * (this.fogMul || 1);
     this.renderer.toneMappingExposure = ln('exposure');
