@@ -104,7 +104,7 @@ Missões com marcador azul começam quando você chega nele e aperta **E**. Miss
 
 ### Dublagem (vozes reais)
 - O jogo toca a **gravação real** de cada fala quando o arquivo existe em `dist/voz/`. **Não há voz sintetizada**: sem arquivo, a fala continua só com legenda.
-- **Os áudios das vozes ainda não foram fornecidos.** A lista completa do que gravar (112 falas, por personagem, com tom sugerido e nome do arquivo) está em **`dist/voz/ROTEIRO_DUBLAGEM.md`**.
+- **Os áudios das vozes ainda não foram fornecidos.** A lista completa do que gravar (123 falas, por personagem, com tom sugerido e nome do arquivo) está em **`dist/voz/ROTEIRO_DUBLAGEM.md`**.
 - Volume próprio em **Opções → Volume das vozes**; filtro de telefone nas ligações; a boca do personagem abre conforme o volume do áudio (sincronia labial).
 - Para a boca seguir o áudio exato, jogue por um servidor local (`npx serve dist` ou `python -m http.server -d dist`). Abrindo o `index.html` direto, a voz toca normalmente, mas a boca usa um movimento aproximado.
 - Depois de colocar os arquivos, rode `node build.mjs` (ou `node tools/vozes.mjs`) para o jogo reconhecê-los.
