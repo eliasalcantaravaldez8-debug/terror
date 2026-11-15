@@ -7,7 +7,7 @@ import { CollisionWorld } from './collision.js';
 import { City, LAYOUT, N, P, ROAD, HALF, roadC, blockC, BLOCK, CURB } from './city.js';
 const P_ = P;
 import { Zones } from './zones.js';
-import { PLACES, BW, bwRoad, bwRoadZ, bwBlock, bwBlockZ, RIVER } from './places.js';
+import { PLACES, BW, bwRoad, bwRoadZ, bwBlock, bwBlockZ, RIVER, inBlackwood } from './places.js';
 import { Blackwood, BW_LAYOUT } from './blackwood.js';
 import { Westhaven, WH_LAYOUT } from './westhaven.js';
 import { WH, whRoad, whRoadZ, whBlock, whBlockZ, BAY, PINES, inWesthaven } from './places.js';
@@ -119,7 +119,9 @@ function build() {
   // vitrine: Fúria V12, Besouro e Coupé estacionados na rua em frente à casa
   const sz = roadC(3) - 4.75; const showcase = [['furia', 0xd8a010, eh.door[0] + 9, sz], ['besouro', 0x6aa8c8, eh.door[0] - 6, sz], ['coupe', 0xb01818, eh.door[0] - 13, sz], ['moto_esportiva', 0x1a1a1a, eh.door[0] + 15, sz], ['moto_custom', 0x5a1010, eh.door[0] + 17, sz], ['scooter', 0x2a6ab0, eh.door[0] + 19, sz]];
   const cleared = city.parkedCars.filter((pc) => !showcase.some((sc) => Math.hypot(pc.x - sc[2], pc.z - sc[3]) < 7));
-  for (const pc of cleared) { const c = makeCar(rand() < 0.14 ? pick(MOTO_TYPES) : pc.type); c.place(pc.x, pc.z, pc.heading); c.parked = true; }
+  // carro estacionado não pode nascer dentro de poste, muro, banca ou casa: confere o espaço antes
+  const blocked = (pc) => { const f = [Math.sin(pc.heading), Math.cos(pc.heading)], g0 = world.groundFn(pc.x, pc.z); for (let k = -1; k <= 1; k++) { const px = pc.x + f[0] * 1.6 * k, pz = pc.z + f[1] * 1.6 * k; for (const bx of world.query(px - 0.75, pz - 0.75, px + 0.75, pz + 0.75)) { if (bx.maxY <= g0 + 0.35 || bx.minY >= g0 + 1.3) continue; const cx = Math.max(bx.minX, Math.min(px, bx.maxX)), cz = Math.max(bx.minZ, Math.min(pz, bx.maxZ)); if (Math.hypot(px - cx, pz - cz) < 0.75) return true; } } return false; };
+  for (const pc of cleared) { if (blocked(pc)) continue; const c = makeCar(rand() < 0.14 ? pick(MOTO_TYPES) : pc.type); c.place(pc.x, pc.z, pc.heading); c.parked = true; }
   for (const [type, color, x, z] of showcase) { const c = makeCar(type, color); c.place(x, z, -Math.PI / 2); c.parked = true; c.fuel = 1; }
   const ethanCar = makeCar('sedan', 0x1d3f72);
   ethanCar.place(eh.driveway[0], eh.driveway[1], eh.heading + Math.PI);
@@ -1200,6 +1202,19 @@ function whLoopRoute(j, k) { // volta no quarteirão, na faixa junto à calçada
   const x0 = whRoad(j) + 2.6, x1 = whRoad(j + 1) - 2.6, z0 = whRoadZ(k) + 2.6, z1 = whRoadZ(k + 1) - 2.6;
   const one = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]; const r = []; for (let i = 0; i < 6; i++) r.push(...one); return r;
 }
+// trânsito de Blackwood: carros dando voltas nos quarteirões, na faixa junto à calçada (só perto do jogador)
+const bwTraffic = []; let bwT = 0;
+function updateBlackwoodTraffic(dt) {
+  if (!started || (bwT -= dt) > 0) return; bwT = 1; const P = G.player; const inside = inBlackwood(P.x, P.z, 50);
+  for (let i = bwTraffic.length - 1; i >= 0; i--) { const t = bwTraffic[i]; const c = t.car; if (c.removed || t.drv.done || !inside || Math.hypot(c.x - P.x, c.z - P.z) > 200) { const a = G.aiDrivers.indexOf(t.drv); if (a >= 0) G.aiDrivers.splice(a, 1); if (!c.removed && G.car !== c) removeCar(c); bwTraffic.splice(i, 1); } }
+  if (!inside || bwTraffic.length >= Math.max(3, Math.round(Q.traffic * 0.35))) return;
+  const j = Math.floor(Math.random() * BW.n), k = Math.floor(Math.random() * BW.n);
+  const x0 = bwRoad(j) + 2.6, x1 = bwRoad(j + 1) - 2.6, z0 = bwRoadZ(k) + 2.6, z1 = bwRoadZ(k + 1) - 2.6; const one = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]; const route = []; for (let i = 0; i < 6; i++) route.push(...one);
+  const i0 = Math.floor(Math.random() * 4), st = route[i0]; const d = Math.hypot(st[0] - P.x, st[1] - P.z); if (d < 40 || d > 180) return;
+  if (G.cars.some((c) => Math.hypot(c.x - st[0], c.z - st[1]) < 6)) return;
+  const c = makeCarAt(pick(['classico', 'sedan', 'pickup', 'besouro', 'popular', 'hatch', 'suv']), st[0], st[1]); const r2 = route.slice(i0 + 1); c.place(st[0], st[1], Math.atan2(r2[0][0] - st[0], r2[0][1] - st[1]));
+  const drv = new RouteDriver(c, r2, { speed: 9, rubber: false }); G.aiDrivers.push(drv); bwTraffic.push({ car: c, drv });
+}
 function updateWesthaven(dt) {
   if (!started || !G.westhaven) return; const W = G.westhaven, P = G.player;
   const C = G.state && G.state.ethan; const ok = C && C.done && C.done.includes('prologo');
@@ -1432,14 +1447,55 @@ function updateFlight(dt) {
 G.boardPlane = boardPlane; G.planeBoardSpot = planeBoardSpot;
 // ---------------- CÓDIGOS (app do celular) ----------------
 const spawned = [];
+// VAGA PARA UM VEÍCULO NOVO: ponto livre mais próximo NA RUA (alinhado com ela), fora de prédios, sem bater
+// em nada e longe de outros carros. Sem rua por perto (campo, interior), usa chão livre a céu aberto.
+function footprintOk(x, z, h, len, wid, needRoad) {
+  const W = G.world, f = [Math.sin(h), Math.cos(h)], sd = [f[1], -f[0]]; const g0 = W.groundFn(x, z);
+  if (BAY && x > BAY.x0 - 4 && x < BAY.x1 + 4 && !(Math.abs(z) < 8)) return false; // água da baía
+  for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1], [0, 0]]) {
+    const px = x + f[0] * len * a + sd[0] * wid * b, pz = z + f[1] * len * a + sd[1] * wid * b; const g = W.groundFn(px, pz);
+    if (Math.abs(g - g0) > 0.06) return false; // meio-fio, degrau ou rampa embaixo
+    if (needRoad && g > 0.05 && !(Math.abs(pz) < 9 && px < -470 && px > -860)) return false; // só rua/rodovia/ponte
+    for (const bx of W.query(px - 0.05, pz - 0.05, px + 0.05, pz + 0.05)) if (bx.minY > g0 + 1.2 && bx.minY < g0 + 8) return false; // coberto: dentro de algum lugar
+  }
+  if (needRoad) for (const a of [-1, 1]) { const px = x + f[0] * (len + 5) * a, pz = z + f[1] * (len + 5) * a, g = W.groundFn(px, pz); if (Math.abs(g - g0) > 0.4 || (g > 0.05 && !(Math.abs(pz) < 9 && px < -470 && px > -860))) return false; } // alinhado com a rua
+  for (let k = -1; k <= 1; k++) { const px = x + f[0] * len * k * 0.85, pz = z + f[1] * len * k * 0.85;
+    for (const bx of W.query(px - wid, pz - wid, px + wid, pz + wid)) { if (bx.maxY <= g0 + 0.3 || bx.minY >= g0 + 1.6) continue; const cx = Math.max(bx.minX, Math.min(px, bx.maxX)), cz = Math.max(bx.minZ, Math.min(pz, bx.maxZ)); if (Math.hypot(px - cx, pz - cz) < wid + 0.15) return false; } }
+  for (const c of G.cars) if (!c.removed && Math.hypot(c.x - x, c.z - z) < len + 2.2) return false;
+  if (Math.hypot(G.player.x - x, G.player.z - z) < 2.5) return false;
+  return true;
+}
+function findVehicleSpot(px, pz, face, moto) {
+  const len = moto ? 1.1 : 2.4, wid = moto ? 0.45 : 1.05;
+  for (const needRoad of [true, false]) {
+    for (let r = 4; r <= (needRoad ? 45 : 30); r += 1.5) {
+      const n = Math.max(12, Math.round(r * 2.2));
+      // começa pela frente do jogador e vai abrindo para os lados
+      for (let i = 0; i < n; i++) { const k = (i % 2 ? 1 : -1) * Math.ceil(i / 2); const a = face + k * (Math.PI * 2 / n);
+        const x = px + Math.sin(a) * r, z = pz + Math.cos(a) * r;
+        // alinhado com a rua: tenta as 2 direções dos eixos, preferindo a mais parecida com a do jogador
+        const hs = [0, Math.PI / 2, Math.PI, -Math.PI / 2].sort((h1, h2) => Math.abs(Math.atan2(Math.sin(h1 - face), Math.cos(h1 - face))) - Math.abs(Math.atan2(Math.sin(h2 - face), Math.cos(h2 - face))));
+        for (const h of hs) if (footprintOk(x, z, h, len, wid, needRoad)) {
+          // na rua: encosta na faixa da direita (sem ficar em cima da faixa amarela) quando couber
+          if (needRoad) for (const sh of [3.2, -3.2]) { const x2 = x + Math.cos(h) * sh, z2 = z - Math.sin(h) * sh; if (footprintOk(x2, z2, h, len, wid, true)) return { x: x2, z: z2, h, road: true }; }
+          return { x, z, h, road: needRoad };
+        }
+      }
+    }
+  }
+  return null;
+}
+G.findVehicleSpot = findVehicleSpot;
 G.spawnVehicle = (type) => {
   if (!CAR_TYPES[type]) return;
   const P = G.player; if (G.car) forceExitCar();
+  const spot = findVehicleSpot(P.x, P.z, P.heading, MOTO_TYPES.includes(type));
+  if (!spot) { toast('Não há espaço livre por perto para o veículo — vá para a rua', 3); return; }
   const c = new Vehicle(type, pick(CAR_COLORS), G.world); scene.add(c.group); G.world.dynamic.add(c); G.cars.push(c);
-  const fx = Math.sin(P.heading), fz = Math.cos(P.heading); c.place(P.x + fx * 5, P.z + fz * 5, P.heading + Math.PI / 2);
+  c.place(spot.x, spot.z, spot.h);
   c.fuel = 1; c.parked = false; c.owner = G.state.char === 'ryan' ? 'Ryan' : 'Ethan';
   spawned.push(c); while (spawned.length > 6) { const o = spawned.shift(); if (o !== G.car) removeCar(o); }
-  toast(`${c.T.name} apareceu na sua frente`, 2.5); G.sound('ping');
+  toast(`${c.T.name} está ${spot.road ? 'na rua' : 'estacionado'} a ${Math.round(Math.hypot(spot.x - P.x, spot.z - P.z))} m (marcado no mapa)`, 3); G.spawnMark = { x: spot.x, z: spot.z, t: 25 }; G.sound('ping');
 };
 G.cheat = (code) => {
   const k = code.toUpperCase().replace(/[^A-Z0-9]/g, ''); const C = G.campaign();
@@ -1624,6 +1680,7 @@ function mapMarks(g, p, zoom, rel = true) {
   for (const mk of startMarkers) if (mk.visible) mark(mk.position.x, mk.position.z, mk.side ? '#3ad87a' : '#3a9aff', 6);
   const obj = G.story.objTarget && G.story.resolve(G.story.objTarget);
   if (obj) mark(obj[0], obj[1], '#ffd23a', 6);
+  if (G.spawnMark && G.spawnMark.t > 0) mark(G.spawnMark.x, G.spawnMark.z, Math.floor(G.story.t * 3) % 2 ? '#ffffff' : '#ffb020', 5);
 }
 // orientação do minimapa: mundo X → direita, Z → baixo; a câmera olha para (-sin yaw, -cos yaw)
 function mapRotation() { return G.cam.yaw; }
@@ -1741,7 +1798,7 @@ function step(dt) {
   if (active && !locked2 && hit('KeyF')) playerPunch();
   punchCd -= dt; pulsoCd -= dt;
   updateEat(dt);
-  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers(); updateWrecks(dt); updatePets(dt); updateWesthaven(dt); updateStadium(dt); if (G.praca) G.praca.update(dt, G); if (G.voice) G.voice.update(dt);
+  updateDriverModels(dt); updateDoors(dt); updateJack(dt); updateHeist(dt); updateDealers(dt); updateEvents(dt); updateBoarding(dt); updateFlight(dt); updateEmergency(dt); updateStoreKeepers(dt); updateMallShoppers(); updateWrecks(dt); updatePets(dt); updateWesthaven(dt); updateBlackwoodTraffic(dt); updateStadium(dt); if (G.praca) G.praca.update(dt, G); if (G.voice) G.voice.update(dt); if (G.spawnMark) { G.spawnMark.t -= dt; if (G.spawnMark.t <= 0 || (G.car && Math.hypot(G.car.x - G.spawnMark.x, G.car.z - G.spawnMark.z) < 4)) G.spawnMark = null; }
   // interiores das casas: só desenha os que estão perto (o jogador ou a câmera)
   if ((interiorT -= dt) <= 0) { interiorT = 0.25; const cx = G.camera.position.x, cz = G.camera.position.z; for (const it of G.city.interiors) { const dx = it.x - p.x, dz = it.z - p.z, ex = it.x - cx, ez = it.z - cz; const R = (it.r || 40) * LODM; it.group.visible = dx * dx + dz * dz < R * R || ex * ex + ez * ez < R * R * 0.56; } }
   if (active && !locked2 && hit('KeyQ') && G.campaign().tools.pulso) {
