@@ -20,6 +20,7 @@ Regras seguidas: nenhum acontecimento foi alterado, nenhum personagem foi elimin
 | 14. Galpão e morte de Lucas | Galpão com capangas, policiais corruptos, dinheiro e pacotes; captura; interrogatório com as falas exatas; disparo interrompe Lucas | Jogável + cutscene |
 | 15. Desaparecimento de Ryan | *"EI! VOCÊ!"* → Ryan sumiu: *"RYAN?! CADÊ VOCÊ?!"* → perseguição a pé pelas ruas industriais; a pessoa escapa | Jogável |
 | 16. Investigação | Sala com investigador e a foto de Ethan com *"CULPADO??"* em vermelho; depois, mundo aberto | Cutscene |
+| **17. Onde Está Ryan?** *(proposta minha — não está no documento)* | Ethan procura Ryan na casa, volta ao galpão e conversa com um vigia noturno que só ouviu o disparo e gente correndo. **Nada é descoberto**: Ryan continua desaparecido | Jogável + cutscenes |
 
 ## Campanha de Ryan (`src/missions_ryan.js`)
 
@@ -46,6 +47,15 @@ Escrevi frases curtas que **só repetem o que o documento resume**. Você pode t
 - Escolha de personalidade no reencontro (Frieza / Inteligência / Impulsividade): muda só a personalidade, não muda acontecimentos.
 - Encontro com os guardas, casa abandonada ("Não tem ninguém aqui."), rendição de Blake ("Para! Para! Eu me rendo!", "Eu falo! Eu conto tudo o que eu sei!"), Ethan: "Então fala.", Victor: "Blake. Nem mais uma palavra.", livro ("Finalmente. O livro." / "Vamos ver o primeiro nome."), Ryan: "Alguém está observando a gente.", Ryan na colina ("Quem é, Ethan?", "O quê?! Teu irmão?!").
 - Campanha de Ryan: textos das ligações e as falas de Fernando ("Ryan?! O que você está fazendo aqui?!", "SOCORRO! ALGUÉM ME AJUDA!").
+
+## Capítulo 17 — o que eu escrevi (pode trocar ou remover)
+
+Você autorizou continuar a história "vendo o que combina". Para respeitar as regras do documento, o capítulo 17 **não revela nenhum mistério, não mata ninguém, não cria traições nem reviravoltas**: é só a busca por Ryan nos lugares que já existem.
+
+- Falas de Ethan: "Ryan sumiu desde aquela noite no galpão.", "Eu preciso encontrar ele.", "Tudo do jeito que ele deixou.", "Ele não voltou pra cá.", "Nada. Nem um sinal dele.", "Você trabalhou aqui naquela noite?", "Se lembrar de alguma coisa, me procura.", "Ryan... onde você se meteu?", "Eu vou te encontrar."
+- Vigia noturno (personagem novo, sem papel na trama): "Trabalhei. Ouvi o disparo e gente correndo pela rua.", "Depois, silêncio. Não vi o rosto de ninguém."
+- Notícia no celular: "Moradores relatam disparo perto de galpão abandonado".
+- Para remover: apague o bloco `id: 'procura'` em `src/missions_ethan.js`.
 
 ## Decisões que ficaram para você
 

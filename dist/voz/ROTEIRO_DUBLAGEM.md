@@ -2,7 +2,7 @@
 
 Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `node build.mjs`).
 
-**Situação:** 0 de 112 falas têm áudio gravado. Nenhuma voz é sintetizada: fala sem arquivo aparece só com legenda.
+**Situação:** 0 de 123 falas têm áudio gravado. Nenhuma voz é sintetizada: fala sem arquivo aparece só com legenda.
 
 ## Como entregar os áudios
 
@@ -26,7 +26,7 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 | Criança | 6 | 0 |
 | Desconhecido | 4 | 0 |
 | Enfermeira | 2 | 0 |
-| Ethan | 19 | 0 |
+| Ethan | 28 | 0 |
 | Fernando del Costa | 2 | 0 |
 | Fiel | 1 | 0 |
 | Joe | 1 | 0 |
@@ -44,6 +44,7 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 | Segurança do banco | 1 | 0 |
 | Torcedor | 1 | 0 |
 | Traficante | 4 | 0 |
+| V | 2 | 0 |
 | Victor | 1 | 0 |
 | Vigia | 3 | 0 |
 
@@ -131,6 +132,15 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 | `fb7a59c7e.ogg` | Ah merda... Você me entregou... | hesitante / pensativo | O Galpão — missions_ethan.js:598 | **falta** |
 | `fcee8e16f.ogg` | EI! VOCÊ! | enfático | O Galpão — missions_ethan.js:619 | **falta** |
 | `f6db83f4f.ogg` | RYAN?! CADÊ VOCÊ?! | gritando, com raiva | O Galpão — missions_ethan.js:625 | **falta** |
+| `f8074849c.ogg` | Ryan sumiu desde aquela noite no galpão. | neutro | Onde Está Ryan? — missions_ethan.js:671 | **falta** |
+| `ff1847ea2.ogg` | Eu preciso encontrar ele. | neutro | Onde Está Ryan? — missions_ethan.js:672 | **falta** |
+| `fd772b10c.ogg` | Tudo do jeito que ele deixou. | neutro | Onde Está Ryan? — missions_ethan.js:679 | **falta** |
+| `f21e4ac8d.ogg` | Ele não voltou pra cá. | neutro | Onde Está Ryan? — missions_ethan.js:680 | **falta** |
+| `f89e1323a.ogg` | Nada. Nem um sinal dele. | neutro | Onde Está Ryan? — missions_ethan.js:693 | **falta** |
+| `f8c77a8b6.ogg` | Você trabalhou aqui naquela noite? | pergunta | Onde Está Ryan? — missions_ethan.js:705 | **falta** |
+| `fd5359527.ogg` | Se lembrar de alguma coisa, me procura. | neutro | Onde Está Ryan? — missions_ethan.js:709 | **falta** |
+| `f814fbb6a.ogg` | Ryan... onde você se meteu? | hesitante, pergunta | Onde Está Ryan? — missions_ethan.js:713 | **falta** |
+| `f8a270d6e.ogg` | Eu vou te encontrar. | neutro | Onde Está Ryan? — missions_ethan.js:714 | **falta** |
 
 ## Fernando del Costa
 
@@ -284,6 +294,13 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 | `fec5b0b1d.ogg` | Aqui é ponto, parceiro. Se não vai comprar, vaza. | neutro | NPC (conversa ao apertar E) — main.js:165 | **falta** |
 | `f8e29f004.ogg` | Tá com cara de polícia, hein. | neutro | NPC (conversa ao apertar E) — main.js:165 | **falta** |
 | `f0550fcc9.ogg` | Fala baixo. Tem olho em todo canto. | neutro | NPC (conversa ao apertar E) — main.js:165 | **falta** |
+
+## V
+
+| Arquivo | Fala | Tom sugerido | Onde / contexto | Status |
+|---|---|---|---|---|
+| `fd26e19b5.ogg` | Trabalhei. Ouvi o disparo e gente correndo pela rua. | neutro | Onde Está Ryan? — missions_ethan.js:706 | **falta** |
+| `f21c9c93b.ogg` | Depois, silêncio. Não vi o rosto de ninguém. | neutro | Onde Está Ryan? — missions_ethan.js:707 | **falta** |
 
 ## Victor
 

@@ -60,6 +60,15 @@ Missões com marcador azul começam quando você chega nele e aperta **E**. Miss
 - **História inicial**: fale com Ryan Cole → vá até a delegacia → fale com o delegado. As falas ficam em `src/characters.js` e são fáceis de editar.
 - **Minimapa** que gira com a câmera e mostra o objetivo (amarelo) e o seu carro (azul).
 
+## Atualização: lojas, veículos, motos, árvores e capítulo 17
+
+- **Lojas de comida**: o atendente agora atende de qualquer ponto do balcão (antes o [E] sumia com um passo de lado).
+- **Veículos no lugar certo**: carros e motos pedidos pelo celular aparecem na rua mais próxima, alinhados e na faixa (antes podiam nascer dentro de lojas, casas ou em cima de outros carros) e ficam marcados no minimapa. Blackwood ganhou trânsito.
+- **Motos refeitas**: quadro, motor com cilindros, tanque, banco, rabeta, amortecedores, corrente, escapamento, farol, painel e retrovisores; esportiva carenada, custom cromada, urbana e scooter.
+- **Carros**: de longe têm a mesma lataria de perto (antes a versão distante saía deformada).
+- **Árvores**: copas com volume e folhagem recortada.
+- **História**: capítulo 17 "Onde Está Ryan?" (depois de "Culpado??"), sem revelar nenhum mistério — veja `HISTORIA.md`.
+
 ## GRANDE ATUALIZAÇÃO: Westhaven, estádio, praça, dublagem e mais
 
 > Observação: o projeto é feito em **Three.js (navegador)**, não em Godot. O ZIP traz o jogo pronto (`dist/`) e o código-fonte (`src/`).

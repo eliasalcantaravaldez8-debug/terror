@@ -520,6 +520,123 @@
   "gravado": false
  },
  {
+  "id": "f8074849c",
+  "arquivo": "f8074849c.ogg",
+  "personagem": "Ethan",
+  "fala": "Ryan sumiu desde aquela noite no galpão.",
+  "tom": "neutro",
+  "contexto": "Onde Está Ryan?",
+  "onde": [
+   "missions_ethan.js:671"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "ff1847ea2",
+  "arquivo": "ff1847ea2.ogg",
+  "personagem": "Ethan",
+  "fala": "Eu preciso encontrar ele.",
+  "tom": "neutro",
+  "contexto": "Onde Está Ryan?",
+  "onde": [
+   "missions_ethan.js:672"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fd772b10c",
+  "arquivo": "fd772b10c.ogg",
+  "personagem": "Ethan",
+  "fala": "Tudo do jeito que ele deixou.",
+  "tom": "neutro",
+  "contexto": "Onde Está Ryan?",
+  "onde": [
+   "missions_ethan.js:679"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f21e4ac8d",
+  "arquivo": "f21e4ac8d.ogg",
+  "personagem": "Ethan",
+  "fala": "Ele não voltou pra cá.",
+  "tom": "neutro",
+  "contexto": "Onde Está Ryan?",
+  "onde": [
+   "missions_ethan.js:680"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f89e1323a",
+  "arquivo": "f89e1323a.ogg",
+  "personagem": "Ethan",
+  "fala": "Nada. Nem um sinal dele.",
+  "tom": "neutro",
+  "contexto": "Onde Está Ryan?",
+  "onde": [
+   "missions_ethan.js:693"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f8c77a8b6",
+  "arquivo": "f8c77a8b6.ogg",
+  "personagem": "Ethan",
+  "fala": "Você trabalhou aqui naquela noite?",
+  "tom": "pergunta",
+  "contexto": "Onde Está Ryan?",
+  "onde": [
+   "missions_ethan.js:705"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fd5359527",
+  "arquivo": "fd5359527.ogg",
+  "personagem": "Ethan",
+  "fala": "Se lembrar de alguma coisa, me procura.",
+  "tom": "neutro",
+  "contexto": "Onde Está Ryan?",
+  "onde": [
+   "missions_ethan.js:709"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f814fbb6a",
+  "arquivo": "f814fbb6a.ogg",
+  "personagem": "Ethan",
+  "fala": "Ryan... onde você se meteu?",
+  "tom": "hesitante, pergunta",
+  "contexto": "Onde Está Ryan?",
+  "onde": [
+   "missions_ethan.js:713"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f8a270d6e",
+  "arquivo": "f8a270d6e.ogg",
+  "personagem": "Ethan",
+  "fala": "Eu vou te encontrar.",
+  "tom": "neutro",
+  "contexto": "Onde Está Ryan?",
+  "onde": [
+   "missions_ethan.js:714"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
   "id": "fd8e480fb",
   "arquivo": "fd8e480fb.ogg",
   "personagem": "Fernando del Costa",
@@ -1399,6 +1516,32 @@
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
    "main.js:165"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "fd26e19b5",
+  "arquivo": "fd26e19b5.ogg",
+  "personagem": "V",
+  "fala": "Trabalhei. Ouvi o disparo e gente correndo pela rua.",
+  "tom": "neutro",
+  "contexto": "Onde Está Ryan?",
+  "onde": [
+   "missions_ethan.js:706"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f21c9c93b",
+  "arquivo": "f21c9c93b.ogg",
+  "personagem": "V",
+  "fala": "Depois, silêncio. Não vi o rosto de ninguém.",
+  "tom": "neutro",
+  "contexto": "Onde Está Ryan?",
+  "onde": [
+   "missions_ethan.js:707"
   ],
   "telefone": false,
   "gravado": false

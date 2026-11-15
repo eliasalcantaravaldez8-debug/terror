@@ -659,4 +659,63 @@ export const ETHAN_MISSIONS = [
       } },
     ],
   },
+  // ======================= ONDE ESTÁ RYAN? (capítulo 17 — proposta, sem revelar mistérios) =======================
+  // Ethan procura Ryan nos lugares já conhecidos. Nada é resolvido: o que aconteceu com Ryan continua em aberto.
+  {
+    id: 'procura', title: 'Onde Está Ryan?', start: (G) => [safehouse(G).door[0], safehouse(G).door[1] + 3], after: 'investigacao', next: null, hint: 'Ethan procura Ryan nos lugares conhecidos.',
+    stages: [
+      { name: 'casa', async run(S, G) {
+        const H = safehouse(G);
+        await S.cutscene(async () => {
+          S.over(G.player, { x: H.door[0], z: H.door[1], y: 0 }, 2.2);
+          await S.say(E, 'Ryan sumiu desde aquela noite no galpão.');
+          await S.say(E, 'Eu preciso encontrar ele.');
+        });
+        S.objective('Procure sinais de Ryan na casa', [H.door[0], H.door[1] + 1.5]);
+        await S.press([H.door[0], H.door[1] + 1.5], 2.5, '[E] Procurar sinais de Ryan');
+        S.clearObjective();
+        await S.cutscene(async () => {
+          S.over(G.player, { x: H.door[0], z: H.door[1], y: 0 }, 2);
+          await S.say(E, 'Tudo do jeito que ele deixou.');
+          await S.say(E, 'Ele não voltou pra cá.');
+        });
+      } },
+      { name: 'galpao', async run(S, G) {
+        const Z = G.zones.spots; const spot = [Z.galpaoCarSpot[0] - 4, Z.galpaoCarSpot[1]];
+        await S.goto(spot, 10, 'Volte ao galpão onde Ryan desapareceu');
+        S.objective('Procure pistas onde Ryan foi visto pela última vez', spot);
+        await S.press(spot, 3, '[E] Procurar pistas');
+        S.clearObjective();
+        await S.cutscene(async () => {
+          S.shot([spot[0] + 3, 2.2, spot[1] + 3], [spot[0], 0.3, spot[1]], 2.5);
+          await S.wait(1.2);
+          S.over(G.player, { x: spot[0] + 2, z: spot[1], y: 0 }, 2.2);
+          await S.say(E, 'Nada. Nem um sinal dele.');
+        });
+      } },
+      { name: 'vigia', async run(S, G) {
+        const Z = G.zones.spots; const vx = Z.galpaoCarSpot[0] + 6, vz = Z.galpaoCarSpot[1] + 5;
+        const v = S.npc('vigia', allyGuardLook(), { x: vx, z: vz, name: 'Vigia noturno', role: 'story', interactable: false, heading: Math.PI });
+        v.behavior = 'stand';
+        S.objective('Pergunte ao vigia se ele viu alguma coisa', [vx, vz]);
+        await S.press([vx, vz], 2.4, '[E] Falar com o vigia noturno');
+        S.clearObjective();
+        await S.cutscene(async () => {
+          S.frame(G.player, v, 1, 2.6);
+          await S.say(E, 'Você trabalhou aqui naquela noite?');
+          await S.say(v, 'Trabalhei. Ouvi o disparo e gente correndo pela rua.');
+          await S.say(v, 'Depois, silêncio. Não vi o rosto de ninguém.');
+          S.over(v, G.player, 1.8);
+          await S.say(E, 'Se lembrar de alguma coisa, me procura.');
+        });
+        S.despawn('vigia');
+        await S.cutscene(async () => {
+          await S.say(E, 'Ryan... onde você se meteu?');
+          await S.say(E, 'Eu vou te encontrar.');
+        });
+        await S.card('Ryan continua desaparecido.', 'A história continua.', 3.2);
+        G.phone.addNews('Moradores relatam disparo perto de galpão abandonado', 'A polícia diz que o caso continua sem testemunhas.');
+      } },
+    ],
+  },
 ];
