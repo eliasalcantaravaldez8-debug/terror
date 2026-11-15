@@ -8,6 +8,19 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { colorize } from './geo.js';
 
 const sharedMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+// trama de tecido / poros: variação fina pela posição de repouso do vértice (não "escorre" com a animação)
+sharedMat.onBeforeCompile = (sh) => {
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vRest;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvRest = position;');
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+varying vec3 vRest;
+float hzH(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+float hzN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(hzH(i), hzH(i + vec3(1,0,0)), f.x), mix(hzH(i + vec3(0,1,0)), hzH(i + vec3(1,1,0)), f.x), f.y), mix(mix(hzH(i + vec3(0,0,1)), hzH(i + vec3(1,0,1)), f.x), mix(hzH(i + vec3(0,1,1)), hzH(i + vec3(1,1,1)), f.x), f.y), f.z); }`)
+    .replace('#include <color_fragment>', `#include <color_fragment>
+  { float weave = 0.5 + 0.5 * sin(vRest.x * 900.0) * sin(vRest.y * 900.0); float n = hzN(vRest * 70.0), m = hzN(vRest * 9.0 + 3.0);
+    diffuseColor.rgb *= 0.93 + 0.05 * weave + 0.06 * n + 0.05 * (m - 0.5); }`);
+};
+sharedMat.customProgramCacheKey = () => 'humanoid-cloth';
 
 function prep(g, color, matrix, boneIndex) {
   let n = g.index ? g.toNonIndexed() : g;
@@ -91,15 +104,19 @@ export class Humanoid {
     // abdômen e tronco: cintura fina e busto na mulher; peitoral e ombros largos no homem
     add(spine, cap(0.15 * s, 0.12), top, 0, 0.08, 0, F ? 0.98 : 1.15, 1, F ? 0.7 : 0.75);
     add(chest, cap(0.18 * s, 0.12), top, 0, 0.1, 0, F ? 1.0 : 1.18, 1, F ? 0.7 : 0.74);
-    if (F) { for (const x of [-0.062, 0.062]) add(chest, sm(0.062 * s), top, x * s, 0.07, 0.09, 1, 0.9, 0.8); }
+    if (F) add(chest, sph(0.06 * s), top, 0, 0.06, 0.07, 1.55, 0.8, 0.8);
     else { add(chest, cap(0.1 * s, 0.2), top, 0, 0.18, 0.02, 1.0, 1, 0.8, 0, 0, Math.PI / 2); } // trapézio/peitoral
     if (L.skirt) { // saia ou vestido
       add(hips, new THREE.CylinderGeometry(0.16 * s, (L.skirt === 'long' ? 0.3 : 0.25) * s, L.skirt === 'long' ? 0.62 : 0.38, [8, 10, 14][D], 1, true), L.skirtColor ?? L.pants, 0, L.skirt === 'long' ? -0.27 : -0.15, 0, 1.1, 1, 0.85);
     }
     if (L.jacket) {
       // gola e abertura da jaqueta mostrando a camisa
-      add(chest, bx(0.1, 0.4, 0.02), L.shirt, 0, 0.02, 0.135);
+      const jd = new THREE.Color(L.jacket).multiplyScalar(0.6).getHex();
+      add(chest, bx(0.012, 0.42, 0.012), jd, 0, 0.0, 0.136); // zíper
+      add(chest, new THREE.ConeGeometry(0.045, 0.12, 3), L.shirt, 0, 0.215, 0.118, 1, 1, 0.3, Math.PI, 0, 0); // camisa no decote em V
+      for (const sd of [-1, 1]) add(chest, bx(0.05, 0.15, 0.014), jd, sd * 0.045, 0.2, 0.128, 1, 1, 1, 0, 0, sd * 0.35); // lapelas
       add(chest, new THREE.TorusGeometry(0.085, 0.03, 6, 12), L.jacket, 0, 0.27, 0, 1, 1, 1, Math.PI / 2);
+      for (const sd of [-1, 1]) add(spine, bx(0.08, 0.008, 0.01), jd, sd * 0.08, 0.02, 0.123); // bolsos
     }
     if (L.tie) add(chest, bx(0.05, 0.24, 0.02), L.tie, 0, 0.1, 0.14);
     if (L.badge) add(chest, bx(0.05, 0.06, 0.02), 0xd4af37, 0.09, 0.17, 0.135);
@@ -158,21 +175,47 @@ export class Humanoid {
       const aw = F ? 0.85 : 1;
       add(sh, sph(0.07 * s * aw), top, 0, 0, 0);
       add(sh, cap(0.052 * s * aw, 0.2), top, 0, -0.145, 0);
-      add(el, cap(0.045 * s * aw, 0.19), L.jacket ? L.jacket : (L.longSleeve ? L.shirt : L.skin), 0, -0.13, 0);
-      add(ha, sph(0.05), L.skin, 0, -0.04, 0.005, 0.75 * aw, 1.15, 0.9);
-      if (D > 0) add(ha, bx(0.06 * aw, 0.05, 0.03), L.skin, 0, -0.1, 0.008); // dedos
-      add(ha, sph(0.022), L.skin, 0.028 * side, -0.02, 0.03); // polegar
+      const sleeve = L.jacket ? L.jacket : (L.longSleeve ? L.shirt : L.skin);
+      add(el, sph(0.049 * s * aw), sleeve, 0, 0.005, 0); // cotovelo (preenche a junta)
+      add(el, cap(0.045 * s * aw, 0.19), sleeve, 0, -0.13, 0);
+      add(ha, cap(0.024 * aw, 0.03), L.skin, 0, -0.005, 0, 1.1, 1, 0.9); // punho
+      add(ha, bx(0.075 * aw, 0.08, 0.03), L.skin, 0, -0.055, 0.004); // palma
+      const fl = [0.068, 0.078, 0.074, 0.06];
+      for (let i = 0; i < 4; i++) { const fx = (-0.027 + i * 0.018) * aw * side; add(ha, cap(0.0085 * aw, fl[i] - 0.017), L.skin, fx, -0.095 - fl[i] / 2 + 0.01, 0.012, 1, 1, 1, 0.28, 0, 0); } // dedos, levemente curvados
+      add(ha, cap(0.01 * aw, 0.035), L.skin, 0.042 * aw * side, -0.045, 0.022, 1, 1, 1, 0.5, 0, side * 0.55); // polegar
     }
     // pernas
     for (const [th, kn, ft] of [[thL, knL, ftL], [thR, knR, ftR]]) {
       const legC = L.skirt ? L.skin : L.pants; const lw = F ? 0.9 : 1;
       add(th, cap(0.075 * s * lw, 0.32), L.skirt === 'long' ? L.skirtColor ?? L.pants : legC, 0, -0.21, 0);
+      add(kn, sph(0.066 * s * lw), legC, 0, 0.0, 0.004); // joelho (preenche a junta)
       add(kn, cap(0.06 * s * lw, 0.33), legC, 0, -0.21, 0);
-      add(ft, bx(0.1, 0.07, 0.25), L.shoes, 0, -0.02, 0.05);
-      add(ft, bx(0.105, 0.02, 0.26), 0x0e0e0e, 0, -0.055, 0.05);
+      add(ft, cap(0.045, 0.12), L.shoes, 0, -0.025, 0.07, 1.12, 1, 0.78, Math.PI / 2, 0, 0); // corpo do sapato com bico arredondado
+      add(ft, bx(0.085, 0.07, 0.09), L.shoes, 0, -0.015, -0.03); // calcanhar
+      add(ft, cap(0.05, 0.16), 0x0e0e0e, 0, -0.058, 0.055, 1.08, 1, 0.3, Math.PI / 2, 0, 0); // sola
     }
     const geo = mergeGeometries(parts, false);
     parts.forEach((p) => p.dispose());
+    // ARTICULAÇÕES: perto de cada junta a pele segue os dois ossos (meio a meio no centro da junta),
+    // assim cotovelos, joelhos, ombros e quadril dobram sem "encaixe" de boneco.
+    { const pos = geo.attributes.position, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight;
+      const J = []; // [osso pai, osso filho, y da junta, faixa, filho fica embaixo?, filtro de lado (x)]
+      const jy = (b) => wp(b).y;
+      for (const [sh, el, ha, sd] of [[shL, elL, haL, 1], [shR, elR, haR, -1]]) { J.push([idx(sh), idx(el), jy(el), 0.07, true, 0], [idx(el), idx(ha), jy(ha), 0.035, true, 0], [idx(chest), idx(sh), jy(sh) - 0.02, 0.07, true, sd]); }
+      for (const [th, kn, ft, sd] of [[thL, knL, ftL, 1], [thR, knR, ftR, -1]]) { J.push([idx(th), idx(kn), jy(kn), 0.08, true, 0], [idx(kn), idx(ft), jy(ft), 0.04, true, 0], [idx(hips), idx(th), jy(th) - 0.03, 0.08, true, sd]); }
+      J.push([idx(hips), idx(spine), jy(spine), 0.06, false, 0], [idx(spine), idx(chest), jy(chest), 0.07, false, 0], [idx(chest), idx(neck), jy(neck), 0.03, false, 0]);
+      const ss = THREE.MathUtils.smoothstep;
+      for (let i = 0; i < pos.count; i++) {
+        const b = si.getX(i), x = pos.getX(i), y = pos.getY(i);
+        for (const [pa, ch, y0, band, below, side] of J) {
+          if (b !== pa && b !== ch) continue; if (y < y0 - band || y > y0 + band) continue;
+          if (side && (Math.sign(x) !== side || Math.abs(x) < (pa === idx(hips) ? 0.03 : 0.1))) continue;
+          let wc = below ? ss(y0 + band - y, 0, band * 2) : ss(y - (y0 - band), 0, band * 2); // peso do filho
+          if (side) wc = b === ch ? Math.max(wc, 0.6) : Math.min(wc, 0.4); // ombro/quadril: só suaviza a emenda
+          si.setXYZW(i, ch, pa, 0, 0); sw.setXYZW(i, wc, 1 - wc, 0, 0); break;
+        }
+      }
+      si.needsUpdate = true; sw.needsUpdate = true; }
     geo.computeBoundingSphere();
     geo.boundingSphere.radius = 1.4;
     geo.boundingSphere.center.set(0, 0.9, 0);
