@@ -154,6 +154,7 @@ export class Mission01 extends MissionBase {
   start(checkpoint = 'start') {
     const g = this.game;
     this.resetWorld();
+    this.game.pipeline.setNightVision(false);
     g.setRegion('teresk');
     g.effects.rainIntensity = g.pipeline.setTimeOfDay('morning').rain;
     g.mats.setNightLights(0);

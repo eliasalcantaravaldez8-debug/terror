@@ -4,7 +4,12 @@ FPS militar single-player em 3D — guerra moderna fictícia, 2029.
 O Capitão **Daniel Mercer** e a Força-Tarefa Iron investigam a organização
 **VÉRTICE**, responsável por ataques coordenados pelo mundo.
 
-> **Estado atual: v0.5 — Missões 1 a 4 jogáveis do início ao fim.**
+> **Estado atual: v0.6 — Missões 1 a 5 jogáveis do início ao fim.**
+>
+> **Missão 5 — "Infiltração Noturna"** (noite): entre pela grade do esgoto na mansão
+> do Serrat, evite guardas com lanternas (cone de visão, luz, postura, ruído, corpos
+> encontrados), baixe a lista de convidados na guarita, grave a reunião com o microfone
+> laser e fuja até o Falcon. Se o alarme disparar, chegam reforços. Visão noturna (N).
 >
 > **Missão 4 — "Céu Cinzento"** (céu nublado): na metralhadora da porta do helicóptero
 > Falcon 2-1, destrua três baterias antiaéreas e um comboio ao longo do vale de Kessel;
@@ -45,6 +50,9 @@ Clique em **Nova campanha**. O mouse é capturado ao clicar na tela.
 | V ou F | Golpe corpo a corpo |
 | 1, 2, Q, roda do mouse | Trocar arma |
 | E | Interagir (caixas de munição, portas) |
+| I | Inspecionar a arma |
+| Shift (mirando com luneta) | Prender a respiração (reduz o balanço) |
+| N | Visão noturna (Missão 5) |
 | Esc / P | Pausar |
 
 Configurações: qualidade gráfica (Baixa/Média/Alta), sensibilidade, FOV,
@@ -57,14 +65,20 @@ volumes, inverter Y, legendas, vozes provisórias, contador de FPS.
 - **Jogador**: movimento fluido com aceleração, corrida, agachar, pulo,
   balanço de câmera, passos, recuo, tremor de câmera, vida com regeneração,
   indicadores de direção de dano, morte e reinício do checkpoint.
-- **Cinco armas fictícias** com texturas PBR de desgaste: VK-7 (fuzil), MK-9
+- **Seis armas fictícias** com texturas PBR de desgaste: VK-7 (fuzil), MK-9
   (submetralhadora), BRK-12 (escopeta de bomba, 9 chumbos), LR-6 (fuzil de
-  precisão com luneta) e P-11 (pistola). Armas de inimigos abatidos e de caixas
+  precisão com luneta), P-11 (pistola) e P-11S (pistola com silenciador). Armas de inimigos abatidos e de caixas
   no mapa podem ser recolhidas (E) para trocar a arma principal ou pegar munição.
   Tiro hitscan com dispersão,
   queda de dano por distância, tiro na cabeça, ADS, recarga tática/vazia,
   troca de arma, cápsulas ejetadas, clarão, rastros, decalques de impacto,
   granadas com quique e explosão.
+- **Armas mais realistas**: ferrolho/ferrolho da pistola que se movem a cada tiro (pistola trava
+  aberta quando vazia), miras mecânicas, módulo de lanterna/laser, recarga coreografada (a mão
+  busca o carregador no colete, o vazio cai e fica no chão), puxar o ferrolho na recarga vazia,
+  escopeta carregada cartucho a cartucho, inspeção (I), arma recua ao encostar na parede,
+  fumaça no cano após rajadas, balanço da luneta com respiração, som próprio para
+  silenciador, escopeta e fuzil de precisão.
 - **Personagens** com rosto esculpido, membros com volume, colete com
   carregadores, capacete com trilhos e jugular; inimigos com balaclava ou máscara de gás.
 - **Céu e atmosfera**: nuvens volumétricas animadas, raios de sol (Alto/Ultra), reflexo de lente,

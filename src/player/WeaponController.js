@@ -7,6 +7,7 @@ import { clamp, lerp, damp, easeInOut } from '../utils/math.js';
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _dir = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _e = new THREE.Euler();
 const DEG = Math.PI / 180;
+const POUCH = new THREE.Vector3(-0.28, -0.52, -0.12); // vest magazine pouch, in camera space
 
 /**
  * Player weapons: first-person viewmodel (arms + weapon) with procedural
@@ -28,7 +29,8 @@ export class WeaponController {
       m.rotation.y = Math.PI; // face -Z (camera forward)
       m.visible = false;
       m.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
-      if (m.userData.magazine) m.userData.magazine.userData.baseY = m.userData.magazine.position.y;
+      if (m.userData.magazine) Object.assign(m.userData.magazine.userData, { baseX: m.userData.magazine.position.x, baseY: m.userData.magazine.position.y, baseZ: m.userData.magazine.position.z });
+      if (m.userData.bolt) m.userData.bolt.userData.baseZ = m.userData.bolt.position.z;
       if (m.userData.pump) m.userData.pump.userData.baseZ = m.userData.pump.position.z;
       if (m.userData.slide) m.userData.slide.userData.baseZ = m.userData.slide.position.z;
       this.pivot.add(m);
@@ -106,6 +108,7 @@ export class WeaponController {
   }
 
   switchTo(i) {
+    this.slideLocked = false;
     if (i === this.currentIndex || !this.slots[i] || this.state === 'grenade') return;
     this.current.cancelReload();
     this.currentIndex = i;
@@ -148,6 +151,39 @@ export class WeaponController {
       if (input.actionPressed('melee') && (this.state === 'idle' || this.state === 'reload')) { w.cancelReload(); this._melee(); }
     }
     if (this.state === 'draw' && this.stateT > def.drawTime) this.state = 'idle';
+    if (this.state === 'inspect' && (this.stateT > 2.4 || input.fireHeld() || input.aimHeld())) this.state = 'idle';
+    if (canAct && input.actionPressed('inspect') && this.state === 'idle') this._startState('inspect');
+    // weapon collision with walls in front of the player
+    const cam0 = this.game.pipeline.camera;
+    const fwd = _v2.set(0, 0, -1).applyQuaternion(cam0.quaternion);
+    const wall = player.mount ? null : this.game.world.raycast(cam0.position, fwd, 0.85, (b) => b.tag !== 'bounds');
+    this.tuck = damp(this.tuck || 0, wall ? clamp((0.85 - wall.t) / 0.4, 0, 1) : 0, 10, dt);
+    // barrel smoke after a sustained burst
+    if (!input.fireHeld() && (this._burstSmoke || 0) >= 5) { this._smokeT = 1.2; this._burstSmoke = 0; }
+    if (!input.fireHeld() && (this._burstSmoke || 0) > 0) this._burstSmoke = 0;
+    if (this._smokeT > 0) {
+      this._smokeT -= dt;
+      if (Math.random() < 0.5) {
+        const mw = this._vmToWorld(this.models[def.id], this.models[def.id].userData.anchors.muzzle, new THREE.Vector3());
+        this.game.effects.smoke.spawn({ x: mw.x, y: mw.y, z: mw.z, vy: 0.5, vx: (Math.random() - 0.5) * 0.1, life: 1.4, size: 0.03, endSize: 0.18, color: [0.85, 0.85, 0.85], alpha: 0.22, drag: 1.5, fadeIn: 0.2 });
+      }
+    }
+    // magnified optics sway; hold breath (Shift) to steady the reticle for a few seconds
+    const scopedNow = !!def.scope && this.adsT > 0.85;
+    this.breath = this.breath ?? 1;
+    const holding = scopedNow && input.action('sprint') && this.breath > 0 && !this.breathOut;
+    if (holding) this.breath = Math.max(0, this.breath - dt / 4.5);
+    else this.breath = Math.min(1, this.breath + dt / 3);
+    if (this.breath <= 0) this.breathOut = 2;
+    if (this.breathOut > 0) this.breathOut -= dt;
+    if (scopedNow) {
+      const amp = holding ? 0.12 : this.breathOut > 0 ? 2.2 : 1;
+      const t = player.time;
+      const sx = (Math.sin(t * 0.8) + Math.sin(t * 1.9) * 0.4) * 0.0035 * amp, sy = (Math.sin(t * 1.15 + 1) + Math.sin(t * 2.3) * 0.3) * 0.0028 * amp;
+      player.yaw += sx - (this._swX || 0); player.pitch += sy - (this._swY || 0);
+      this._swX = sx; this._swY = sy;
+      if (!this._breathHint) { this._breathHint = true; this.game.hud.toast('Segure Shift para prender a respiração', 3000); }
+    } else { this._swX = 0; this._swY = 0; }
     if (this.state === 'reload' && w.reloading <= 0) this.state = 'idle';
     if (this.state === 'grenade') this._updateGrenadeThrow();
     if (this.state === 'melee' && this.stateT > 0.5) this.state = 'idle';
@@ -159,7 +195,7 @@ export class WeaponController {
 
     // firing
     if (!input.fireHeld()) { this.triggerReleased = true; this.shotsInBurst = 0; }
-    const firing = canAct && input.fireHeld() && this.state === 'idle' && (def.auto || this.triggerReleased);
+    const firing = canAct && input.fireHeld() && this.state === 'idle' && (this.tuck || 0) < 0.5 && (def.auto || this.triggerReleased);
     if (firing && player.sprinting) player.sprinting = false;
     if (firing) {
       if (w.mag <= 0) {
@@ -203,15 +239,23 @@ export class WeaponController {
     }
     if (pellets > 1) player.shotsFired += 0; // counted once per trigger pull
     this.pumpT = def.pump ? 0 : -1;
-    // muzzle world position (approx. from viewmodel offset)
-    const muzzleWorld = _v.set(0.11 * (1 - this.adsT), -0.09 * (1 - this.adsT) - 0.03, -0.75).applyQuaternion(cam.quaternion).add(cam.position);
-    game.effects.muzzleFlash(muzzleWorld, _dir, def.type === 'pistol' || def.type === 'smg' ? 0.7 : def.type === 'shotgun' ? 1.5 : 1.0);
-    game.pipeline.vmFlash.intensity = 3;
+    // muzzle & ejection port: viewmodel anchors converted to world space
+    const model = this.models[def.id];
+    const muzzleWorld = this._vmToWorld(model, model.userData.anchors.muzzle, _v);
+    if (def.suppressed) {
+      game.effects.smoke.spawn({ x: muzzleWorld.x, y: muzzleWorld.y, z: muzzleWorld.z, vy: 0.3, life: 0.6, size: 0.05, endSize: 0.25, color: [0.8, 0.8, 0.8], alpha: 0.18, drag: 2 });
+    } else {
+      game.effects.muzzleFlash(muzzleWorld, _dir, def.type === 'pistol' ? 0.7 : def.type === 'smg' ? 0.6 : def.type === 'shotgun' ? 1.6 : def.type === 'dmr' ? 1.3 : 1.0);
+      game.pipeline.vmFlash.intensity = 3;
+    }
+    this.boltT = 0;
+    this._burstSmoke = (this._burstSmoke || 0) + 1;
+    if (this.current.mag === 0 && def.type === 'pistol') this.slideLocked = true;
     if (this.shotsInBurst % 3 === 1 || def.type !== 'rifle') game.effects.tracer(muzzleWorld.clone(), hit.point.clone(), 420);
     // casing
     const right = _v2.set(1, 0, 0).applyQuaternion(cam.quaternion);
-    const ej = muzzleWorld.clone().addScaledVector(_dir, -0.5);
-    if (!def.pump) game.effects.casing(ej, right.multiplyScalar(2.5 + Math.random()).add(new THREE.Vector3(0, 2 + Math.random(), 0)).add(player.vel));
+    const ej = this._vmToWorld(model, model.userData.anchors.ejection, new THREE.Vector3());
+    if (!def.pump) game.effects.casing(ej, right.multiplyScalar(2.5 + Math.random()).add(new THREE.Vector3(0, 2 + Math.random(), 0)).addScaledVector(_dir, -0.5).add(player.vel));
     game.audio.playShot(cam.position, def.sound, true);
     // recoil
     const k = this.adsT > 0.5 ? 0.7 : 1;
@@ -221,7 +265,24 @@ export class WeaponController {
     this.kick = Math.min(1.8, this.kick + ({ pistol: 0.9, shotgun: 1.6, dmr: 1.2, smg: 0.35 }[def.type] ?? 0.55));
     this.kickRot += (Math.random() - 0.5) * 0.6;
     player.addTrauma(0.04);
-    game.events.emit('playerShot', {});
+    game.events.emit('playerShot', { suppressed: !!def.suppressed, pos: player.pos.clone() });
+  }
+
+  /** Convert a point in a viewmodel weapon's local space to world space. */
+  _vmToWorld(model, local, out) {
+    const cam = this.game.pipeline.camera;
+    out.copy(local); model.localToWorld(out); // -> view (camera) space, the vm camera sits at the origin
+    return out.applyQuaternion(cam.quaternion).add(cam.position);
+  }
+
+  /** Throw the empty magazine out of the viewmodel into the world (it falls and bounces). */
+  _dropMagazine(model) {
+    const mag = model.userData.magazine;
+    if (!mag) return;
+    const p = this._vmToWorld(model, new THREE.Vector3(mag.position.x, mag.position.y - 0.08, mag.position.z), new THREE.Vector3());
+    const cam = this.game.pipeline.camera;
+    const v = new THREE.Vector3(0.4, -0.5, -0.3).applyQuaternion(cam.quaternion).add(this.game.player.vel);
+    this.game.effects.dropMagazine?.(p, v);
   }
 
   /** Rifle-butt strike: instant takedown of a hostile within arm's reach in front of the player. */
@@ -318,18 +379,43 @@ export class WeaponController {
     pos.z += this.kick * (def.type === 'pistol' ? 0.035 : 0.045) * (1 - ads * 0.4);
     rot.x += this.kick * 0.06 * (1 - ads * 0.5);
     rot.z += this.kickRot * 0.03;
-    // reload
-    let magOffset = 0;
+    // reload choreography: tilt -> mag out & drop -> hand to vest pouch -> new mag in -> (empty) bolt release
+    let magOffset = 0, reloadHand = null, magHidden = false, magFromHand = 0, boltSlap = 0;
     if (this.state === 'reload') {
       const w = this.current;
-      const p = 1 - w.reloading / w.reloadTotal;
-      const env = Math.sin(clamp(p, 0, 1) * Math.PI);
-      rot.z += 0.55 * env; rot.x += 0.25 * env; pos.y -= 0.05 * env; pos.x -= 0.03 * env;
-      if (p > 0.15 && p < 0.7) magOffset = Math.sin(clamp((p - 0.15) / 0.55, 0, 1) * Math.PI) * 0.25;
-      if (p > 0.22 && !this.reloadStageFired.out) { this.reloadStageFired.out = true; this.game.audio.playFoley('magOut'); }
-      if (p > 0.62 && !this.reloadStageFired.in) { this.reloadStageFired.in = true; this.game.audio.playFoley('magIn'); }
-      if (w.reloadTotal === def.reloadEmptyTime && p > 0.84 && !this.reloadStageFired.bolt) { this.reloadStageFired.bolt = true; this.game.audio.playFoley('bolt'); }
+      const p = clamp(1 - w.reloading / w.reloadTotal, 0, 1);
+      const empty = w.reloadTotal === def.reloadEmptyTime;
+      const env = Math.sin(clamp(p / 0.92, 0, 1) * Math.PI);
+      rot.z += 0.42 * env; rot.x += 0.08 * env; rot.y -= 0.12 * env; pos.y -= 0.02 * env; pos.x -= 0.04 * env;
+      if (!model.userData.magazine) {
+        // tube-fed: thumb shells in one by one
+        const cyc = (p * 6) % 1;
+        reloadHand = cyc < 0.5 ? 'pouch' : 'port';
+        if (cyc > 0.85 && !this.reloadStageFired['s' + Math.floor(p * 6)]) { this.reloadStageFired['s' + Math.floor(p * 6)] = true; this.game.audio.playFoley('magIn'); }
+      } else {
+        if (p > 0.12 && p < 0.3) magOffset = ((p - 0.12) / 0.18) * 0.12;
+        if (p >= 0.3 && p < 0.52) { magHidden = true; reloadHand = 'pouch'; }
+        if (p >= 0.52 && p < 0.7) { reloadHand = 'mag'; magFromHand = (p - 0.52) / 0.18; }
+        if (p >= 0.7 && p < 0.78) magOffset = (1 - (p - 0.7) / 0.08) * 0.05;
+        if (empty && p > 0.8 && p < 0.93) { reloadHand = 'bolt'; boltSlap = Math.sin(((p - 0.8) / 0.13) * Math.PI); }
+        if (p > 0.18 && !this.reloadStageFired.out) { this.reloadStageFired.out = true; this.game.audio.playFoley('magOut'); }
+        if (p > 0.3 && !this.reloadStageFired.drop) { this.reloadStageFired.drop = true; this._dropMagazine(model); }
+        if (p > 0.73 && !this.reloadStageFired.in) { this.reloadStageFired.in = true; this.game.audio.playFoley('magIn'); }
+        if (empty && p > 0.86 && !this.reloadStageFired.bolt) { this.reloadStageFired.bolt = true; this.game.audio.playFoley('bolt'); this.slideLocked = false; }
+      }
+      pos.y -= boltSlap * 0.012; rot.z -= boltSlap * 0.08;
     }
+    // inspect: turn the weapon to show its left side, then the top
+    if (this.state === 'inspect') {
+      const k = clamp(this.stateT / 2.4, 0, 1);
+      const a = Math.sin(Math.min(1, k * 1.6) * Math.PI * 0.5) * (1 - clamp((k - 0.8) / 0.2, 0, 1));
+      const b = Math.sin(clamp((k - 0.45) / 0.35, 0, 1) * Math.PI);
+      pos.x -= 0.1 * a; pos.y += 0.04 * a; pos.z += 0.06 * a;
+      rot.y += 0.95 * a; rot.z -= 0.35 * a - 0.6 * b; rot.x += 0.15 * b;
+    }
+    // close to a wall: tuck the weapon up and back (cannot fire)
+    pos.y += 0.05 * this.tuck; pos.z += 0.12 * this.tuck; pos.x -= 0.03 * this.tuck;
+    rot.x += 0.95 * this.tuck; rot.y += 0.25 * this.tuck;
     // melee strike: shove the rifle forward and across
     if (this.state === 'melee') {
       const k = clamp(this.stateT / 0.42, 0, 1);
@@ -350,8 +436,23 @@ export class WeaponController {
     this.pivot.position.copy(pos);
     this.pivot.rotation.copy(rot);
     const mag = model.userData.magazine;
-    if (mag) mag.position.y = mag.userData.baseY - magOffset;
-    if (model.userData.slide) model.userData.slide.position.z = model.userData.slide.userData.baseZ - this.kick * 0.03;
+    if (mag) {
+      mag.visible = !magHidden;
+      mag.position.set(mag.userData.baseX ?? 0, mag.userData.baseY - magOffset, mag.userData.baseZ ?? mag.position.z);
+      if (magFromHand > 0) {
+        // fresh magazine travels from the vest up into the magwell
+        const pouchLocal = model.worldToLocal(_v2.copy(POUCH));
+        const k = easeInOut(magFromHand);
+        mag.position.x = pouchLocal.x + (mag.userData.baseX - pouchLocal.x) * k;
+        mag.position.y = pouchLocal.y + (mag.userData.baseY - 0.05 - pouchLocal.y) * k;
+        mag.position.z = pouchLocal.z + (mag.userData.baseZ - pouchLocal.z) * k;
+      }
+    }
+    // bolt carrier / slide cycle on every shot, slide locks back on an empty pistol
+    this.boltT = Math.min(1, (this.boltT ?? 1) + dt / 0.06);
+    const cycle = Math.sin(this.boltT * Math.PI);
+    if (model.userData.bolt) model.userData.bolt.position.z = model.userData.bolt.userData.baseZ - cycle * 0.045;
+    if (model.userData.slide) model.userData.slide.position.z = model.userData.slide.userData.baseZ - (this.slideLocked && def.type === 'pistol' ? 0.045 : cycle * 0.04);
     // pump-action cycle after each shot
     const pump = model.userData.pump;
     if (pump) {
@@ -386,6 +487,14 @@ export class WeaponController {
     let frontW;
     if (gThrow && this.stateT < 0.6) {
       frontW = this.grenadeModel.position.clone();
+    } else if (reloadHand === 'pouch') {
+      frontW = _v.copy(POUCH);
+    } else if (reloadHand === 'mag' && mag) {
+      frontW = _v.set(0, -0.08, 0); mag.localToWorld(frontW);
+    } else if (reloadHand === 'port') {
+      frontW = _v.copy(anchors.ejection); model.localToWorld(frontW); frontW.y -= 0.03;
+    } else if (reloadHand === 'bolt') {
+      frontW = _v.copy(anchors.ejection); model.localToWorld(frontW);
     } else if (this.state === 'reload' && magOffset > 0.02 && mag) {
       frontW = _v.copy(mag.position); mag.parent.localToWorld(frontW);
       frontW.y -= 0.02;

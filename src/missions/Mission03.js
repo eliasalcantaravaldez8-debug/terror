@@ -73,6 +73,7 @@ export class Mission03 extends MissionBase {
   start(checkpoint = 'start') {
     const g = this.game, p = g.player;
     this.resetWorld();
+    this.game.pipeline.setNightVision(false);
     g.setRegion('port');
     this.checkpoint = checkpoint;
     this.escape = null;

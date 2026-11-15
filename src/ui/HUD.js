@@ -11,6 +11,7 @@ export class HUD {
     this.root = root;
     root.innerHTML = `
       <div id="gunner"><div class="g-ring"></div><div class="g-dot"></div><div id="gun-heat"><div id="gun-heat-fill"></div></div><div id="gun-label">M-6 VENTANIA</div></div>
+      <div id="stealth"><div class="st-eye"></div><div class="st-bar"><div id="st-fill"></div></div><div id="st-text">OCULTO</div></div>
       <div id="scope"><div class="scope-ring"></div><div class="scope-h"></div><div class="scope-v"></div><div class="scope-dot"></div></div>
       <div id="vignette-damage"></div>
       <div id="dmg-indicators"></div>
@@ -84,6 +85,18 @@ export class HUD {
     this._sty(this.el('gun-heat-fill'), 'width', `${Math.round(heat * 100)}%`);
     this._cls(this.el('gun-heat'), 'over', !!over);
     this._gunSeen = 2;
+  }
+
+  /** Stealth meter: awareness 0..1 of the most alert guard; null hides it. */
+  setStealth(a, angle = null, alarm = false) {
+    const el = this.el('stealth');
+    if (a === null) { this._cls(el, 'visible', false); return; }
+    this._cls(el, 'visible', true);
+    this._sty(this.el('st-fill'), 'width', `${Math.round(Math.min(1, a) * 100)}%`);
+    const state = alarm ? 'DETECTADO' : a > 0.45 ? 'SUSPEITO' : a > 0.08 ? 'OBSERVADO' : 'OCULTO';
+    this._txt(this.el('st-text'), state);
+    this._cls(el, 'warn', !alarm && a > 0.45);
+    this._cls(el, 'alarm', alarm);
   }
 
   setScope(on) {
@@ -235,6 +248,7 @@ export class HUD {
 
   reset() {
     this.setProgress(null);
+    this.setStealth(null);
     for (const i of this.indicators) i.el.remove();
     this.indicators.length = 0;
     this.setSubtitle(null);

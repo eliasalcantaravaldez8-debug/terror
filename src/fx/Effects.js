@@ -74,6 +74,14 @@ export class Effects {
       this.casings.push({ mesh: m, vel: new THREE.Vector3(), spin: new THREE.Vector3(), life: 0, active: false });
     }
     this.casingIdx = 0;
+    // dropped magazines from reloads (same simple physics as casings)
+    this.magGeo = new THREE.BoxGeometry(0.03, 0.14, 0.07);
+    this.magMat = new THREE.MeshStandardMaterial({ color: 0x232322, roughness: 0.7, metalness: 0.2 });
+    for (let i = 0; i < 8; i++) {
+      const m = new THREE.Mesh(this.magGeo, this.magMat);
+      m.visible = false; m.castShadow = true; scene.add(m);
+      this.casings.push({ mesh: m, vel: new THREE.Vector3(), spin: new THREE.Vector3(), life: 0, active: false, isMag: true });
+    }
 
     this.emitters = []; // persistent: fires, smoke columns
     this.wind = new THREE.Vector3(1.2, 0, -0.6);
@@ -179,8 +187,16 @@ export class Effects {
     }
   }
 
+  dropMagazine(pos, vel) {
+    const mags = this.casings.filter((c) => c.isMag);
+    const c = mags.find((m) => !m.active) || mags[0];
+    c.active = true; c.life = 0; c.mesh.visible = true; c.bounced = false;
+    c.mesh.position.copy(pos); c.vel.copy(vel); c.spin.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+  }
+
   casing(pos, vel) {
-    const c = this.casings[this.casingIdx++ % this.casings.length];
+    const shells = this.casings.filter((c) => !c.isMag);
+    const c = shells[this.casingIdx++ % shells.length];
     c.active = true; c.life = 0;
     c.mesh.visible = true;
     c.mesh.position.copy(pos);
@@ -394,11 +410,11 @@ export class Effects {
       const ground = colWorld ? colWorld.groundHeight(c.mesh.position.x, c.mesh.position.z, 0.05, c.mesh.position.y + 0.05) : 0;
       if (c.mesh.position.y < ground + 0.01) {
         c.mesh.position.y = ground + 0.01;
-        if (!c.bounced) { this.onCasingLand?.(c.mesh.position); c.bounced = true; }
+        if (!c.bounced) { if (c.isMag) this.onMagLand?.(c.mesh.position); else this.onCasingLand?.(c.mesh.position); c.bounced = true; }
         c.vel.multiplyScalar(0.3); c.vel.y = Math.abs(c.vel.y) * 0.3;
         c.spin.multiplyScalar(0.5);
       }
-      if (c.life > 6) { c.active = false; c.mesh.visible = false; }
+      if (c.life > (c.isMag ? 25 : 6)) { c.active = false; c.mesh.visible = false; }
     }
 
     if (camPos) this.updateRain(dt, camPos, camVel);

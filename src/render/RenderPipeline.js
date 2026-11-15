@@ -19,6 +19,7 @@ export const QUALITY_PRESETS = {
 export const TIME_OF_DAY = {
   morning: { elevation: 9, azimuth: 120, turbidity: 9, rayleigh: 1.6, mie: 0.012, sun: 0xffd2a1, sunI: 2.4, sky: 0xb9c6d2, ground: 0x4a4136, hemiI: 0.75, fog: 0x9ea4a6, fogD: 0.0062, exposure: 1.0, rain: 0.6, cloudCover: 0.42, cloudDensity: 0.95, shafts: 0.55, tint: [1.03, 1.0, 0.95], lift: [0.0, 0.0, 0.01] },
   dawn: { elevation: 4, azimuth: 95, turbidity: 8, rayleigh: 2.6, mie: 0.02, sun: 0xffb07a, sunI: 1.9, sky: 0x9cadc4, ground: 0x3a3a3c, hemiI: 0.62, fog: 0xa3abb4, fogD: 0.0082, exposure: 0.95, rain: 0.2, cloudCover: 0.5, cloudDensity: 0.8, shafts: 1.0, tint: [1.02, 0.98, 1.03], lift: [0.012, 0.008, 0.02] },
+  night: { elevation: 32, azimuth: 210, turbidity: 2, rayleigh: 0.25, mie: 0.002, sun: 0x8fa6d8, sunI: 0.35, sky: 0x1c2638, ground: 0x0d0f12, hemiI: 0.32, fog: 0x0e1420, fogD: 0.012, exposure: 0.9, rain: 0, cloudCover: 0.55, cloudDensity: 0.5, shafts: 0, tint: [0.9, 0.97, 1.12], lift: [0.004, 0.008, 0.02] },
   overcast: { elevation: 28, azimuth: 160, turbidity: 18, rayleigh: 0.9, mie: 0.03, sun: 0xd9dde2, sunI: 1.15, sky: 0xaab4c0, ground: 0x4a4a46, hemiI: 0.95, fog: 0x9aa2aa, fogD: 0.0042, exposure: 1.0, rain: 0, cloudCover: 0.22, cloudDensity: 1.0, shafts: 0.15, tint: [0.97, 1.0, 1.04], lift: [0.004, 0.008, 0.014] },
   dusk: { elevation: 2.5, azimuth: 255, turbidity: 13, rayleigh: 3.4, mie: 0.022, sun: 0xff8040, sunI: 1.6, sky: 0x76829a, ground: 0x2c2622, hemiI: 0.55, fog: 0x6e6870, fogD: 0.0075, exposure: 0.92, rain: 0.85, cloudCover: 0.36, cloudDensity: 1.0, shafts: 1.1, tint: [1.08, 0.97, 0.9], lift: [0.0, 0.006, 0.018] },
 };
@@ -34,12 +35,13 @@ const GradeShader = {
     uFlash: { value: 0 },
     uCA: { value: 0.0012 },
     uTint: { value: new THREE.Vector3(1, 1, 1) },
+    uNV: { value: 0 },
     uLift: { value: new THREE.Vector3(0, 0, 0) },
     uTexel: { value: new THREE.Vector2(1 / 1920, 1 / 1080) },
   },
   vertexShader: /* glsl */`varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
   fragmentShader: /* glsl */`
-    uniform sampler2D tDiffuse; uniform float uTime, uVignette, uDamage, uSaturation, uFlash, uCA; uniform vec2 uTexel; uniform vec3 uTint, uLift; varying vec2 vUv;
+    uniform sampler2D tDiffuse; uniform float uTime, uVignette, uDamage, uSaturation, uFlash, uCA; uniform vec2 uTexel; uniform vec3 uTint, uLift; uniform float uNV; varying vec2 vUv;
     float rand(vec2 c){ return fract(sin(dot(c, vec2(12.9898,78.233))) * 43758.5453); }
     void main(){
       vec4 c = texture2D(tDiffuse, vUv);
@@ -61,6 +63,14 @@ const GradeShader = {
       col = mix(col, vec3(0.45,0.02,0.02), edge * uDamage * 0.85);
       col += (rand(vUv*vec2(1920.0,1080.0) + uTime) - 0.5) * 0.025;
       col += uFlash;
+      if (uNV > 0.0) {
+        // night vision: amplified luminance, green phosphor, grain, tube vignette
+        float nl = dot(col, vec3(0.3, 0.59, 0.11)) * 5.5 + 0.03;
+        float grain = (rand(vUv * vec2(1280.0, 720.0) + uTime * 3.1) - 0.5) * 0.12;
+        vec3 nv = vec3(0.25, 1.0, 0.35) * (nl + grain);
+        float tube = smoothstep(0.75, 0.35, length((vUv - 0.5) * vec2(1.4, 1.0)));
+        col = mix(col, nv * tube, uNV);
+      }
       gl_FragColor = vec4(max(col, 0.0), c.a);
     }`,
 };
@@ -247,9 +257,17 @@ export class RenderPipeline {
     const tod = TIME_OF_DAY[this.timeOfDay] || TIME_OF_DAY.morning;
     this.grade.uniforms.uTint.value.fromArray(tod.tint || [1, 1, 1]);
     this.grade.uniforms.uLift.value.fromArray(tod.lift || [0, 0, 0]);
+    this.grade.uniforms.uNV.value = this.nightVision ? 1 : 0;
     composer.addPass(this.grade);
     composer.addPass(new OutputPass());
     this.composer = composer;
+  }
+
+  /** Night-vision goggles (needs the post-processing chain: medium quality and up). */
+  setNightVision(on) {
+    this.nightVision = on;
+    if (this.grade) this.grade.uniforms.uNV.value = on ? 1 : 0;
+    this.renderer.toneMappingExposure = (TIME_OF_DAY[this.timeOfDay]?.exposure ?? 1) * (on && !this.grade ? 3 : 1);
   }
 
   /** Dynamic resolution scale (0.55..1) applied on top of the quality preset. */

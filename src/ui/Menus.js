@@ -120,7 +120,8 @@ export class Menus {
     const rows = [
       ['W A S D', 'Mover'], ['Shift', 'Correr'], ['C / Ctrl (segurar)', 'Agachar'], ['Espaço', 'Pular'],
       ['Botão esquerdo', 'Atirar'], ['Botão direito', 'Mirar (ADS)'], ['R', 'Recarregar'], ['G', 'Granada'], ['V / F', 'Golpe corpo a corpo'],
-      ['1 / 2 / Q / Roda', 'Trocar arma'], ['E', 'Interagir'], ['Esc / P', 'Pausar'],
+      ['1 / 2 / Q / Roda', 'Trocar arma'], ['E', 'Interagir'], ['I', 'Inspecionar arma'],
+      ['Shift (mirando com luneta)', 'Prender a respiração'], ['N', 'Visão noturna (Missão 5)'], ['Esc / P', 'Pausar'],
     ];
     this._show(`
       <h2>CONTROLES</h2>

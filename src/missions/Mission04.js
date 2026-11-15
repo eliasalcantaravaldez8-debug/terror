@@ -107,7 +107,7 @@ export class Mission04 extends MissionBase {
     this.number = 4;
     this.completeText = {
       top: 'MISSÃO 4 CONCLUÍDA', main: 'CÉU CINZENTO',
-      body: 'A base de Kessel caiu — mas Serrat decolou a tempo, rumo a Varna, onde a cúpula da coalizão se reúne amanhã à noite.<br>Sem ordens, sem apoio e com um piloto que acredita neles, a equipe Iron vai atrás dele.<br><b>Continua na Missão 5 — Infiltração Noturna.</b>',
+      body: 'A base de Kessel caiu — mas Serrat decolou a tempo, rumo a Varna, onde a cúpula da coalizão se reúne amanhã à noite.<br>Sem ordens, sem apoio e com um piloto que acredita neles, a equipe Iron vai atrás dele.<br><b>A seguir: Missão 5 — Infiltração Noturna.</b>',
     };
     this.parts = buildHelicopter(game.mats, { interior: true });
     this.parts.root.visible = false;
@@ -139,6 +139,7 @@ export class Mission04 extends MissionBase {
   start(checkpoint = 'start') {
     const g = this.game, p = g.player;
     this.resetWorld();
+    this.game.pipeline.setNightVision(false);
     for (const v of this.vehicles) v.dispose();
     this.vehicles = [];
     g.setRegion('base');

@@ -35,6 +35,12 @@
 - [x] Metralhadora de porta (giro, superaquecimento, acerto no terreno), baterias antiaéreas, comboio
 - [x] Base de radar com bunkers, hangar, cúpula, pista e o jato do Serrat
 
-## Etapa 6 — Campanha (≈10 missões, ≈5 h)
+## Etapa 6 — Missão 5 "Infiltração Noturna" + armas realistas (FEITO)
+- [x] Mansão do Serrat: muro, grade do esgoto, jardins, sebes, fonte, palácio, terraço, guarita
+- [x] Furtividade: patrulhas com lanterna, cone de visão, luz/postura/corrida, ruído de tiro, corpos encontrados, alarme com reforços
+- [x] Visão noturna, pistola com silenciador (P-11S), gravação com microfone laser e fuga de helicóptero
+- [x] Armas: ferrolho animado, miras mecânicas, recarga com carregador caindo, inspeção, recuo na parede, fumaça no cano, respiração na luneta, novos sons
+
+## Etapa 7 — Campanha (≈10 missões, ≈5 h)
 1. Primeiro Contato (Teresk) · 2. Sinal Morto · 3. Porto de Vareny · 4. Céu Cinzento (helicóptero)
 5. Infiltração noturna · 6. Comboio · 7. Queda (traição) · 8. Montanha · 9. Cerco · 10. Iron Shadow

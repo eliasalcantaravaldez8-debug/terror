@@ -157,7 +157,20 @@ export class AudioEngine {
     const send = this.ctx.createGain();
     send.gain.value = isPlayer ? 0.35 : 0.6;
     send.connect(this.reverbSend);
-    const big = kind === 'sniper' ? 1.6 : kind === 'pistol' ? 0.7 : kind === 'mg' ? 1.1 : 1;
+    if (kind === 'suppressed') {
+      // suppressed: a soft gas "thup" + the action cycling, almost no echo
+      this._burst(dest, { t, dur: 0.07, type: 'bandpass', freq: 1100, q: 1.2, gain: 0.35 });
+      this._burst(dest, { t, dur: 0.12, type: 'lowpass', freq: 500, gain: 0.45 });
+      this._tone(dest, { t: t + 0.012, dur: 0.035, type: 'square', freq: 1700 + Math.random() * 300, gain: isPlayer ? 0.05 : 0.025 });
+      this._burst(dest, { t: t + 0.03, dur: 0.04, type: 'bandpass', freq: 3200, q: 4, gain: 0.18 });
+      return;
+    }
+    const big = kind === 'sniper' || kind === 'dmr' ? 1.6 : kind === 'shotgun' ? 1.75 : kind === 'pistol' ? 0.7 : kind === 'mg' ? 1.1 : 1;
+    if (kind === 'shotgun') {
+      this._tone(dest, { t, dur: 0.3, freq: 90, freqEnd: 32, gain: 1.6 });
+      this._burst(send, { t: t + 0.04, dur: 1.1, type: 'lowpass', freq: 700, gain: 0.8, freqEnd: 90 });
+    }
+    if (kind === 'dmr') this._burst(send, { t: t + 0.05, dur: 1.6, type: 'lowpass', freq: 1100, gain: 0.7, freqEnd: 110 });
     const v = (0.8 + Math.random() * 0.2) * big;
     if (d < 90) this._burst(dest, { t, dur: 0.06, type: 'highpass', freq: 2400, gain: 0.9 * v, rate: 1 + Math.random() * 0.2 });
     this._burst(dest, { t, dur: 0.22 * big, type: 'bandpass', freq: kind === 'pistol' ? 900 : 520, q: 0.8, gain: 1.3 * v, freqEnd: 160 });

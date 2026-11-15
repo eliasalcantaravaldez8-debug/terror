@@ -80,6 +80,38 @@ function redDot(mats, detail, y, z) {
   return optic;
 }
 
+
+/**
+ * Extra realism for first-person weapons: a bolt carrier visible in the ejection port
+ * (animated on each shot), folding iron sights, a light/laser module, magazine ribs,
+ * sling loops and screws.
+ */
+function addDetails(g, mats, { port, rail = null, light = null, mag = null, ironFront = null, ironRear = null }) {
+  const metal = mats.weapon('metal', '#3a3c3f'), dark = mats.weapon('metal', '#141516'), bright = mats.weapon('metal', '#8e8f8c');
+  // bolt carrier glimpsed through the ejection port
+  const bolt = new THREE.Group(); bolt.name = 'bolt';
+  rb(bolt, 0.012, 0.018, 0.07, bright, 0, 0, 0, 0.002);
+  rb(bolt, 0.014, 0.006, 0.012, metal, 0.004, 0.012, 0.02, 0.001); // extractor claw
+  bolt.position.copy(port); g.add(bolt);
+  g.userData.bolt = bolt;
+  // folding iron sights on the rail
+  if (ironRear) { rb(g, 0.03, 0.012, 0.02, dark, 0, ironRear.y, ironRear.z, 0.002); const ap = new THREE.Mesh(new THREE.TorusGeometry(0.006, 0.0025, 6, 12), dark); ap.position.set(0, ironRear.y + 0.012, ironRear.z); g.add(ap); }
+  if (ironFront) { rb(g, 0.03, 0.012, 0.02, dark, 0, ironFront.y, ironFront.z, 0.002); rb(g, 0.003, 0.02, 0.003, dark, 0, ironFront.y + 0.014, ironFront.z, 0.001); }
+  // weapon light + laser on the side rail
+  if (light) {
+    const body = cyl(g, 0.014, 0.08, dark, light.x, light.y, light.z, 14);
+    body.name = 'light';
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.012, 14), mats.emissive(0xfff4dc, 0.6));
+    lens.position.set(light.x, light.y, light.z + 0.041); g.add(lens);
+    rb(g, 0.016, 0.014, 0.03, metal, light.x * 0.6, light.y + 0.012, light.z - 0.01, 0.002); // mount
+    rb(g, 0.012, 0.012, 0.012, dark, light.x, light.y - 0.012, light.z - 0.03, 0.002); // pressure switch
+  }
+  // magazine ribs + witness holes
+  if (mag) for (let i = 0; i < 4; i++) rb(mag, 0.036, 0.004, 0.06, dark, 0, -0.04 - i * 0.03, 0.03 + i * 0.006, 0.001);
+  // screws / pins
+  for (const [x, y, z] of [[0.027, 0.0, 0.06], [0.027, 0.0, -0.05], [0.027, 0.04, 0.12]]) cyl(g, 0.004, 0.003, bright, x, y, z, 8).rotation.set(0, 0, Math.PI / 2);
+}
+
 /** VK-7 assault rifle (fictional). */
 export function makeRifle(mats, detail = 'high') {
   const g = new THREE.Group(); g.name = 'VK-7';
@@ -123,6 +155,7 @@ export function makeRifle(mats, detail = 'high') {
     cyl(g, 0.006, 0.012, metal, -0.03, 0.01, -0.12); // sling mount
     rb(g, 0.03, 0.07, 0.035, poly, 0, -0.035, 0.35, 0.01); // vertical foregrip
   }
+  if (detail === 'high') addDetails(g, mats, { port: new THREE.Vector3(0.022, 0.048, 0.07), mag, ironRear: { y: 0.085, z: -0.06 }, ironFront: { y: 0.08, z: 0.44 }, light: { x: -0.045, y: 0.03, z: 0.4 } });
   g.add(redDot(mats, detail, 0.115, 0.05));
   finish(g, detail);
   g.userData.anchors = {
@@ -155,6 +188,7 @@ export function makeSMG(mats, detail = 'high') {
   for (const sx of [-1, 1]) rb(g, 0.006, 0.006, 0.2, metal, sx * 0.022, 0.03, -0.17, 0.002);
   rb(g, 0.05, 0.08, 0.012, mats.rubber(), 0, 0.0, -0.27, 0.004);
   if (detail === 'high') { rb(g, 0.012, 0.012, 0.03, metal, -0.03, 0.05, 0.05, 0.003); rb(g, 0.03, 0.05, 0.03, poly, 0, -0.045, 0.17, 0.008); }
+  if (detail === 'high') addDetails(g, mats, { port: new THREE.Vector3(0.02, 0.035, 0.06), mag, light: { x: -0.04, y: 0.02, z: 0.2 } });
   g.add(redDot(mats, detail, 0.1, 0.04));
   finish(g, detail);
   g.userData.anchors = {
@@ -223,6 +257,7 @@ export function makeDMR(mats, detail = 'high') {
     const lens = new THREE.Mesh(new THREE.CircleGeometry(0.024, 20), new THREE.MeshStandardMaterial({ color: 0x223040, metalness: 1, roughness: 0.05 }));
     lens.position.set(0, 0.115, 0.231); g.add(lens);
   }
+  if (detail === 'high') addDetails(g, mats, { port: new THREE.Vector3(0.024, 0.048, 0.07), mag });
   finish(g, detail);
   g.userData.anchors = {
     muzzle: new THREE.Vector3(0, 0.035, 1.01), gripRear: new THREE.Vector3(0, -0.07, -0.06),
@@ -233,8 +268,8 @@ export function makeDMR(mats, detail = 'high') {
 }
 
 /** P-11 sidearm (fictional). */
-export function makePistol(mats, detail = 'high') {
-  const g = new THREE.Group(); g.name = 'P-11';
+export function makePistol(mats, detail = 'high', { suppressed = false } = {}) {
+  const g = new THREE.Group(); g.name = suppressed ? 'P-11S' : 'P-11';
   const metal = mats.weapon('metal', '#2b2d2f'), poly = mats.weapon('polymer', '#232323'), dark = mats.weapon('metal', '#18191a');
   const slide = new THREE.Group(); slide.name = 'slide';
   rb(slide, 0.029, 0.03, 0.19, metal, 0, 0, 0, 0.004);
@@ -250,11 +285,18 @@ export function makePistol(mats, detail = 'high') {
   g.add(mag);
   rb(g, 0.006, 0.006, 0.045, poly, 0, -0.018, 0.02, 0.002);
   cyl(g, 0.006, 0.02, dark, 0, 0.03, 0.14);
+  // fixed barrel (visible when the slide locks back) + optional suppressor
+  cyl(g, 0.009, 0.1, mats.weapon('metal', '#8e8f8c'), 0, 0.034, 0.08, 10);
+  if (suppressed) {
+    cyl(g, 0.017, 0.16, mats.weapon('metal', '#1a1b1c'), 0, 0.03, 0.23, 16);
+    for (const z of [0.16, 0.3]) cyl(g, 0.018, 0.008, mats.weapon('metal', '#2e3032'), 0, 0.03, z, 16);
+  }
   finish(g, detail);
   g.userData.anchors = {
     muzzle: new THREE.Vector3(0, 0.03, 0.15), gripRear: new THREE.Vector3(0, -0.04, -0.025),
     gripFront: new THREE.Vector3(0, -0.06, -0.01), sight: new THREE.Vector3(0, 0.054, 0.0), ejection: new THREE.Vector3(0.02, 0.04, 0.04),
   };
+  if (suppressed) g.userData.anchors.muzzle.set(0, 0.03, 0.32);
   g.userData.magazine = mag;
   g.userData.slide = slide;
   return g;
@@ -269,6 +311,7 @@ export function makeWeaponModel(id, mats, detail = 'high') {
     case 'brk12': return makeShotgun(mats, detail);
     case 'lr6': return makeDMR(mats, detail);
     case 'p11': return makePistol(mats, detail);
+    case 'p11s': return makePistol(mats, detail, { suppressed: true });
     default: return makeRifle(mats, detail);
   }
 }

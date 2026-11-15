@@ -71,6 +71,7 @@ export class Mission02 extends MissionBase {
   start(checkpoint = 'start') {
     const g = this.game, p = g.player;
     this.resetWorld();
+    this.game.pipeline.setNightVision(false);
     g.setRegion('teresk');
     this.checkpoint = checkpoint;
     this.transmit = null;

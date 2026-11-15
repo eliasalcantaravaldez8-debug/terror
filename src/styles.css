@@ -162,3 +162,14 @@ table.controls td.k { color: var(--accent); letter-spacing: 1px; width: 45%; }
 #gun-heat.over #gun-heat-fill { background: #ff2a1a; animation: heatblink .25s infinite alternate; }
 @keyframes heatblink { to { opacity: .4; } }
 #gun-label { position: absolute; left: -90px; top: 130px; width: 180px; text-align: center; font-size: 11px; letter-spacing: 3px; color: var(--hud-dim); }
+
+#stealth { left: 50%; top: 56px; transform: translateX(-50%); display: none; text-align: center; }
+#stealth.visible { display: block; }
+#stealth .st-eye { width: 26px; height: 14px; margin: 0 auto 4px; border: 2px solid var(--hud); border-radius: 50% / 60%; position: relative; }
+#stealth .st-eye::after { content: ''; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; background: var(--hud); border-radius: 50%; }
+#stealth .st-bar { width: 140px; height: 4px; background: rgba(255,255,255,.15); }
+#st-fill { height: 100%; width: 0; background: #e8d070; transition: width .15s; }
+#st-text { font-size: 11px; letter-spacing: 3px; margin-top: 4px; color: var(--hud-dim); }
+#stealth.warn #st-fill { background: #e08a2c; } #stealth.warn #st-text { color: #e08a2c; }
+#stealth.alarm #st-fill { background: var(--red); } #stealth.alarm #st-text { color: var(--red); }
+#stealth.alarm .st-eye { border-color: var(--red); }

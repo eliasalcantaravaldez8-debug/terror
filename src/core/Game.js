@@ -29,8 +29,9 @@ import { mergeStatic } from '../render/mergeUtil.js';
 import { Mission02 } from '../missions/Mission02.js';
 import { Mission03 } from '../missions/Mission03.js';
 import { Mission04 } from '../missions/Mission04.js';
+import { Mission05 } from '../missions/Mission05.js';
 
-export const MISSION_ORDER = ['m01', 'm02', 'm03', 'm04'];
+export const MISSION_ORDER = ['m01', 'm02', 'm03', 'm04', 'm05'];
 
 export const DIFFICULTY = {
   normal: { playerDamage: 1, enemyDamage: 1.12, enemyAccuracy: 1.18, allyAccuracy: 1, tokens: 2, regenDelay: 5.0, regenRate: 26 },
@@ -76,7 +77,7 @@ export class Game {
     await nextFrame();
     // one navigation grid + cover set per map region
     this.regions = {};
-    for (const [name, b] of Object.entries({ teresk: { minX: -75, minZ: -212, maxX: 138, maxZ: 78 }, port: { minX: 925, minZ: -96, maxX: 1175, maxZ: 155 }, base: { minX: -1885, minZ: -80, maxX: -1715, maxZ: 80 } })) {
+    for (const [name, b] of Object.entries({ teresk: { minX: -75, minZ: -212, maxX: 138, maxZ: 78 }, port: { minX: 925, minZ: -96, maxX: 1175, maxZ: 155 }, base: { minX: -1885, minZ: -80, maxX: -1715, maxZ: 80 }, estate: { minX: -716, minZ: 1604, maxX: -484, maxZ: 1846 } })) {
       const nav = new NavGrid(this.world, { ...b, cell: 0.75, agentRadius: 0.42 });
       const cover = new CoverSystem(this.world, nav);
       cover.build();
@@ -88,6 +89,7 @@ export class Game {
     await nextFrame();
     this.effects = new Effects(this.scene, this.pipeline, this.pipeline.quality);
     this.effects.onCasingLand = (p) => this.audio.playCasing(p);
+    this.effects.onMagLand = (p) => this.audio.playGrenadeBounce(p);
     this.effects.indoorRects = this.city.indoorRects;
     for (const d of this.city.lightDefs || []) this.effects.requestLight(d);
     this.player = new Player(this);
@@ -102,7 +104,7 @@ export class Game {
     this.fade = new Fade(document.getElementById('fade'));
     onProgress(0.85, 'Preparando a missão');
     await nextFrame();
-    this.missions = { m01: new Mission01(this), m02: new Mission02(this), m03: new Mission03(this), m04: new Mission04(this) };
+    this.missions = { m01: new Mission01(this), m02: new Mission02(this), m03: new Mission03(this), m04: new Mission04(this), m05: new Mission05(this) };
     this.mission = this.missions.m01;
     this.interactables = this.city.interactables;
 
@@ -226,9 +228,10 @@ export class Game {
     if (next !== this.mission) { this.mission.exit?.(); this.mission = next; }
     this.timers.length = 0;
     this.timeScale = 1; this.slowMo = null;
-    this.mission.start(checkpoint);
+    // loadout first: a mission may override it (e.g. the silent loadout of Mission 5)
     if (weaponsData) this.weapons.restore(weaponsData);
     else if (checkpoint === 'start') this.weapons.resetLoadout();
+    this.mission.start(checkpoint);
     this.hud.show(true);
     this.state = 'playing';
     if (checkpoint !== 'start') { this.fade.set(1); this.fade.to(0, 1.2); this.hud.toast('Checkpoint: ' + this.mission.checkpointLabel(checkpoint)); }
