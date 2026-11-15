@@ -1740,7 +1740,11 @@ export class City {
     // duas espécies: copa arredondada (folhas texturizadas) e pinheiro.
     // Divididas em regiões de 300 m (o motor descarta as regiões fora da tela) e com versão simplificada para longe.
     const leafTex = TX.leavesTex();
-    const leafMat = new THREE.MeshLambertMaterial({ map: leafTex, normalMap: TX.normalOf(leafTex, 3, 'leaves') });
+    const leafMat = new THREE.MeshLambertMaterial({ map: leafTex, normalMap: TX.normalOf(leafTex, 3, 'leaves'), vertexColors: true });
+    // sombreamento da copa: claro em cima, escuro embaixo e por dentro (volume de folhagem de verdade)
+    const shade = (g, y0, y1, lo = 0.5, hi = 1.0) => { const pa = g.attributes.position, col = new Float32Array(pa.count * 3);
+      for (let i = 0; i < pa.count; i++) { const t = THREE.MathUtils.clamp((pa.getY(i) - y0) / (y1 - y0), 0, 1); const v = lo + (hi - lo) * t * t * (3 - 2 * t) + Math.sin(pa.getX(i) * 7.3 + pa.getZ(i) * 5.1) * 0.05; col[i * 3] = v * 0.97; col[i * 3 + 1] = v; col[i * 3 + 2] = v * 0.9; }
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3)); return g; };
     const blob = (detail) => {
       const g = new THREE.IcosahedronGeometry(1, detail); const pa = g.attributes.position;
       for (let i = 0; i < pa.count; i++) { // deforma levemente para não parecer esfera perfeita
@@ -1748,12 +1752,20 @@ export class City {
         const k = 1 + Math.sin(v.x * 5.1) * 0.07 + Math.cos(v.y * 4.3 + v.z * 3.7) * 0.07;
         pa.setXYZ(i, v.x * k, v.y * k, v.z * k);
       }
-      g.computeVertexNormals(); return g;
+      g.computeVertexNormals(); return shade(g, -1, 1, 0.45, 1.0);
     };
-    const pineGeo = (seg) => { const parts = []; for (let i = 0; i < 4; i++) { const g = new THREE.ConeGeometry(1.5 - i * 0.3, 2.2, seg); g.translate(0, 2.4 + i * 1.25, 0); parts.push(g); } return mergeGeometries(parts); };
+    // cartões de folhas espalhados na superfície da copa: recorte irregular nas bordas (sem parecer bola lisa)
+    const cards = (n) => { const pos = [], nor = [], uv = [], v = new THREE.Vector3(), t1 = new THREE.Vector3(), t2 = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+      for (let i = 0; i < n; i++) { const yy = 1 - (i + 0.5) / n * 1.7, r = Math.sqrt(Math.max(0, 1 - yy * yy)), a = i * 2.39996; v.set(Math.cos(a) * r, yy, Math.sin(a) * r).normalize();
+        t1.crossVectors(Math.abs(v.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : up, v).normalize(); t2.crossVectors(v, t1).normalize(); const sz = 0.42 + (i % 3) * 0.08, c = v.clone().multiplyScalar(0.93);
+        const P = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a2, b2]) => c.clone().addScaledVector(t1, a2 * sz).addScaledVector(t2, b2 * sz));
+        for (const k of [0, 1, 2, 0, 2, 3]) { pos.push(P[k].x, P[k].y, P[k].z); nor.push(v.x, v.y, v.z); } uv.push(0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); return shade(g, -1, 1, 0.5, 1.05); };
+    const cardMat = new THREE.MeshLambertMaterial({ map: TX.leafCardTex(), alphaTest: 0.5, side: THREE.DoubleSide, vertexColors: true });
+    const pineGeo = (seg) => { const parts = []; for (let i = 0; i < 4; i++) { const g = new THREE.ConeGeometry(1.5 - i * 0.3, 2.2, seg); g.translate(0, 2.4 + i * 1.25, 0); parts.push(shade(g.toNonIndexed(), 1.3 + i * 1.25, 3.5 + i * 1.25, 0.45, 1.0)); } return mergeGeometries(parts); };
     const trunkG = new THREE.CylinderGeometry(0.12, 0.24, 3.2, 7); trunkG.translate(0, 1.6, 0);
     const trunkFarG = new THREE.CylinderGeometry(0.12, 0.24, 3.2, 4); trunkFarG.translate(0, 1.6, 0);
-    const G = { leaf: blob(2), leafFar: blob(1), pine: pineGeo(9), pineFar: pineGeo(5) };
+    const G = { leaf: blob(2), leafFar: blob(1), cards: cards(22), pine: pineGeo(9), pineFar: pineGeo(5) };
     const CELL = 300; const cells = new Map();
     for (const t of this.trees) { const k = Math.floor(t[0] / CELL) + ',' + Math.floor(t[1] / CELL); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(t); }
     this.treeCells = [];
@@ -1761,7 +1773,7 @@ export class City {
     for (const list of cells.values()) {
       const round = list.filter((t) => !t[3]).length, pines = list.length - round;
       const mk = (geo, mat, n, shadow) => { const o = new THREE.InstancedMesh(geo, mat, Math.max(1, n)); o.castShadow = shadow; o.receiveShadow = true; return o; };
-      const near = { trunk: mk(trunkG, this.M.bark, list.length, true), leaves: mk(G.leaf, leafMat, round * 3, true), pine: mk(G.pine, leafMat, pines, true) };
+      const near = { trunk: mk(trunkG, this.M.bark, list.length, true), leaves: mk(G.leaf, leafMat, round * 3, true), cards: mk(G.cards, cardMat, round * 3, false), pine: mk(G.pine, leafMat, pines, true) };
       const far = { trunk: mk(trunkFarG, this.M.bark, list.length, false), leaves: mk(G.leafFar, leafMat, round * 3, false), pine: mk(G.pineFar, leafMat, pines, false) };
       let li = 0, ti = 0, pi = 0; let sx = 0, sz = 0;
       for (const [x, z, s, isPine] of list) {
@@ -1782,13 +1794,13 @@ export class City {
             q.setFromEuler(new THREE.Euler(rand(), rand(), rand()));
             m.compose(new THREE.Vector3(x + ox, y + oy, z + oz), q, new THREE.Vector3(ls, ls * 0.85, ls));
             c.setHSL(hue + rr(-0.02, 0.02), rr(0.4, 0.6), rr(0.32, 0.45) - b * 0.03 * -1);
-            for (const o of [near.leaves, far.leaves]) { o.setMatrixAt(li, m); o.setColorAt(li, c); } li++;
+            for (const o of [near.leaves, near.cards, far.leaves]) { o.setMatrixAt(li, m); o.setColorAt(li, c); } li++;
           }
         }
         this.world.addCentered(x, 0, z, 0.5 * s, 3, 0.5 * s);
       }
       for (const set of [near, far]) {
-        set.leaves.count = li; set.pine.count = pi;
+        set.leaves.count = li; set.pine.count = pi; if (set.cards) set.cards.count = li;
         for (const o of Object.values(set)) { if (!o.count) { o.visible = false; o.empty = true; continue; } o.computeBoundingSphere(); this.scene.add(o); }
       }
       this.treeCells.push({ x: sx / list.length, z: sz / list.length, near, far, lod: null });

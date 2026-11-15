@@ -380,6 +380,16 @@ export function leavesTex() {
   });
 }
 
+// cartão de folhas com fundo transparente (recorte irregular da copa)
+export function leafCardTex() {
+  return cached('leafCard', () => {
+    const S = 128; const [c, g] = canvas(S, S); g.clearRect(0, 0, S, S);
+    for (let i = 0; i < 70; i++) { const a = rand() * 6.28, d = Math.sqrt(rand()) * 52, x = 64 + Math.cos(a) * d, y = 64 + Math.sin(a) * d, r = rr(5, 10); const v = Math.floor(rr(120, 230));
+      g.fillStyle = `rgb(${v * 0.82 | 0},${v},${v * 0.66 | 0})`; g.beginPath(); g.ellipse(x, y, r, r * 0.5, rand() * 3, 0, 7); g.fill(); }
+    for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(25,40,15,0.6)'; g.beginPath(); g.ellipse(64 + rr(-40, 40), 64 + rr(-40, 40), rr(3, 6), rr(1.5, 3), rand() * 3, 0, 7); g.fill(); }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = true; return t;
+  });
+}
 export function aoTex() {
   return cached('ao', () => {
     const [c, g] = canvas(8, 64);
