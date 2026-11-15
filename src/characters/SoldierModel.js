@@ -51,6 +51,13 @@ export const APPEARANCE = {
     backpack: false, headset: false, armband: mats.armband(),
     face: opts.mask ? 'gasmask' : 'balaclava', helmetType: opts.cap ? 'cap' : opts.mask ? 'none' : 'ballistic',
   }),
+  /** Coalition troops at FOB Bastião (Mission 7): allied uniform, VÉRTICE armband once they turn. */
+  coalition: (mats, opts = {}) => ({
+    camo: mats.camoAlly(), vest: mats.webbing('#5d5a45'), pouch: mats.webbing('#56533f'), helmet: mats.helmetAlly(),
+    skin: mats.skinTex(opts.skin || '#b8906f'), glove: mats.glove(), boot: mats.boot(), team: 'enemy', glasses: !!opts.glasses,
+    backpack: false, headset: true, beard: false, armband: opts.armband === false ? null : mats.armband(),
+    face: 'bare', helmetType: opts.cap ? 'cap' : 'ballistic',
+  }),
   pilot: (mats) => ({
     camo: mats.polymer(0x4c5240), vest: mats.webbing('#5a5e48'), pouch: mats.webbing('#5a5e48'), helmet: mats.polymer(0x3b4033),
     skin: mats.skinTex('#b08468'), glove: mats.glove(), boot: mats.boot(), team: 'ally', glasses: false, backpack: false,

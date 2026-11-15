@@ -30,8 +30,11 @@ import { Mission02 } from '../missions/Mission02.js';
 import { Mission03 } from '../missions/Mission03.js';
 import { Mission04 } from '../missions/Mission04.js';
 import { Mission05 } from '../missions/Mission05.js';
+import { Mission06 } from '../missions/Mission06.js';
+import { Mission07 } from '../missions/Mission07.js';
+import { VILLAGE } from '../world/valleyLayout.js';
 
-export const MISSION_ORDER = ['m01', 'm02', 'm03', 'm04', 'm05'];
+export const MISSION_ORDER = ['m01', 'm02', 'm03', 'm04', 'm05', 'm06', 'm07'];
 
 export const DIFFICULTY = {
   normal: { playerDamage: 1, enemyDamage: 1.12, enemyAccuracy: 1.18, allyAccuracy: 1, tokens: 2, regenDelay: 5.0, regenRate: 26 },
@@ -77,7 +80,7 @@ export class Game {
     await nextFrame();
     // one navigation grid + cover set per map region
     this.regions = {};
-    for (const [name, b] of Object.entries({ teresk: { minX: -75, minZ: -212, maxX: 138, maxZ: 78 }, port: { minX: 925, minZ: -96, maxX: 1175, maxZ: 155 }, base: { minX: -1885, minZ: -80, maxX: -1715, maxZ: 80 }, estate: { minX: -716, minZ: 1604, maxX: -484, maxZ: 1846 } })) {
+    for (const [name, b] of Object.entries({ teresk: { minX: -75, minZ: -212, maxX: 138, maxZ: 78 }, port: { minX: 925, minZ: -96, maxX: 1175, maxZ: 155 }, base: { minX: -1885, minZ: -80, maxX: -1715, maxZ: 80 }, estate: { minX: -716, minZ: 1604, maxX: -484, maxZ: 1846 }, fob: { minX: 316, minZ: 1316, maxX: 484, maxZ: 1484 }, village: { minX: VILLAGE.bounds.x0 - 2, minZ: VILLAGE.bounds.z0 - 2, maxX: VILLAGE.bounds.x1 + 2, maxZ: VILLAGE.bounds.z1 + 2 } })) {
       const nav = new NavGrid(this.world, { ...b, cell: 0.75, agentRadius: 0.42 });
       const cover = new CoverSystem(this.world, nav);
       cover.build();
@@ -91,7 +94,7 @@ export class Game {
     this.effects.onCasingLand = (p) => this.audio.playCasing(p);
     this.effects.onMagLand = (p) => this.audio.playGrenadeBounce(p);
     this.effects.indoorRects = this.city.indoorRects;
-    for (const d of this.city.lightDefs || []) this.effects.requestLight(d);
+    for (const d of this.city.lightDefs || []) d._req = this.effects.requestLight(d);
     this.player = new Player(this);
     this.actors.push(this.player);
     this.combat = new Combat(this);
@@ -104,7 +107,7 @@ export class Game {
     this.fade = new Fade(document.getElementById('fade'));
     onProgress(0.85, 'Preparando a missão');
     await nextFrame();
-    this.missions = { m01: new Mission01(this), m02: new Mission02(this), m03: new Mission03(this), m04: new Mission04(this), m05: new Mission05(this) };
+    this.missions = { m01: new Mission01(this), m02: new Mission02(this), m03: new Mission03(this), m04: new Mission04(this), m05: new Mission05(this), m06: new Mission06(this), m07: new Mission07(this) };
     this.mission = this.missions.m01;
     this.interactables = this.city.interactables;
 
@@ -377,7 +380,7 @@ export class Game {
       this._hb = (this._hb || 0) - dt;
       if (this._hb <= 0) { this._hb = 0.9; this.audio.playHeartbeat(1 - this.player.health / 30); }
     }
-    const focus = this.player.mount ? this.mission.heli.position : this.player.pos.clone().addScaledVector(fwd.clone().setY(0).normalize(), 12);
+    const focus = this.player.mount ? (this.mission.heli?.position || this.player.pos) : this.player.pos.clone().addScaledVector(fwd.clone().setY(0).normalize(), 12);
     this.pipeline.updateShadowFocus(focus);
     // viewmodel light follows the view
     const inv = cam.quaternion.clone().invert();

@@ -1,5 +1,9 @@
 import './styles.css';
 import { Game } from './core/Game.js';
+import { Loadout } from './weapons/Loadout.js';
+import { newWeaponState } from './weapons/WeaponData.js';
+
+Loadout.load();
 
 const params = new URLSearchParams(location.search);
 const testMode = params.has('test');
@@ -8,7 +12,7 @@ const bar = document.getElementById('loading-bar');
 const label = document.getElementById('loading-label');
 
 const game = new Game({ testMode });
-window.__IRON = { game };
+window.__IRON = { game, Loadout, newWeaponState };
 
 game.init((p, text) => {
   bar.style.width = `${Math.round(p * 100)}%`;

@@ -87,6 +87,11 @@ export class Materials {
       roughness: 1, metalness: kind === 'metal' ? 0.55 : kind === 'cerakote' ? 0.25 : 0.05, envMapIntensity: 1.3,
     }));
   }
+  /** Camouflage-painted weapon furniture (Arsenal). */
+  weaponCamo(id, colors, stripes = false) {
+    const pattern = id === 'urban' ? 'digital' : stripes ? 'stripes' : 'blobs';
+    return this.get('wcamo' + id, () => new THREE.MeshStandardMaterial({ ...TF.weaponCamo(colors, pattern, 900 + id.length * 13), roughness: 1, metalness: 0.2, envMapIntensity: 1.2 }));
+  }
   skinTex(tone = '#c29a7b', stubble = false) {
     return this.get('skinT' + tone + stubble, () => new THREE.MeshStandardMaterial({ ...TF.skin(tone, 301, stubble), roughness: 0.62, metalness: 0 }));
   }

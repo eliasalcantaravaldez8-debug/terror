@@ -79,8 +79,9 @@ export class HUD {
   }
 
   /** Door-gun reticle + heat bar (visible only while manning a mounted gun). */
-  setGunHeat(heat, over) {
+  setGunHeat(heat, over, label = 'M-6 VENTANIA') {
     const el = this.el('gunner');
+    this._txt(this.el('gun-label'), label);
     this._cls(el, 'visible', true);
     this._sty(this.el('gun-heat-fill'), 'width', `${Math.round(heat * 100)}%`);
     this._cls(this.el('gun-heat'), 'over', !!over);
@@ -183,7 +184,8 @@ export class HUD {
     }
     // ammo
     const cur = w.current;
-    this._txt(this.el('weapon-name'), cur.def.name);
+    const MODE = { auto: 'AUTO', burst: 'RAJADA', semi: 'SEMI' };
+    this._txt(this.el('weapon-name'), cur.def.name + (cur.def.modes ? ` · ${MODE[cur.mode]}` : cur.def.boltAction ? ' · FERROLHO' : ''));
     this._txt(this.el('ammo-mag'), String(cur.mag));
     this._cls(this.el('ammo-mag'), 'low', cur.mag <= cur.def.magSize * 0.2);
     this._txt(this.el('ammo-res'), String(cur.reserve));

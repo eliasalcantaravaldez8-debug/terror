@@ -1,3 +1,5 @@
+import { Arsenal } from './Arsenal.js';
+
 /**
  * Front-end menus (main, pause, settings, controls, death, mission complete).
  * Plain DOM, keyboard/mouse friendly.
@@ -7,6 +9,7 @@ export class Menus {
     this.game = game;
     this.root = document.getElementById('menus');
     this.current = null;
+    this.arsenal = new Arsenal(game, this);
   }
 
   _show(html, cls = '') {
@@ -31,14 +34,16 @@ export class Menus {
         ${hasSave ? `<button id="m-continue" class="primary">Continuar <small>${this.game.missions[save.mission]?.checkpointLabel(save.checkpoint) || ''}</small></button>` : ''}
         <button id="m-new" class="${hasSave ? '' : 'primary'}">Nova campanha</button>
         ${this.game.saves.progress().unlocked.length > 1 ? '<button id="m-missions">Selecionar missão</button>' : ''}
+        <button id="m-arsenal">Arsenal <small>Armas, acessórios e camuflagens</small></button>
         <button id="m-settings">Configurações</button>
         <button id="m-controls">Controles</button>
       </div>
-      <div class="menu-foot">Versão de desenvolvimento 0.1 · Fatia vertical jogável · Recursos provisórios procedurais</div>
+      <div class="menu-foot">Versão 0.7 · Missões 1–7 · Todos os modelos, texturas e sons gerados por código</div>
     `, 'main-menu');
     this._bind('m-new', () => this.game.startNewCampaign());
     this._bind('m-continue', () => this.game.continueCampaign());
     this._bind('m-missions', () => this.missions());
+    this._bind('m-arsenal', () => this.arsenal.open(() => this.main()));
     this._bind('m-settings', () => this.settings(() => this.main()));
     this._bind('m-controls', () => this.controls(() => this.main()));
   }
@@ -64,12 +69,14 @@ export class Menus {
       <div class="menu-buttons">
         <button id="p-resume" class="primary">Retomar</button>
         <button id="p-checkpoint">Reiniciar do checkpoint</button>
+        <button id="p-arsenal">Arsenal <small>Trocar acessórios</small></button>
         <button id="p-settings">Configurações</button>
         <button id="p-controls">Controles</button>
         <button id="p-quit">Sair para o menu</button>
       </div>`, 'pause-menu');
     this._bind('p-resume', () => this.game.resume());
     this._bind('p-checkpoint', () => this.game.restartFromCheckpoint());
+    this._bind('p-arsenal', () => this.arsenal.open(() => this.pause()));
     this._bind('p-settings', () => this.settings(() => this.pause()));
     this._bind('p-controls', () => this.controls(() => this.pause()));
     this._bind('p-quit', () => this.game.quitToMenu());
@@ -120,7 +127,7 @@ export class Menus {
     const rows = [
       ['W A S D', 'Mover'], ['Shift', 'Correr'], ['C / Ctrl (segurar)', 'Agachar'], ['Espaço', 'Pular'],
       ['Botão esquerdo', 'Atirar'], ['Botão direito', 'Mirar (ADS)'], ['R', 'Recarregar'], ['G', 'Granada'], ['V / F', 'Golpe corpo a corpo'],
-      ['1 / 2 / Q / Roda', 'Trocar arma'], ['E', 'Interagir'], ['I', 'Inspecionar arma'],
+      ['1 / 2 / Q / Roda', 'Trocar arma'], ['B', 'Modo de tiro (auto / rajada / semi)'], ['E', 'Interagir'], ['I', 'Inspecionar arma'],
       ['Shift (mirando com luneta)', 'Prender a respiração'], ['N', 'Visão noturna (Missão 5)'], ['Esc / P', 'Pausar'],
     ];
     this._show(`

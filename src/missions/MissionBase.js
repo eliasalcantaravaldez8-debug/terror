@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Soldier } from '../ai/Soldier.js';
 import { EnemyBrain, AllyBrain } from '../ai/Brains.js';
+import { APPEARANCE } from '../characters/SoldierModel.js';
 
 /** Game-time timeout (respects pause / slow motion). */
 export function setTimeoutGame(game, delay, fn) {
@@ -97,7 +98,9 @@ export class MissionBase {
         if (!spot) continue;
         x = spot.x + 0.2; y = spot.y; z = spot.z; isStatic = true;
       }
-      const s = new Soldier(g, { team: 'enemy', x, y, z, kind: e.kind, static: isStatic, look: { cap: Math.random() < 0.3 && !isStatic, mask: Math.random() < 0.25 }, id: e.id, yaw: 0 });
+      const look = { cap: Math.random() < 0.3 && !isStatic, mask: Math.random() < 0.25 };
+      const appearance = wave.look === 'coalition' ? APPEARANCE.coalition(g.mats, { cap: e.cap, glasses: Math.random() < 0.3, skin: ['#b8906f', '#8a6448', '#d4ab8a', '#6e4c36'][Math.floor(Math.random() * 4)] }) : undefined;
+      const s = new Soldier(g, { team: 'enemy', x, y, z, kind: e.kind, static: isStatic, look, appearance, id: e.id, yaw: 0 });
       s.pos.y = y;
       s.groundY = y;
       s.brain = new EnemyBrain(s, { zone: wave.zone });

@@ -4,7 +4,16 @@ FPS militar single-player em 3D — guerra moderna fictícia, 2029.
 O Capitão **Daniel Mercer** e a Força-Tarefa Iron investigam a organização
 **VÉRTICE**, responsável por ataques coordenados pelo mundo.
 
-> **Estado atual: v0.6 — Missões 1 a 5 jogáveis do início ao fim.**
+> **Estado atual: v0.7 — Missões 1 a 7 jogáveis do início ao fim, 10 armas e Arsenal.**
+>
+> **Missão 7 — "Queda"** (noite, chuva): na FOB Bastião, o Major Hale revela ser do Serrat.
+> Desarmado (só a pistola), no escuro depois que a Ruiz derruba o gerador: saia do centro de
+> comando, recupere armas no arsenal, atravesse a base sob sinalizadores e torres de vigia e
+> segure o heliponto até o Falcon chegar. Ao amanhecer, a equipe é declarada traidora.
+>
+> **Missão 6 — "Comboio"** (entardecer): na metralhadora pesada do caminhão líder, proteja o
+> comboio no vale de Kessel contra técnicos armados, atiradores nas encostas e uma equipe de
+> foguetes; depois, tome a vila de Dravik, plante a carga no bloqueio e segure o contra-ataque.
 >
 > **Missão 5 — "Infiltração Noturna"** (noite): entre pela grade do esgoto na mansão
 > do Serrat, evite guardas com lanternas (cone de visão, luz, postura, ruído, corpos
@@ -50,6 +59,7 @@ Clique em **Nova campanha**. O mouse é capturado ao clicar na tela.
 | V ou F | Golpe corpo a corpo |
 | 1, 2, Q, roda do mouse | Trocar arma |
 | E | Interagir (caixas de munição, portas) |
+| B | Modo de tiro (automático / rajada de 3 / semiautomático) |
 | I | Inspecionar a arma |
 | Shift (mirando com luneta) | Prender a respiração (reduz o balanço) |
 | N | Visão noturna (Missão 5) |
@@ -65,9 +75,10 @@ volumes, inverter Y, legendas, vozes provisórias, contador de FPS.
 - **Jogador**: movimento fluido com aceleração, corrida, agachar, pulo,
   balanço de câmera, passos, recuo, tremor de câmera, vida com regeneração,
   indicadores de direção de dano, morte e reinício do checkpoint.
-- **Seis armas fictícias** com texturas PBR de desgaste: VK-7 (fuzil), MK-9
-  (submetralhadora), BRK-12 (escopeta de bomba, 9 chumbos), LR-6 (fuzil de
-  precisão com luneta), P-11 (pistola) e P-11S (pistola com silenciador). Armas de inimigos abatidos e de caixas
+- **Dez armas fictícias** com texturas PBR de desgaste: VK-7 (fuzil), KR-4 (fuzil bullpup, rajada de 3),
+  MK-9 (submetralhadora silenciada), VKM-90 (metralhadora leve de fita, 100 tiros), BRK-12 (escopeta
+  de bomba, 9 chumbos), LR-6 (fuzil de precisão semiautomático), SR-50 (fuzil de ferrolho, calibre
+  pesado), P-11 (pistola), P-11S (pistola com silenciador) e R-44 (revólver magnum). Armas de inimigos abatidos e de caixas
   no mapa podem ser recolhidas (E) para trocar a arma principal ou pegar munição.
   Tiro hitscan com dispersão,
   queda de dano por distância, tiro na cabeça, ADS, recarga tática/vazia,
@@ -79,6 +90,15 @@ volumes, inverter Y, legendas, vozes provisórias, contador de FPS.
   escopeta carregada cartucho a cartucho, inspeção (I), arma recua ao encostar na parede,
   fumaça no cano após rajadas, balanço da luneta com respiração, som próprio para
   silenciador, escopeta e fuzil de precisão.
+- **Mecânicas próprias por arma**: o SR-50 exige manejar o ferrolho a cada tiro (a mão sai do punho,
+  a cápsula sai quando o ferrolho recua); o R-44 gira o tambor a cada disparo e, na recarga, abre o
+  tambor, despeja seis cápsulas e usa um carregador rápido; a VKM-90 abre a tampa de alimentação para
+  trocar a caixa de fita e é mais pesada (anda mais devagar).
+- **Arsenal** (menu principal e pausa): escolha a arma inicial e personalize cada arma com mira
+  (ponto vermelho, holográfica, prismática 3x de verdade — você olha através do tubo — ou mira
+  mecânica), boca do cano (compensador ou silenciador), carregador estendido e 7 camuflagens.
+  Os acessórios mudam o modelo 3D **e** as estatísticas reais (dano, recuo, munição, tempo de mira,
+  aumento, som abafado que não alerta guardas), com prévia 3D giratória e barras comparativas.
 - **Personagens** com rosto esculpido, membros com volume, colete com
   carregadores, capacete com trilhos e jugular; inimigos com balaclava ou máscara de gás.
 - **Céu e atmosfera**: nuvens volumétricas animadas, raios de sol (Alto/Ultra), reflexo de lente,

@@ -165,6 +165,33 @@ export class AudioEngine {
       this._burst(dest, { t: t + 0.03, dur: 0.04, type: 'bandpass', freq: 3200, q: 4, gain: 0.18 });
       return;
     }
+    if (kind === 'suppressedRifle') {
+      // suppressed rifle: heavier "thwack" (supersonic crack survives) + bolt carrier clatter
+      this._burst(dest, { t, dur: 0.09, type: 'bandpass', freq: 800, q: 0.9, gain: 0.55 });
+      this._tone(dest, { t, dur: 0.08, freq: 110, freqEnd: 45, gain: 0.45 });
+      this._burst(dest, { t, dur: 0.025, type: 'highpass', freq: 4200, gain: isPlayer ? 0.25 : 0.12 });
+      this._burst(dest, { t: t + 0.035, dur: 0.05, type: 'bandpass', freq: 2600, q: 3, gain: 0.22 });
+      this._burst(send, { t, dur: 0.25, type: 'lowpass', freq: 600, gain: 0.15 });
+      return;
+    }
+    if (kind === 'revolver') {
+      // magnum revolver: sharp blast, gas from the cylinder gap, long rolling echo
+      this._burst(dest, { t, dur: 0.05, type: 'highpass', freq: 2000, gain: 1.1 });
+      this._burst(dest, { t, dur: 0.3, type: 'bandpass', freq: 650, q: 0.7, gain: 1.6, freqEnd: 140 });
+      this._tone(dest, { t, dur: 0.22, freq: 120, freqEnd: 36, gain: 1.4 });
+      this._burst(send, { t: t + 0.04, dur: 1.5, type: 'lowpass', freq: 1000, gain: 0.8, freqEnd: 100 });
+      return;
+    }
+    if (kind === 'sniper' && isPlayer) {
+      // heavy bolt-action: deep pressure wave, brake blast to the sides, valley echo
+      this._tone(dest, { t, dur: 0.35, freq: 70, freqEnd: 26, gain: 1.9 });
+      this._burst(dest, { t, dur: 0.07, type: 'highpass', freq: 1800, gain: 1.3 });
+      this._burst(dest, { t, dur: 0.4, type: 'bandpass', freq: 420, q: 0.6, gain: 1.8, freqEnd: 110 });
+      this._burst(send, { t: t + 0.06, dur: 2.4, type: 'lowpass', freq: 900, gain: 1.0, freqEnd: 80 });
+      this._burst(send, { t: t + 0.9, dur: 1.4, type: 'lowpass', freq: 500, gain: 0.35, freqEnd: 70 });
+      return;
+    }
+    if (kind === 'mg' && isPlayer) this._tone(dest, { t, dur: 0.12, freq: 95, freqEnd: 40, gain: 0.7 });
     const big = kind === 'sniper' || kind === 'dmr' ? 1.6 : kind === 'shotgun' ? 1.75 : kind === 'pistol' ? 0.7 : kind === 'mg' ? 1.1 : 1;
     if (kind === 'shotgun') {
       this._tone(dest, { t, dur: 0.3, freq: 90, freqEnd: 32, gain: 1.6 });
@@ -203,6 +230,29 @@ export class AudioEngine {
         this._burst(this.sfx, { t, dur: 0.05, type: 'bandpass', freq: 2200, q: 3, gain: 0.5 });
         this._burst(this.sfx, { t: t + 0.12, dur: 0.06, type: 'bandpass', freq: 2800, q: 4, gain: 0.6 });
         this._tone(this.sfx, { t: t + 0.12, dur: 0.04, type: 'square', freq: 1300, gain: 0.05 });
+        break;
+      case 'boltUp': // bolt handle lifted / dropped
+        this._burst(this.sfx, { t, dur: 0.035, type: 'bandpass', freq: 1600, q: 4, gain: 0.4 });
+        this._tone(this.sfx, { t, dur: 0.03, type: 'triangle', freq: 700, gain: 0.06 });
+        break;
+      case 'boltBack': // bolt drawn back / slammed forward
+        this._burst(this.sfx, { t, dur: 0.09, type: 'bandpass', freq: 2400, q: 2, gain: 0.45, freqEnd: 1500 });
+        this._burst(this.sfx, { t: t + 0.08, dur: 0.04, type: 'bandpass', freq: 3400, q: 5, gain: 0.4 });
+        break;
+      case 'select': // fire selector click
+        this._tone(this.sfx, { t, dur: 0.02, type: 'square', freq: 2600, gain: 0.05 });
+        this._burst(this.sfx, { t, dur: 0.025, type: 'bandpass', freq: 4000, q: 6, gain: 0.3 });
+        break;
+      case 'cylinder': // revolver crane opens/closes
+        this._burst(this.sfx, { t, dur: 0.05, type: 'bandpass', freq: 3000, q: 5, gain: 0.45 });
+        this._tone(this.sfx, { t: t + 0.02, dur: 0.06, type: 'triangle', freq: 1900, freqEnd: 1500, gain: 0.05 });
+        break;
+      case 'cover': // LMG feed cover
+        this._burst(this.sfx, { t, dur: 0.08, type: 'bandpass', freq: 1300, q: 2, gain: 0.5 });
+        this._burst(this.sfx, { t: t + 0.07, dur: 0.05, type: 'bandpass', freq: 2600, q: 4, gain: 0.45 });
+        break;
+      case 'brass': // empty cases tumbling out
+        for (let i = 0; i < 6; i++) this._tone(this.sfx, { t: t + 0.05 + i * 0.04 + Math.random() * 0.02, dur: 0.05, type: 'triangle', freq: 3800 + Math.random() * 900, freqEnd: 3000, gain: 0.05 });
         break;
       case 'draw':
         this._burst(this.sfx, { t, dur: 0.18, type: 'bandpass', freq: 1200, q: 1.5, gain: 0.18, freqEnd: 2500 });
@@ -390,6 +440,24 @@ export class AudioEngine {
    * Helicopter loop with rotor "whop", turbine whine and air rush.
    * Returns a controller to drive position, rpm, cabin filtering and volume.
    */
+  /** Diesel truck engine bed (convoy): low sawtooth firing pulses + rumble, RPM controllable. */
+  createEngine() {
+    if (!this.ctx) return null;
+    const ctx = this.ctx, self = this;
+    const out = ctx.createGain(); out.gain.value = 0; out.connect(this.sfx);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 320; lp.connect(out);
+    const osc = ctx.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 38;
+    const og = ctx.createGain(); og.gain.value = 0.22; osc.connect(og).connect(lp); osc.start();
+    const sub = ctx.createOscillator(); sub.type = 'sine'; sub.frequency.value = 19;
+    const sg = ctx.createGain(); sg.gain.value = 0.35; sub.connect(sg).connect(out); sub.start();
+    const rumble = this._loopNoise(out, { type: 'lowpass', freq: 140, q: 0.7, gain: 0.25 });
+    return {
+      setRPM(r) { const t = self.now; osc.frequency.setTargetAtTime(30 + 45 * r, t, 0.4); sub.frequency.setTargetAtTime(15 + 22 * r, t, 0.4); lp.frequency.setTargetAtTime(220 + 500 * r, t, 0.4); },
+      setVolume(v, ramp = 0.5) { out.gain.setTargetAtTime(v, self.now, ramp / 3); },
+      stop() { try { out.gain.setTargetAtTime(0, self.now, 0.2); setTimeout(() => { osc.stop(); sub.stop(); rumble.src?.stop?.(); out.disconnect(); }, 900); } catch { /* already stopped */ } },
+    };
+  }
+
   createHelicopter() {
     if (!this.ctx) return null;
     const ctx = this.ctx;

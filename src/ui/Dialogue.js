@@ -21,6 +21,8 @@ const VOICES = {
   'VOZ DESCONHECIDA': { gender: 'm', slot: 3, pitch: 0.85, rate: 0.92 },
   SERRAT: { gender: 'm', slot: 3, pitch: 0.85, rate: 0.92 },
   MERCER: { gender: 'm', slot: 0, pitch: 0.95, rate: 1.0 },
+  HALE: { gender: 'm', slot: 2, pitch: 0.88, rate: 0.96 },
+  'SOLDADO DE BASTIÃO': { gender: 'm', slot: 1, pitch: 1.05, rate: 1.08 },
 };
 const FEMALE = /francisca|thalita|maria|luciana|leila|manuela|yara|giovanna|brenda|elza|let[ií]cia|fernanda|vit[oó]ria|raquel|camila|joana|in[eê]s|helia|female|feminin|mulher|raquel/i;
 const MALE = /ant[oó]nio|daniel|donato|f[aá]bio|humberto|j[uú]lio|nicolau|val[eé]rio|duarte|cristiano|felipe|ricardo|male|masculin/i;

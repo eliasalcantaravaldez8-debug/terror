@@ -653,6 +653,55 @@ export const TextureFactory = {
     });
   },
 
+  /** Weapon camouflage wrap (cerakote-like paint with edge wear). pattern: blobs | digital | stripes. */
+  weaponCamo(colors, pattern = 'blobs', seed = 901) {
+    return this.get('wcamo' + colors.join() + pattern + seed, () => {
+      const W = 512;
+      const c = canvas(W, W), ctx = c.getContext('2d');
+      const field = noiseFill(ctx, W, W, colors[0], { seed, period: 32, amount: 0.08, speckle: 0.03, large: 0.25 });
+      const rnd = mulberry32(seed);
+      if (pattern === 'digital') {
+        const cell = 12;
+        for (let k = 1; k < colors.length; k++) for (let i = 0; i < 70; i++) {
+          const x0 = Math.floor(rnd() * W / cell) * cell, y0 = Math.floor(rnd() * W / cell) * cell;
+          ctx.fillStyle = colors[k];
+          for (let j = 0; j < 14; j++) ctx.fillRect(x0 + Math.floor((rnd() - 0.5) * 6) * cell, y0 + Math.floor((rnd() - 0.5) * 4) * cell, cell, cell);
+        }
+      } else if (pattern === 'stripes') {
+        for (let i = 0; i < 26; i++) {
+          ctx.fillStyle = colors[1 + (i % (colors.length - 1))];
+          const y = rnd() * W, th = 6 + rnd() * 14;
+          ctx.beginPath(); ctx.moveTo(-20, y);
+          for (let x = 0; x <= W + 20; x += 32) ctx.lineTo(x, y + Math.sin(x * 0.02 + i) * 18 + (rnd() - 0.5) * 8);
+          for (let x = W + 20; x >= -20; x -= 32) ctx.lineTo(x, y + th + Math.sin(x * 0.025 + i) * 14);
+          ctx.closePath(); ctx.fill();
+        }
+      } else {
+        for (let k = 1; k < colors.length; k++) for (let i = 0; i < 22; i++) {
+          ctx.fillStyle = colors[k];
+          const cx = rnd() * W, cy = rnd() * W, r = 18 + rnd() * 46;
+          ctx.beginPath();
+          for (let a = 0; a <= 12; a++) { const ang = a / 12 * Math.PI * 2, rr = r * (0.55 + rnd() * 0.6); ctx.lineTo(cx + Math.cos(ang) * rr * 1.5, cy + Math.sin(ang) * rr); }
+          ctx.closePath(); ctx.fill();
+        }
+      }
+      const [rc, rx] = grayCanvas(W, W, 165);
+      const [hc, hx] = grayCanvas(W, W, 128);
+      // edge wear: paint chipped off exposing dark metal
+      for (let i = 0; i < 70; i++) {
+        const x = rnd() * W, y = rnd() * W, a = rnd() * Math.PI, l = 3 + rnd() * 26;
+        ctx.strokeStyle = 'rgba(48,48,46,0.6)'; ctx.lineWidth = 0.8 + rnd() * 1.4;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
+        rx.strokeStyle = gray(0.35); rx.beginPath(); rx.moveTo(x, y); rx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); rx.stroke();
+        hx.strokeStyle = gray(0.4); hx.beginPath(); hx.moveTo(x, y); hx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); hx.stroke();
+      }
+      const n = normalFromHeight(hx, W, W, 1.2, field, 0.5);
+      const out = { map: tex(c), normalMap: tex(n, false), roughnessMap: tex(rc, false) };
+      for (const t of Object.values(out)) t.repeat.set(1.5, 1.5);
+      return out;
+    });
+  },
+
   /** Skin with pores, blotches and optional stubble. */
   skin(tone = '#c29a7b', seed = 301, stubble = false) {
     return this.get('skin' + tone + seed + stubble, () => {

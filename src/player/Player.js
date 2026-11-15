@@ -176,7 +176,7 @@ export class Player {
     this.eyeHeight = damp(this.eyeHeight, this.crouched ? CROUCH_EYE : STAND_EYE, 12, dt);
 
     // movement
-    const maxSpeed = this.movementLocked ? 0 : this.sprinting ? 6.4 : this.crouched ? 2.0 : lerp(3.9, 2.3, this.adsAmount);
+    const maxSpeed = (this.movementLocked ? 0 : this.sprinting ? 6.4 : this.crouched ? 2.0 : lerp(3.9, 2.3, this.adsAmount)) * (this.game.weapons?.current?.def.moveMul ?? 1);
     _fwd.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     _right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     _wish.set(0, 0, 0).addScaledVector(_fwd, fwdIn).addScaledVector(_right, sideIn);

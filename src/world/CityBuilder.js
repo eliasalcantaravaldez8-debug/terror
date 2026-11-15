@@ -4,6 +4,8 @@ import { TextureFactory } from '../render/TextureFactory.js';
 import { buildPort } from './PortBuilder.js';
 import { buildValley } from './ValleyBuilder.js';
 import { buildEstate } from './EstateBuilder.js';
+import { buildVillage } from './VillageBuilder.js';
+import { buildFob } from './FobBuilder.js';
 import { mulberry32, randRange } from '../utils/math.js';
 import {
   BUILDINGS, STYLES, SHOPS, HALDEN, PROPS, BOUNDS, MISSION_RECT, ROAD,
@@ -48,6 +50,8 @@ export class CityBuilder {
     buildPort(this);
     buildValley(this);
     buildEstate(this);
+    buildVillage(this);
+    buildFob(this);
     this.buildStreetFurniture();
     this.buildBoundaries();
     this.buildBackgroundCity();

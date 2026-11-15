@@ -27,7 +27,7 @@ export class Soldier {
     this.id = o.id || this.name;
     this.kind = o.kind || (o.team === 'enemy' ? 'rifleman' : 'ally');
     const appearance = o.appearance || (o.team === 'enemy' ? APPEARANCE.enemy(game.mats, o.look) : APPEARANCE.ally(game.mats, o.look));
-    this.weaponModelId = { sniper: 'lr6', smg: 'mk9', shotgun: 'brk12' }[this.kind] || 'vk7';
+    this.weaponModelId = { sniper: 'sr50', smg: 'mk9', shotgun: 'brk12', mg: 'vkm' }[this.kind] || 'vk7';
     this.model = new SoldierModel(game.mats, appearance, { weapon: this.weaponModelId });
     game.scene.add(this.model.root);
     this.pos = new THREE.Vector3(o.x, o.y || 0, o.z);

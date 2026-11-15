@@ -173,3 +173,38 @@ table.controls td.k { color: var(--accent); letter-spacing: 1px; width: 45%; }
 #stealth.warn #st-fill { background: #e08a2c; } #stealth.warn #st-text { color: #e08a2c; }
 #stealth.alarm #st-fill { background: var(--red); } #stealth.alarm #st-text { color: var(--red); }
 #stealth.alarm .st-eye { border-color: var(--red); }
+
+/* ---- Arsenal */
+.menu.arsenal-menu { max-width: 1240px; gap: 14px; padding: 24px; }
+.arsenal { display: grid; grid-template-columns: 210px 1fr 300px; gap: 18px; width: 100%; }
+.ars-list { display: flex; flex-direction: column; gap: 4px; }
+.ars-group { font-size: 11px; letter-spacing: 3px; color: var(--accent); margin: 8px 0 2px; }
+.menu .ars-list button { padding: 8px 14px; font-size: 14px; }
+.menu button.active { background: rgba(217,177,90,.2); border-left-color: var(--accent); }
+.ars-view { position: relative; height: 280px; background: radial-gradient(ellipse at center, rgba(70,74,70,.35), rgba(0,0,0,.4)); border: 1px solid rgba(255,255,255,.06); }
+.ars-view canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+.ars-drag { position: absolute; right: 10px; bottom: 6px; font-size: 10px; letter-spacing: 2px; color: var(--hud-dim); }
+.ars-title { display: flex; gap: 12px; align-items: baseline; margin-top: 10px; }
+.ars-title b { font-size: 26px; letter-spacing: 4px; }
+.ars-title span { color: var(--hud-dim); font-size: 13px; letter-spacing: 1px; }
+.ars-blurb { color: var(--hud-dim); font-size: 13px; line-height: 1.5; margin: 4px 0 10px; }
+.ars-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; }
+.ars-stat { display: grid; grid-template-columns: 90px 1fr; align-items: center; font-size: 12px; letter-spacing: 1px; }
+.ars-stat .bar { position: relative; height: 6px; background: rgba(255,255,255,.08); }
+.ars-stat .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--hud); }
+.ars-stat .bar em { position: absolute; top: 0; bottom: 0; }
+.ars-stat .bar em.up { background: #6fd27a; }
+.ars-stat .bar em.down { background: var(--red); }
+.ars-nums { grid-column: 1 / -1; font-size: 12px; color: var(--hud-dim); margin-top: 4px; }
+.ars-right { display: flex; flex-direction: column; gap: 10px; }
+.ars-slot-h { font-size: 11px; letter-spacing: 3px; color: var(--accent); margin-bottom: 5px; text-transform: uppercase; }
+.ars-opts { display: flex; flex-wrap: wrap; gap: 4px; }
+.menu .ars-opts button { padding: 6px 9px; font-size: 11px; letter-spacing: 1px; border-left-width: 1px; }
+.menu .ars-opts button:hover { padding-left: 9px; }
+.ars-opts .sw { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; border: 1px solid rgba(255,255,255,.3); }
+.ars-desc { font-size: 11px; color: var(--hud-dim); margin-top: 4px; min-height: 14px; }
+.ars-loadout { font-size: 13px; line-height: 1.6; margin-top: 6px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); }
+.ars-loadout small { color: var(--hud-dim); font-size: 11px; display: block; line-height: 1.4; }
+.ars-foot { min-width: 200px; align-self: flex-end; }
+@media (max-width: 900px) { .arsenal { grid-template-columns: 1fr; } .ars-view { height: 200px; } }
+.menu.arsenal-menu { background: rgba(8,9,8,.72); border: 1px solid rgba(255,255,255,.05); }

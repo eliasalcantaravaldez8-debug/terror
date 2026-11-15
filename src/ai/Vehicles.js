@@ -153,3 +153,64 @@ export class AAGun extends VehicleTarget {
     }, Math.min(900, dist * 2.4));
   }
 }
+
+/**
+ * Friendly convoy truck (not a combat actor): follows a polyline on the terrain,
+ * pitches with the slope, accelerates/brakes towards a target distance.
+ */
+export class ConvoyTruck {
+  constructor(game, path, { color = 0x4b5236, turret = false, heightAt = null } = {}) {
+    this.game = game; this.path = path; this.heightAt = heightAt;
+    this.dist = 0; this.speed = 0; this.maxSpeed = 12; this.target = 0;
+    this.pos = new THREE.Vector3(); this.yaw = 0;
+    this.root = new THREE.Group();
+    this.body = new THREE.Group(); this.root.add(this.body);
+    const parts = buildCarParts('van', game.mats);
+    for (const part of parts.parts) {
+      const mesh = new THREE.Mesh(part.geometry, part.paint ? part.material.clone() : part.material);
+      if (part.paint) mesh.material.color.setHex(color);
+      mesh.castShadow = true; this.body.add(mesh);
+    }
+    const box = new THREE.Mesh(new THREE.BoxGeometry(2.3, 2.0, 3.4), game.mats.vestAlly());
+    box.position.set(0, 2.2, -1.2); box.castShadow = true; this.body.add(box);
+    if (turret) {
+      // ring mount and shield on the cab roof (the player stands here)
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.06, 6, 20), game.mats.darkMetal()); ring.rotation.x = Math.PI / 2; ring.position.set(0, 2.15, 0.9); this.body.add(ring);
+      // third-person gun + shield (hidden while the player mans it: the viewmodel gun takes over)
+      this.turret = new THREE.Group(); this.body.add(this.turret);
+      const sh = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.6, 0.05), game.mats.paint('#4f5638', 127)); sh.position.set(0, 2.55, 1.35); this.turret.add(sh);
+      const gunM = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.3, 8), game.mats.darkMetal()); gunM.rotation.x = Math.PI / 2; gunM.position.set(0, 2.6, 1.6); this.turret.add(gunM);
+    }
+    this.body.scale.setScalar(1.35);
+    this.mountPoint = new THREE.Object3D(); this.mountPoint.position.set(0, 0, 1.2); this.root.add(this.mountPoint);
+    game.scene.add(this.root);
+    this._place();
+  }
+  _sample(d, out) {
+    let rem = d;
+    for (let i = 0; i < this.path.length - 1; i++) {
+      const a = this.path[i], b = this.path[i + 1], l = a.distanceTo(b);
+      if (rem <= l || i === this.path.length - 2) { out.lerpVectors(a, b, Math.min(1, rem / l)); return Math.atan2(b.x - a.x, b.z - a.z); }
+      rem -= l;
+    }
+    out.copy(this.path[this.path.length - 1]); return this.yaw;
+  }
+  _place() {
+    this.yaw = this._sample(this.dist, this.pos);
+    const front = _v; this._sample(this.dist + 3, front);
+    const back = _d; this._sample(Math.max(0, this.dist - 3), back);
+    if (this.heightAt) { this.pos.y = this.heightAt(this.pos.x, this.pos.z) + 0.1; front.y = this.heightAt(front.x, front.z); back.y = this.heightAt(back.x, back.z); }
+    const pitch = Math.atan2(front.y - back.y, Math.max(0.1, front.distanceTo(back)));
+    this.root.position.copy(this.pos);
+    this.root.rotation.set(-pitch, this.yaw, Math.sin(this.dist * 0.7) * 0.012 * Math.min(1, this.speed / 6), 'YXZ');
+  }
+  get length() { let l = 0; for (let i = 0; i < this.path.length - 1; i++) l += this.path[i].distanceTo(this.path[i + 1]); return l; }
+  update(dt) {
+    const left = this.target - this.dist;
+    const want = left <= 0.05 ? 0 : Math.min(this.maxSpeed, Math.sqrt(2 * 2.8 * left));
+    this.speed += Math.max(-6 * dt, Math.min(2.2 * dt, want - this.speed));
+    this.dist = Math.min(this.target + 0.2, this.dist + Math.max(0, this.speed) * dt);
+    this._place();
+  }
+  dispose() { this.game.scene.remove(this.root); }
+}

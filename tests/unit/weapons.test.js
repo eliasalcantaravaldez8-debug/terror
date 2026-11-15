@@ -57,5 +57,5 @@ test('newWeaponState builds a state with default ammo', () => {
   assert.equal(s.mag, 32);
   assert.ok(s.reserve > 0);
   assert.equal(newWeaponState('unknown').def.id, 'vk7');
-  assert.deepEqual(newWeaponState('brk12', 3, 10).serialize(), { id: 'brk12', mag: 3, reserve: 10 });
+  assert.deepEqual(newWeaponState('brk12', 3, 10).serialize(), { id: 'brk12', mag: 3, reserve: 10, mode: 0 });
 });

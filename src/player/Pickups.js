@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { WEAPONS } from '../weapons/WeaponData.js';
 import { makeWeaponModel } from '../weapons/WeaponModels.js';
+import { newWeaponState } from '../weapons/WeaponData.js';
 import { mergeStatic } from '../render/mergeUtil.js';
 
 const _p = new THREE.Vector3(), _d = new THREE.Vector3();
@@ -61,7 +62,8 @@ export class Pickups {
 
   promptFor(it) {
     const w = this.game.weapons;
-    if (it.weaponId === w.slots[0].def.id || it.weaponId === w.slots[1].def.id) return `Pegar munição de ${it.def.name}`;
+    if (w.slots.some((s) => s.def.id === it.weaponId)) return `Pegar munição de ${it.def.name}`;
+    if (w.slots.length === 1) return `Pegar ${it.def.name}`;
     if (it.def.slot === 'secondary') return `Pegar munição de ${it.def.name}`;
     return `Pegar ${it.def.name} (trocar ${w.slots[0].def.name})`;
   }
@@ -69,6 +71,17 @@ export class Pickups {
   take(it) {
     const g = this.game, w = g.weapons;
     const same = w.slots.find((s) => s.def.id === it.weaponId);
+    if (!same && w.slots.length === 1) {
+      // only a sidearm: the picked-up weapon becomes the primary, the sidearm stays
+      if (it.def.slot === 'secondary') { w.slots[0] = newWeaponState(it.weaponId, it.mag, it.reserve); }
+      else { w.slots.unshift(newWeaponState(it.weaponId, it.mag, it.reserve)); }
+      w.currentIndex = 0; w.setVisibleModel(); w._startState('draw');
+      this.remove(it);
+      g.audio.playFoley('draw');
+      g.hud.toast(`${it.def.name} equipada`);
+      g.events.emit('weaponPicked', { id: it.weaponId });
+      return;
+    }
     if (same || it.def.slot === 'secondary') {
       const target = same || w.slots[1];
       const room = target.def.reserveMax - target.reserve;
@@ -86,5 +99,6 @@ export class Pickups {
     this.add({ weaponId: old.def.id, position: pos, mag: old.mag, reserve: old.reserve });
     g.audio.playFoley('draw');
     g.hud.toast(`${it.def.name} equipada`);
+    g.events.emit('weaponPicked', { id: it.weaponId });
   }
 }

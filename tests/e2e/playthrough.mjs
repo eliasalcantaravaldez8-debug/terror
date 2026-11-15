@@ -233,6 +233,12 @@ function check(cond, msg) {
 
   // Walk to the door and interact
   await walkTo(-164.5, 40);
+  // precise final steps (walkTo stops on a 0.5 s grid)
+  for (let i = 0; i < 60; i++) {
+    const d = await G(([tx, tz]) => { const g = window.__IRON.game, p = g.player; const dx = tx - p.pos.x, dz = tz - p.pos.z, d = Math.hypot(dx, dz); if (d < 0.3) { g.input.simulateKey('KeyW', false); return d; } p.yaw = Math.atan2(-dx, -dz); g.input.simulateKey('KeyW', true); g.advance(0.1); return d; }, [0, -165.2]);
+    if (d < 0.3) break;
+  }
+  await G(() => window.__IRON.game.input.simulateKey('KeyW', false));
   await G(() => { const g = window.__IRON.game, p = g.player; p.yaw = 0; p.pitch = 0.05; g.advance(0.3); });
   await sleep(200); await snap('halden-door');
   const pressE = () => G(() => { const g = window.__IRON.game; g.input.simulateKey('KeyE', true); g.advance(0.1); g.input.simulateKey('KeyE', false); });

@@ -16,6 +16,14 @@ export const VALLEY = {
   ],
 };
 
+/** Dravik, a mountain village on the valley road (Mission 6). The ground is flat inside flatR. */
+export const VILLAGE = {
+  x: -2450, flatR: 140,
+  bounds: { x0: -2575, x1: -2370, z0: -235, z1: -130 },
+  roadblock: { x: -2438 },
+  convoyStop: [-2532, -2548, -2564],
+};
+
 /** Road centre-line z for a given x (gentle curves along the valley floor). */
 export function roadZ(x) {
   const t = (x - VALLEY.road.x0) / 260;
@@ -53,6 +61,11 @@ export function terrainHeight(x, z) {
   const flat = Math.min(1, Math.max(0, (db - B.flatR) / 90));
   const R = VALLEY.runway;
   const inRunway = x > R.x0 - 40 && x < R.x1 + 40 && z > R.z0 - 40 && z < R.z1 + 30;
-  const k = inRunway ? 0 : flat;
+  // flatten the village of Dravik
+  const dv = Math.hypot(x - VILLAGE.x, z - VILLAGE.z);
+  const fv = Math.min(1, Math.max(0, (dv - VILLAGE.flatR) / 70));
+  const k = inRunway ? 0 : Math.min(flat, fv);
   return -0.05 * (1 - k) + h * k;
 }
+
+VILLAGE.z = roadZ(VILLAGE.x);

@@ -41,6 +41,12 @@
 - [x] Visão noturna, pistola com silenciador (P-11S), gravação com microfone laser e fuga de helicóptero
 - [x] Armas: ferrolho animado, miras mecânicas, recarga com carregador caindo, inspeção, recuo na parede, fumaça no cano, respiração na luneta, novos sons
 
-## Etapa 7 — Campanha (≈10 missões, ≈5 h)
+## Etapa 7 — Missões 6 e 7 + variedade de armas (FEITO)
+- [x] Quatro armas novas (KR-4, VKM-90, SR-50, R-44) com animações próprias (ferrolho manual, tambor, tampa de fita)
+- [x] Modos de tiro (B), Arsenal com acessórios e camuflagens que alteram modelo e estatísticas
+- [x] Missão 6 "Comboio": torreta pesada no caminhão, emboscadas, foguetes, vila de Dravik
+- [x] Missão 7 "Queda": FOB Bastião, traição, apagão, arsenal, sinalizadores, extração
+
+## Etapa 8 — Campanha (≈10 missões, ≈5 h)
 1. Primeiro Contato (Teresk) · 2. Sinal Morto · 3. Porto de Vareny · 4. Céu Cinzento (helicóptero)
 5. Infiltração noturna · 6. Comboio · 7. Queda (traição) · 8. Montanha · 9. Cerco · 10. Iron Shadow

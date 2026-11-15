@@ -35,7 +35,7 @@ function valleyWave() {
       list.push({ x, z, y: terrainHeight(x, z), static: true, kind });
     }
   }
-  for (const x of [-3300, -2850, -2400, -2050]) {
+  for (const x of [-3300, -2850, -2290, -2050]) {
     const z = roadZ(x) + 14;
     list.push({ x, z, y: terrainHeight(x, z), static: true, kind: 'rifleman' }, { x: x + 6, z: z + 3, y: terrainHeight(x + 6, z + 3), static: true, kind: 'rifleman' });
   }

@@ -190,6 +190,11 @@ function check(cond, msg) {
   check(res.ok, `counter-attack repelled in ${res.t}s`);
   check(await G(() => window.__IRON.game.mission.stage === 'terminal'), 'objective: control centre');
   await walkTo(-1777, -41.6, 'none', 60);
+  for (let i = 0; i < 60; i++) {
+    const d = await G(([tx, tz]) => { const g = window.__IRON.game, p = g.player; const dx = tx - p.pos.x, dz = tz - p.pos.z, d = Math.hypot(dx, dz); if (d < 0.3) { g.input.simulateKey('KeyW', false); return d; } p.yaw = Math.atan2(-dx, -dz); g.input.simulateKey('KeyW', true); g.advance(0.1); return d; }, [-1777, -41.8]);
+    if (d < 0.3) break;
+  }
+  await G(() => window.__IRON.game.input.simulateKey('KeyW', false));
   await G(() => { const g = window.__IRON.game, p = g.player; p.yaw = 0; p.pitch = -0.1; g.advance(0.2); g.input.simulateKey('KeyE', true); g.advance(0.1); g.input.simulateKey('KeyE', false); });
   check(await G(() => window.__IRON.game.mission.stage === 'jet'), 'control terminal opened: Serrat escapes by jet');
   await adv(8);
