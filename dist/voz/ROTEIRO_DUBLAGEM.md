@@ -59,8 +59,8 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 
 | Arquivo | Fala | Tom sugerido | Onde / contexto | Status |
 |---|---|---|---|---|
-| `f92f0a810.ogg` | Ingresso para o jogo de hoje: R$ 200. | neutro | NPC (conversa ao apertar E) — main.js:1247 | **falta** |
-| `fc6b9b0ac.ogg` | Os portões abrem uma hora antes da partida. | neutro | NPC (conversa ao apertar E) — main.js:1247 | **falta** |
+| `f92f0a810.ogg` | Ingresso para o jogo de hoje: R$ 200. | neutro | NPC (conversa ao apertar E) — main.js:1261 | **falta** |
+| `fc6b9b0ac.ogg` | Os portões abrem uma hora antes da partida. | neutro | NPC (conversa ao apertar E) — main.js:1261 | **falta** |
 
 ## Blake Morrison
 
@@ -181,9 +181,9 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 
 | Arquivo | Fala | Tom sugerido | Onde / contexto | Status |
 |---|---|---|---|---|
-| `f4ea31cca.ogg` | Meu carro! | enfático | NPC (conversa ao apertar E) — main.js:889 | **falta** |
-| `fb9ec9289.ogg` | Socorro! Roubaram meu carro! | enfático | NPC (conversa ao apertar E) — main.js:994 | **falta** |
-| `f2e5bc33d.ogg` | Ladrão! | enfático | NPC (conversa ao apertar E) — main.js:994 | **falta** |
+| `fb9ec9289.ogg` | Socorro! Roubaram meu carro! | enfático | NPC (conversa ao apertar E) — main.js:1008 | **falta** |
+| `f2e5bc33d.ogg` | Ladrão! | enfático | NPC (conversa ao apertar E) — main.js:1008 | **falta** |
+| `f4ea31cca.ogg` | Meu carro! | enfático | NPC (conversa ao apertar E) — main.js:903 | **falta** |
 | `fd6543cbb.ogg` | Cole me mandou te buscar. | neutro | Sete Anos Depois — missions_ethan.js:173 | **falta** |
 
 ## Número privado
@@ -253,8 +253,8 @@ Gerado automaticamente a partir do código do jogo (`node tools/vozes.mjs` ou `n
 
 | Arquivo | Fala | Tom sugerido | Onde / contexto | Status |
 |---|---|---|---|---|
-| `f2ebddd44.ogg` | Quando estiver pronto, a gente continua. | neutro | NPC (conversa ao apertar E) — main.js:477 | **falta** |
-| `fb35bfaf3.ogg` | Cuidado lá fora, Ethan. | neutro | NPC (conversa ao apertar E) — main.js:477 | **falta** |
+| `f2ebddd44.ogg` | Quando estiver pronto, a gente continua. | neutro | NPC (conversa ao apertar E) — main.js:490 | **falta** |
+| `fb35bfaf3.ogg` | Cuidado lá fora, Ethan. | neutro | NPC (conversa ao apertar E) — main.js:490 | **falta** |
 | `ff1b8f3df.ogg` | Ethan. Sete anos... | hesitante / pensativo | Sete Anos Depois — missions_ethan.js:190 | **falta** |
 | `fbecde2a3.ogg` | O nosso antigo esconderijo já era. O grupo rival destruiu tudo. | neutro | Sete Anos Depois — missions_ethan.js:191 | **falta** |
 | `f774eee94.ogg` | Pelo que eu sei, só sobramos nós dois. | neutro | Sete Anos Depois — missions_ethan.js:192 | **falta** |

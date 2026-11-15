@@ -220,7 +220,8 @@ document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === renderer.domElement;
   // liberação do mouse pedida pelo próprio jogo (menu de loja, celular, documento): não é pausa,
   // mesmo que o aviso chegue depois de o menu já ter fechado (escolha rápida pelo teclado)
-  if (!locked && G._selfUnlock) { G._selfUnlock = false; if (!overlayOpen() && G._relock && started && !paused) requestLock(); return; }
+  const recentMenu = G.inputLocked || performance.now() - (G._overlayT || 0) < 1500;
+  if (!locked && (G._selfUnlock || recentMenu)) { G._selfUnlock = false; if (!overlayOpen() && !G.inputLocked && started && !paused) requestLock(); return; }
   if (!locked && started && !overlayOpen()) showPause(true);
 });
 renderer.domElement.addEventListener('click', () => { if (started && !paused && !overlayOpen()) requestLock(); if (G.story) G.story.advance = true; });
@@ -230,7 +231,7 @@ window.addEventListener('mouseup', (e) => { if (e.button === 0) mouseFire = fals
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 function requestLock() { try { const p = renderer.domElement.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* ignore */ } }
 G.unlockPointer = () => { G._relock = locked; if (locked) { G._selfUnlock = true; document.exitPointerLock?.(); } };
-G.relockPointer = () => { if (G._relock && started && !paused) requestLock(); };
+G.relockPointer = () => { G._overlayT = performance.now(); if ((G._relock || locked) && started && !paused) requestLock(); };
 const down = (...c) => c.some((k) => keys.has(k));
 const hit = (...c) => c.some((k) => pressed.has(k));
 G.consumeInteract = () => { if (pressed.has('KeyE')) { pressed.delete('KeyE'); return true; } return false; };
@@ -430,9 +431,21 @@ function wheelMouse(dx, dy) {
 G.wheel = wheel; G.openWheel = openWheel; G.closeWheel = closeWheel;
 
 // ---------------- INÍCIO DE CAMPANHA ----------------
+// GUARDA-ROUPA: o que o jogador comprou nas lojas de roupas, sapataria e barbearia (salvo na campanha)
+const WARDROBE = {
+  jaqueta: { title: 'Jaquetas', items: [['Jaqueta de couro preta', { jacket: 0x161618 }, 240], ['Jaqueta jeans', { jacket: 0x3a5a80 }, 180], ['Jaqueta marrom', { jacket: 0x5a3b26 }, 200], ['Jaqueta verde-oliva', { jacket: 0x4a4e30 }, 190], ['Jaqueta vermelha', { jacket: 0x7a1a1a }, 210], ['Sem jaqueta (só camisa)', { jacket: null }, 0]] },
+  camisa: { title: 'Camisas', items: [['Camisa branca', { shirt: 0xeeeeea, longSleeve: true }, 70], ['Camiseta preta', { shirt: 0x18181a, longSleeve: false }, 50], ['Camisa vinho', { shirt: 0x6a1a26, longSleeve: true }, 80], ['Camiseta cinza', { shirt: 0x7a7e84, longSleeve: false }, 45], ['Camisa azul-clara', { shirt: 0x8ab0d8, longSleeve: true }, 75], ['Camiseta verde', { shirt: 0x2e5a3a, longSleeve: false }, 50]] },
+  calca: { title: 'Calças', items: [['Calça jeans escura', { pants: 0x2a3a5a }, 120], ['Calça preta', { pants: 0x18181c }, 110], ['Calça bege', { pants: 0xb8a888 }, 100], ['Calça cargo verde', { pants: 0x4a4e38 }, 130], ['Calça cinza', { pants: 0x5a5e64 }, 100]] },
+  bone: { title: 'Bonés e capuz', items: [['Boné preto', { hat: 'cap', hatColor: 0x161616 }, 60], ['Boné vermelho', { hat: 'cap', hatColor: 0xa82222 }, 60], ['Boné azul', { hat: 'cap', hatColor: 0x1d3f72 }, 60], ['Capuz preto', { hat: 'hood', hatColor: 0x121214 }, 90], ['Sem boné', { hat: null }, 0]] },
+  sapato: { title: 'Calçados', items: [['Bota marrom', { shoes: 0x4a2a18 }, 220], ['Tênis branco', { shoes: 0xeeeeee }, 180], ['Tênis preto', { shoes: 0x161616 }, 170], ['Sapato social preto', { shoes: 0x0a0a0a }, 200], ['Tênis vermelho', { shoes: 0xa02020 }, 175]] },
+  cabelo: { title: 'Cortes de cabelo', items: [['Corte curto', { hairStyle: 'short' }, 40], ['Cabeça raspada', { hairStyle: 'bald' }, 30], ['Cabelo comprido', { hairStyle: 'long' }, 60]] },
+  barba: { title: 'Barba', items: [['Fazer a barba', { beard: false }, 25], ['Deixar com barba', { beard: true }, 25]] },
+};
+const SHOP_WARDROBE = { roupas: ['jaqueta', 'camisa', 'calca', 'bone'], boutique: ['sapato'], barbearia: ['cabelo', 'barba'] };
+function outfitOf(C) { const o = {}; for (const v of Object.values(C.outfit || {})) Object.assign(o, v); return o; }
 function lookFor(C) {
-  if (C.char === 'ryan') return CHARACTERS.ryan.look;
-  if (C.done.includes('liberdade')) return CHARACTERS.ethan.look;
+  if (C.char === 'ryan') return { ...CHARACTERS.ryan.look, ...outfitOf(C) };
+  if (C.done.includes('liberdade')) return { ...CHARACTERS.ethan.look, ...outfitOf(C) };
   return C.done.includes('prologo') ? CHARACTERS.ethanPrison.look : CHARACTERS.ethanYoung.look;
 }
 function startFromState(st) {
@@ -834,6 +847,7 @@ const MENUS = {
 function shopMenu(npc) {
   const kind = shopKind(npc.name);
   let items = (MENUS[kind] || []).map((k) => IT[k]);
+  if (SHOP_WARDROBE[kind] && !(kind === 'boutique' && !/sapataria/i.test(npc.name))) return [...SHOP_WARDROBE[kind].map((k) => ({ text: `${WARDROBE[k].title} — ver opções`, price: 0, wardrobe: k })), ...(G.campaign().outfit && Object.keys(G.campaign().outfit).length ? [{ text: 'Voltar ao visual original — grátis', price: 0, resetOutfit: true }] : [])];
   if (kind === 'banco') return [{ text: G.weapons.current !== 'mao' ? 'Anunciar o ASSALTO (arma em punho)' : 'Assaltar o banco (precisa estar com uma arma na mão — Tab)', heist: true, price: 0 }];
   if (kind === 'ferragens') {
     const inv = G.weapons.inv;
@@ -1554,6 +1568,16 @@ async function interactNPC(npc) {
     const i = await S.choose(opts, npc.name);
     G.inputLocked = false;
     if (i < items.length && items[i].heist) { npc.talking = false; G.inputLocked = false; startHeist(npc); return; }
+    if (i < items.length && items[i].resetOutfit) { C.outfit = {}; await S.fadeOut(0.4); G.player.setLook(lookFor(C)); await S.fadeIn(0.4); toast('Visual original de volta', 2.5); npc.talking = false; return; }
+    if (i < items.length && items[i].wardrobe) { // escolhe a peça; o visual muda na hora e fica salvo
+      const W = WARDROBE[items[i].wardrobe], cur = (C.outfit || {})[items[i].wardrobe];
+      const opts2 = [...W.items.map(([nm, v, pr]) => ({ text: `${nm} — ${pr ? 'R$ ' + pr : 'grátis'}${cur && JSON.stringify(cur) === JSON.stringify(v) ? ' (usando)' : ''}` })), { text: 'Voltar' }];
+      G.inputLocked = true; const k = await S.choose(opts2, W.title); G.inputLocked = false;
+      if (k < W.items.length) { const [nm, v, pr] = W.items[k];
+        if (C.money < pr) toast(`Dinheiro insuficiente: ${nm} custa R$ ${pr} (você tem R$ ${C.money})`, 3);
+        else { G.addMoney(-pr); C.outfit = { ...(C.outfit || {}), [items[i].wardrobe]: v }; await S.fadeOut(0.4); G.player.setLook(lookFor(C)); await S.fadeIn(0.4); G.sound('cash'); toast(`${nm}${pr ? (/cabelo|barba/.test(items[i].wardrobe) ? ' — feito por R$ ' : ' — comprado por R$ ') + pr : ''}. Visual atualizado`, 3); G.saveNow(); } }
+      npc.talking = false; return;
+    }
     if (i < items.length) {
       const it = items[i];
       if (C.money < it.price) toast('Dinheiro insuficiente');

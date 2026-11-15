@@ -33,7 +33,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:1247"
+   "main.js:1261"
   ],
   "telefone": false,
   "gravado": false
@@ -46,7 +46,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:1247"
+   "main.js:1261"
   ],
   "telefone": false,
   "gravado": false
@@ -767,19 +767,6 @@
   "gravado": false
  },
  {
-  "id": "f4ea31cca",
-  "arquivo": "f4ea31cca.ogg",
-  "personagem": "Motorista",
-  "fala": "Meu carro!",
-  "tom": "enfático",
-  "contexto": "NPC (conversa ao apertar E)",
-  "onde": [
-   "main.js:889"
-  ],
-  "telefone": false,
-  "gravado": false
- },
- {
   "id": "fb9ec9289",
   "arquivo": "fb9ec9289.ogg",
   "personagem": "Motorista",
@@ -787,7 +774,7 @@
   "tom": "enfático",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:994"
+   "main.js:1008"
   ],
   "telefone": false,
   "gravado": false
@@ -800,7 +787,20 @@
   "tom": "enfático",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:994"
+   "main.js:1008"
+  ],
+  "telefone": false,
+  "gravado": false
+ },
+ {
+  "id": "f4ea31cca",
+  "arquivo": "f4ea31cca.ogg",
+  "personagem": "Motorista",
+  "fala": "Meu carro!",
+  "tom": "enfático",
+  "contexto": "NPC (conversa ao apertar E)",
+  "onde": [
+   "main.js:903"
   ],
   "telefone": false,
   "gravado": false
@@ -1190,7 +1190,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:477"
+   "main.js:490"
   ],
   "telefone": false,
   "gravado": false
@@ -1203,7 +1203,7 @@
   "tom": "neutro",
   "contexto": "NPC (conversa ao apertar E)",
   "onde": [
-   "main.js:477"
+   "main.js:490"
   ],
   "telefone": false,
   "gravado": false
